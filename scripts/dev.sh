@@ -2,11 +2,11 @@
 #
 # Media Libraries development helper.
 #
-#   ./scripts/dev.sh link       symlink src/ into the extensions dir (dev mode)
+#   ./scripts/dev.sh link       link src/ into the extensions dir (dev mode)
 #   ./scripts/dev.sh install    copy src/ into the extensions dir (real install)
 #   ./scripts/dev.sh reload     recompile schemas and disable/enable the extension
 #   ./scripts/dev.sh logs [since]  shell logs; follows unless given e.g. '5 min ago'
-#   ./scripts/dev.sh pack       build a distributable .shell-extension.zip
+#   ./scripts/dev.sh pack       build dist/<uuid>.shell-extension.zip for extensions.gnome.org
 #   ./scripts/dev.sh scan [args]   scan every enabled section; passes extra
 #                                  arguments through, e.g. --only films --force
 #   ./scripts/dev.sh prune      remove superseded builds, keeping the current one
@@ -72,12 +72,24 @@ strip_unshipped() {
     find "$1" -name 'CLAUDE.md' -type f -delete
 }
 
+# The extension directory as links into src/ -- except its entry point, which
+# is scripts/dev-extension.js: that one imports lib/ from a fresh copy on every
+# edit, so a reload runs what is on disk. Everything that ships is src/'s own.
+link_tree() {
+    mkdir -p "$EXT_DIR"
+    local entry
+    for entry in "$SRC_DIR"/*; do
+        [[ "$(basename "$entry")" == extension.js ]] && continue
+        ln -s "$entry" "$EXT_DIR/$(basename "$entry")"
+    done
+    ln -s "$REPO_DIR/scripts/dev-extension.js" "$EXT_DIR/extension.js"
+}
+
 cmd_link() {
     compile_schemas
     remove_installed
-    mkdir -p "$EXT_ROOT"
-    ln -s "$SRC_DIR" "$EXT_DIR"
-    ok "Linked $EXT_DIR → $SRC_DIR"
+    link_tree
+    ok "Linked $EXT_DIR → $SRC_DIR (entry point: scripts/dev-extension.js)"
     warn "Dev mode: edits in src/ are live. Run './scripts/dev.sh reload' to apply them."
     enable_extension
 }
@@ -136,7 +148,7 @@ cmd_reload() {
     wait_for_state INACTIVE || warn "Extension did not report INACTIVE; enabling anyway."
     gnome-extensions enable "$UUID"
     if wait_for_state ACTIVE; then
-        ok "Reloaded. extension.js cache-busts the module import, so no shell restart needed."
+        ok "Reloaded. The development entry point re-imports lib/, so no shell restart needed."
     else
         warn "Extension is enabled but not ACTIVE. Check './scripts/dev.sh logs' for a JS error."
         return 1
@@ -160,26 +172,62 @@ cmd_logs() {
 
 cmd_pack() {
     require gnome-extensions
-    compile_schemas
+    require glib-compile-schemas
+    require unzip
     local out="$REPO_DIR/dist"
+    local zip="$out/$UUID.shell-extension.zip"
+
+    # An install compiles the schema with --strict, so a warning here is a
+    # failed install there. GNOME 44 and later compile it on install, so the
+    # zip carries the XML only.
+    glib-compile-schemas --strict --dry-run "$SRC_DIR/schemas" || die "The schema does not pass --strict."
+
     mkdir -p "$out"
-    info "Packing extension..."
+    info "Packing $UUID..."
     # pack bundles everything under --extra-source dirs and has no exclude flag,
     # so pack a staged copy with the byte-compiled cruft and CLAUDE.md notes removed
     local stage
     stage=$(mktemp -d)
     cp -r "$SRC_DIR"/. "$stage"/
     strip_unshipped "$stage"
+    rm -f "$stage/schemas/gschemas.compiled"
+    cp "$REPO_DIR/LICENSE" "$stage/"
     if ! ( cd "$stage" && gnome-extensions pack --force \
         --extra-source=lib \
         --extra-source=backend \
         --extra-source=icons \
+        --extra-source=LICENSE \
         -o "$out" . ); then
         rm -rf "$stage"
         die "gnome-extensions pack failed"
     fi
     rm -rf "$stage"
-    ok "Packed to $out/$UUID.shell-extension.zip"
+
+    check_pack "$zip"
+    unzip -l "$zip"
+    ok "Packed $zip"
+}
+
+# Everything that should ship is in the zip, and nothing else is: the entry
+# points, the stylesheet, metadata, the schema XML, the licence, and every
+# module, scanner and icon under lib/, backend/ and icons/. A stray file there
+# (an editor backup, a note) fails here rather than going to review.
+check_pack() {
+    local zip="$1" expected actual missing extra
+    expected="$(
+        cd "$SRC_DIR"
+        printf '%s\n' extension.js prefs.js metadata.json stylesheet.css schemas/*.gschema.xml LICENSE
+        find lib -type f -name '*.js'
+        find backend -type f -name '*.py' -not -path '*/__pycache__/*'
+        find icons -type f -name '*.svg'
+    )"
+    actual="$(unzip -Z1 "$zip" | grep -v '/$')"
+
+    missing="$(comm -23 <(sort <<<"$expected") <(sort <<<"$actual"))"
+    extra="$(comm -13 <(sort <<<"$expected") <(sort <<<"$actual"))"
+    [[ -z "$missing" ]] || die "Missing from the zip:"$'\n'"$missing"
+    [[ -z "$extra" ]] || die "Should not be in the zip:"$'\n'"$extra"
+    ok "Zip holds exactly the $(wc -l <<<"$expected") files that should ship."
 }
 
 # Scan every enabled section. The scanner reads the preferences itself
@@ -231,8 +279,10 @@ cmd_stalls() {
 }
 
 cmd_status() {
-    if [[ -L "$EXT_DIR" ]]; then
-        echo "install:  symlink → $(readlink -f "$EXT_DIR")"
+    if [[ -L "$EXT_DIR/extension.js" ]]; then
+        echo "install:  link → $SRC_DIR (entry point: $(readlink -f "$EXT_DIR/extension.js"))"
+    elif [[ -L "$EXT_DIR" ]]; then
+        echo "install:  old-style symlink → $(readlink -f "$EXT_DIR") (run 'make link' again)"
     elif [[ -d "$EXT_DIR" ]]; then
         echo "install:  copy at $EXT_DIR"
     else

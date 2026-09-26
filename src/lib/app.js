@@ -58,6 +58,7 @@ import {DetailDialog} from './detailDialog.js';
 import {Tracker} from './tracking.js';
 import {PlaybackWatcher} from './playback.js';
 import {Controls, NAVIGATION_KEYS, handleBoundKey} from './controls.js';
+import {note} from './log.js';
 
 // Gap between the surface and the work-area edges, in logical px.
 const OUTER_MARGIN = 28;
@@ -91,7 +92,7 @@ function openPath(path, command = '', beforeLaunch = null) {
             try {
                 isDir = file.query_info_finish(result).get_file_type() === Gio.FileType.DIRECTORY;
                 found = true;
-            } catch (e) {
+            } catch {
                 // Not there: let the launch below say so.
             }
             if (found && !isDir)
@@ -217,7 +218,20 @@ export class MediaLibrariesApp {
     // ------------------------------------------------------------------
     // Lifecycle
     // ------------------------------------------------------------------
+    // The shell never disables an extension whose enable() threw, so a failure
+    // halfway would leave the button, the signals and the key binding behind
+    // until a restart: take down what was built, then fail as the shell
+    // expects.
     enable() {
+        try {
+            this._enable();
+        } catch (e) {
+            this.disable();
+            throw e;
+        }
+    }
+
+    _enable() {
         migrateOpenCommand(this._settings);
         this._controls.enable();
         this._tracker.enable();
@@ -398,7 +412,7 @@ export class MediaLibrariesApp {
             this._build();
             this._syncVisibility(false);
             this._browser?.restore(browsing);
-            console.log('[Media Libraries] Rebuilt');
+            note('Rebuilt');
             return GLib.SOURCE_REMOVE;
         });
     }

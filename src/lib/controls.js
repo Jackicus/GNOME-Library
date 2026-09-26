@@ -22,6 +22,7 @@ import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 
 import {ACTIONS} from './actions.js';
+import {note} from './log.js';
 
 // What counts as "start moving around" when nothing is focused yet.
 export const NAVIGATION_KEYS = [
@@ -209,7 +210,7 @@ export class Controls {
         try {
             ({default: Manette} = await import('gi://Manette'));
         } catch {
-            console.log('[Media Libraries] libmanette is not installed; game controllers are not read.');
+            note('libmanette is not installed; game controllers are not read.');
             return;
         } finally {
             if (this._starting === starting)
