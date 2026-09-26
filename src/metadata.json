@@ -1,8 +1,9 @@
 {
   "uuid": "media-libraries@jackt",
   "name": "Video Menu",
-  "description": "Your TV shows and films as a library on the desktop, in the overview, or in a floating panel.",
+  "description": "Your own TV shows and films as a library, opened from a button beside Show Apps: posters, synopses, seasons and episodes, in the overview, a pop-up panel, on the desktop or on a workspace of its own. It plays nothing itself; a pick opens in VLC, mpv or whichever player you choose, and it remembers what you have watched.\n\nNothing shows until you add your folders in the preferences and press Rescan, which needs Python 3. The scan looks each title up on TVmaze and Wikipedia, and on TMDB if you give it a TMDB key (kept in plain text in your settings), and caches the artwork in ~/.cache/media-libraries.\n\nThis product uses the TMDB API but is not endorsed or certified by TMDB.",
   "settings-schema": "org.gnome.shell.extensions.media-libraries",
-  "shell-version": [ "48", "49", "50" ],
-  "version": 1
+  "shell-version": [ "50" ],
+  "url": "https://github.com/Jackicus/GNOME-Video-Menu",
+  "version-name": "1.0"
 }

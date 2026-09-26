@@ -22,7 +22,7 @@ anything itself. Pick an episode and it opens in VLC, mpv or whatever you use.
 
 ## Install
 
-Needs GNOME Shell 48, 49 or 50, and Python 3 for the folder scanner.
+Needs GNOME Shell 50, and Python 3 for the folder scanner.
 
 ```bash
 git clone https://github.com/Jackicus/GNOME-Video-Menu.git
@@ -43,6 +43,10 @@ On the **TV Shows** and **Films** pages, add your folders and press
 TVmaze and Wikipedia work straight away. A free
 [TMDB key](https://www.themoviedb.org/settings/api) adds backdrops, ratings
 and taglines. It's stored in dconf in plain text, like any other setting.
+
+This product uses the TMDB API but is not endorsed or certified by TMDB.
+Show data comes from [TVmaze](https://www.tvmaze.com/) and synopses from
+[Wikipedia](https://www.wikipedia.org/), both under CC BY-SA.
 
 ## Where it opens
 
@@ -108,6 +112,10 @@ make nested    # start a throwaway nested GNOME Shell, mirrored in a window
 
 `CLAUDE.md` explains how it's built. [`docs/`](docs/) covers the shell
 internals it depends on, compatibility, and publishing.
+
+## Licence
+
+GPL-2.0-or-later. See [LICENSE](LICENSE).
 
 ---
 
