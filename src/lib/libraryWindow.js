@@ -1,7 +1,7 @@
 // The "modal" library: the library inside the folder's panel.
 //
-// The shell's own FolderView is a BaseAppView sitting in an AppFolderDialog
-// (appDisplay.js:2085) — a grid of apps inside the panel that zoomed out of
+// The shell's own FolderView is a BaseAppView sitting in an `AppFolderDialog`
+// (`js/ui/appDisplay.js`) — a grid of apps inside the panel that zoomed out of
 // the folder's icon. This is that shape with posters: `panel.js` is the panel,
 // `libraryView.js` the tabs and the grids in it, and the icon it comes out of
 // is the library's button beside Show Apps (libraryButton.js). Nothing is

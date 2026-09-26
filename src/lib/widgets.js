@@ -59,7 +59,8 @@ export function createArtwork({path, title, icon, width, height, styleClass = 'm
         style_class: 'ml-art-placeholder-content',
     });
     // `width` is physical pixels but `icon_size` is logical, so the share of
-    // the artwork the icon takes is divided back down (iconGrid.js:143-147).
+    // the artwork the icon takes is divided back down — the same
+    // physical-to-logical conversion `js/ui/iconGrid.js` applies to its own icons.
     const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
     stack.add_child(new St.Icon({
         icon_name: icon,
@@ -91,7 +92,8 @@ export function createArtwork({path, title, icon, width, height, styleClass = 'm
 // button and the folder dialog's edit button — so the hover, focus ring and
 // pressed state are the theme's rather than ours. No `St.Icon` child and no
 // size: `.icon-button StIcon { icon-size }` sizes the glyph in em, so it
-// follows Large Text, exactly as `appDisplay.js:2574-2582` builds it.
+// follows Large Text, exactly as the shell's own icon buttons in
+// `js/ui/appDisplay.js` are built.
 export function createIconButton(iconName, {styleClass = 'icon-button', accessibleName} = {}) {
     return new St.Button({
         style_class: styleClass,

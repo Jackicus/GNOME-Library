@@ -1,6 +1,6 @@
 // The panel the shell opens an app folder in, with the folder taken out of it.
 //
-// This is the shell's AppFolderDialog (appDisplay.js:2461-2523) — the shade,
+// This is the shell's `AppFolderDialog` class (`js/ui/appDisplay.js`) — the shade,
 // the panel that zooms out of the icon it was opened from, the grab, the
 // click-away, the settle — with the folder's grid and its name entry removed.
 // What goes inside is the subclass's: the detail pane (detailDialog.js) or the

@@ -39,7 +39,8 @@ import {LibraryView} from './libraryView.js';
 
 // The overview gives the dash no more than this share of its height, and
 // leaves this much of it between its rows (DASH_MAX_HEIGHT_RATIO and
-// VERTICAL_SPACING_RATIO, overviewControls.js:22-23, which it does not export).
+// VERTICAL_SPACING_RATIO, module-private constants in js/ui/overviewControls.js
+// that it does not export).
 const DASH_MAX_SHARE = 0.16;
 const VERTICAL_SPACING_SHARE = 0.02;
 
@@ -92,10 +93,10 @@ export class MediaMenu {
         // Show Apps' own checked state says whether the grid is up: the shell
         // checks it as the grid opens and unchecks it on every way out —
         // Escape, a swipe, a search, leaving the overview — so that is what
-        // our view follows. (The app display's visibility does not: it is held
-        // on for the whole slide down to the window picker, which used to
-        // leave a view up with nothing showing it and Show Apps still ours,
-        // so the next click on it went nowhere.)
+        // our view follows. (The app display's visibility does not: it stays
+        // held on for the whole slide down to the window picker, so a view
+        // keyed to it would stay up with nothing showing it and Show Apps
+        // still ours, and the next click on it would go nowhere.)
         //
         // Unchecked with the view up in an overview our button opened, that
         // is Show Apps pressed — or the app grid stepped down from — and the
@@ -353,12 +354,12 @@ export class MediaMenu {
         if (this._escapeId)
             return;
         // Keyed on the event type, as the date menu keys its own captures
-        // (dateMenu.js:923-931), so the pointer crossing the overview never
+        // (js/ui/dateMenu.js), so the pointer crossing the overview never
         // reaches JS. The `key` detail is wider than a key press — releases
         // and the input method's own events carry it too — and asking one of
         // those for a key symbol is a Clutter assertion, so the type is
-        // checked first, exactly as the date menu's handler does
-        // (calendar.js:860).
+        // checked first, exactly as the date menu's own capture handler does
+        // (js/ui/calendar.js).
         this._escapeId = global.stage.connect('captured-event::key', (_stage, event) => {
             if (event.type() !== Clutter.EventType.KEY_PRESS ||
                 event.get_key_symbol() !== Clutter.KEY_Escape ||
@@ -411,11 +412,11 @@ export class MediaMenu {
     // does, since what the slot was last given says nothing of which of the
     // two sizes that was.
     //
-    // Step for step the shell's `vfunc_allocate` (overviewControls.js:155-183),
-    // the dash included whether or not it is visible: the shell measures it
-    // either way, and Dash to Panel hides it. Reading the visibility instead
-    // left this estimate a dash-height taller than the slot the shell went on
-    // to hand out.
+    // Step for step the shell's own `ControlsManagerLayout.vfunc_allocate`
+    // (js/ui/overviewControls.js), the dash included whether or not it is
+    // visible: the shell measures it either way, and Dash to Panel hides it.
+    // Reading the visibility instead would leave this estimate a dash-height
+    // taller than the slot the shell goes on to hand out.
     _slotSize() {
         if (this._slot)
             return this._slot;
