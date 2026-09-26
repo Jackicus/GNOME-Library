@@ -132,7 +132,7 @@ function listNames(path) {
     try {
         children = Gio.File.new_for_path(path).enumerate_children(
             'standard::name', Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS, null);
-    } catch (e) {
+    } catch {
         return names;   // the folder is not there yet: nothing is cached
     }
     let info;

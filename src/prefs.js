@@ -1261,7 +1261,7 @@ export default class MediaLibrariesPreferences extends ExtensionPreferences {
                 let found = false;
                 try {
                     found = file.query_info_finish(result).get_file_type() === Gio.FileType.DIRECTORY;
-                } catch (e) {
+                } catch {
                     // Missing or unreachable: the row says the same either way.
                 }
                 if (!found && stillCurrent())
@@ -1282,7 +1282,7 @@ export default class MediaLibrariesPreferences extends ExtensionPreferences {
                 const file = source.select_folder_finish(result);
                 if (file)
                     onChosen(file.get_path());
-            } catch (e) {
+            } catch {
                 // Cancelled.
             }
         });

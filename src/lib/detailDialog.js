@@ -35,8 +35,8 @@ import {PANE_INSET} from './shape.js';
 
 export const DetailDialog = GObject.registerClass(
 class MediaLibrariesDetailDialog extends MediaPanel {
-    _init({onOpen, tracker, size = 1, mode = 'menu'}) {
-        super._init({
+    constructor({onOpen, tracker, size = 1, mode = 'menu'}) {
+        super({
             size,
             // In "modal" the panel outlives the overview that may have been
             // up when the pick was made, so it is never hosted in it.

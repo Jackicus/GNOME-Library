@@ -189,8 +189,8 @@ class MediaLibrariesPosterGridLayout extends IconGrid.IconGridLayout {
 
 const MediaGrid = GObject.registerClass(
 class MediaLibrariesMediaGrid extends AppDisplay.AppGrid {
-    _init({rows, columns, iconSize}) {
-        super._init({
+    constructor({rows, columns, iconSize}) {
+        super({
             allow_incomplete_pages: true,
             rows_per_page: rows,
             columns_per_page: columns,
@@ -268,8 +268,8 @@ let pendingGrid = null;
 
 const MediaView = GObject.registerClass(
 class MediaLibrariesMediaView extends BaseAppView {
-    _init({section, items, onActivate}) {
-        super._init({
+    constructor({section, items, onActivate}) {
+        super({
             layout_manager: new Clutter.BinLayout(),
             x_expand: true,
             y_expand: true,

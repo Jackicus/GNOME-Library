@@ -235,7 +235,7 @@ export class DetailView {
         // Only the artwork and its buttons are built now. The rest is built on
         // the next idle, off the frames of the flight or the zoom that is
         // opening the pane, and the list inside it later still as it scrolls.
-        this._buildPendingMain = () => this._buildMain(item, section);
+        this._buildPendingMain = () => this._buildMain(item);
         this._deferredMain = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
             this._deferredMain = 0;
             this._addMain();
@@ -343,7 +343,7 @@ export class DetailView {
     }
 
     // Right: title, facts, synopsis, group tabs, list.
-    _buildMain(item, section) {
+    _buildMain(item) {
         const main = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true, y_expand: true, style_class: 'ml-detail-main'});
 
         main.add_child(createLabel(item.title, 'ml-detail-title'));

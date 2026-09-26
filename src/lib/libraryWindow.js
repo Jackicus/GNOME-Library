@@ -24,10 +24,10 @@ import {MediaPanel} from './panel.js';
 // came from, Escape, or a click away, so its header is the tabs alone.
 const LibraryPanel = GObject.registerClass(
 class MediaLibrariesLibraryPanel extends MediaPanel {
-    _init({sections, itemsFor, columns, rows, onActivate, onSwitch, onOpenSettings}) {
+    constructor({sections, itemsFor, columns, rows, onActivate, onSwitch, onOpenSettings}) {
         // The folder's own behaviour: the panel goes when the button it came
         // out of unmaps, which is what closes it with the overview.
-        super._init({dieWithSource: true});
+        super({dieWithSource: true});
 
         this._sections = sections;
         this._itemsFor = itemsFor;

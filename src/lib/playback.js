@@ -48,7 +48,7 @@ function pathOf(url) {
         return null;
     try {
         return Gio.File.new_for_uri(url).get_path();
-    } catch (e) {
+    } catch {
         return null;
     }
 }
@@ -190,7 +190,7 @@ export class PlaybackWatcher {
                 try {
                     const [owner] = bus.call_finish(result).deep_unpack();
                     this._addName(name, owner);
-                } catch (e) {
+                } catch {
                     // Gone again already, or cancelled: nothing to follow.
                 }
             });
@@ -208,7 +208,7 @@ export class PlaybackWatcher {
                 let props;
                 try {
                     [props] = bus.call_finish(result).recursiveUnpack();
-                } catch (e) {
+                } catch {
                     return;
                 }
                 if (this._players.get(owner) === player)
