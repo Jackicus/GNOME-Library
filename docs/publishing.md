@@ -36,7 +36,7 @@ This runs `scripts/dev.sh pack` (`cmd_pack`), which:
    and diffs it against `unzip -Z1` of the built zip, failing loudly and
    naming both what's missing and what shouldn't be there on any mismatch;
 5. deletes the staging directory and reports
-   `dist/media-libraries@jackt.shell-extension.zip`.
+   `dist/video-library@jackicus.shell-extension.zip`.
 
 What each shipped part is:
 
@@ -50,7 +50,7 @@ What each shipped part is:
   process.
 - **`backend/`** — a Python 3 program (`scan_library.py`, `media_scanner.py`,
   `metadata.py`) that walks the configured folders, fetches artwork and
-  metadata online, and writes `~/.cache/media-libraries/library.json`. It is
+  metadata online, and writes `~/.cache/video-library/library.json`. It is
   not GJS and is not spawned by `extension.js`: the preferences' Rescan
   buttons and `dev.sh scan` both invoke it out-of-process with `python3`. See
   [Scripts, subprocesses and network access](#scripts-subprocesses-and-network-access)
@@ -76,7 +76,7 @@ What is left out, and why it is safe to leave out:
 ```sh
 make uninstall
 make pack
-gnome-extensions install dist/media-libraries@jackt.shell-extension.zip
+gnome-extensions install dist/video-library@jackicus.shell-extension.zip
 # log out and back in, then enable it
 ```
 
@@ -99,13 +99,13 @@ Current contents:
 
 | Key | Value | Verdict |
 |---|---|---|
-| `uuid` | `media-libraries@jackt` | Valid characters, not under `gnome.org`. Cannot change after the first upload — see [the name](#the-extension-name-versus-the-repo-name) |
-| `name` | `Video Menu` | See [the name](#the-extension-name-versus-the-repo-name) |
+| `uuid` | `video-library@jackicus` | Valid characters, not under `gnome.org`. Cannot change after the first upload |
+| `name` | `Video Library` | Matches the UUID, the schema and the repo name |
 | `description` | multi-paragraph, with the TMDB notice | Says what it draws, that Python and a Rescan are needed, where it looks things up, and that it plays nothing itself |
 | `settings-schema` | set | Correct; `getSettings()` is called with no arguments in both `lib/app.js` and `prefs.js`, as Best Practices asks |
 | `shell-version` | `["50"]` | The only version actually booted (per `CLAUDE.md`, 48 and 49 are audited against the shell's sources, not booted, so they're not claimed yet) |
 | `version-name` | `"1.0"` | Valid: letters, numbers, space and period only, ≤ 16 characters |
-| `url` | `https://github.com/Jackicus/GNOME-Video-Menu` | Set |
+| `url` | `https://github.com/Jackicus/GNOME-Video-Library` | Set |
 | `version` | absent | Correct — EGO assigns and increments this itself; it should never be set here |
 | `session-modes` | absent | Correct — the extension only needs `user` mode and the guideline says the key "MUST be dropped" in that case |
 | `donations`, `gettext-domain` | absent | Correct; neither is required |
@@ -125,7 +125,7 @@ connected or scheduled before `enable()` runs.
 
 ### Destroy all objects / disconnect all signals / remove main loop sources: meets, spot-checked
 
-`MediaLibrariesApp.disable()` (`lib/app.js`) removes the keybinding
+`VideoLibraryApp.disable()` (`lib/app.js`) removes the keybinding
 (`Main.wm.removeKeybinding('library-shortcut')`), disconnects every
 `connectObject` owner it holds (`global.workspace_manager`, `global.display`,
 `Main.layoutManager`, `Main.overview`, `global.stage`, the theme context, its
@@ -209,7 +209,7 @@ non-GJS program: three Python files (`scan_library.py`, `media_scanner.py`,
 `metadata.py`) that walk the filesystem, make outbound HTTPS requests to
 `api.tvmaze.com`, `api.themoviedb.org` and `en.wikipedia.org` with
 `urllib.request`, and write image and JSON files into
-`~/.cache/media-libraries/`. It is launched two ways, both already careful
+`~/.cache/video-library/`. It is launched two ways, both already careful
 about the one thing that matters most (never putting a credential on a
 command line):
 
@@ -308,8 +308,8 @@ life), so this is inherently cheap with nothing to rebuild.
 
 ### GSettings schemas: meets
 
-The ID `org.gnome.shell.extensions.media-libraries` and path
-`/org/gnome/shell/extensions/media-libraries/` use the required bases, the
+The ID `org.gnome.shell.extensions.video-library` and path
+`/org/gnome/shell/extensions/video-library/` use the required bases, the
 file is named `<schema-id>.gschema.xml`, the XML ships while the compiled
 form does not (above), and the schema declares no `gettext-domain`.
 
@@ -323,7 +323,7 @@ under `src/` itself.
 
 ### Copyrights and trademarks: no issue found
 
-"Video Menu" is not, as far as this review found, a name in current
+"Video Library" is not, as far as this review found, a name in current
 commercial or trademarked use in this space (unlike this extension's sibling,
 Wallpaper Engine, which shares a name with a well-known Steam application).
 No copyrighted third-party content — icons, artwork, code — appears to be
@@ -342,24 +342,6 @@ per-item into the detail pane. Worth deciding before upload whether a small
 per-item credit belongs in `detailView.js` next to the synopsis (e.g.
 "Synopsis: Wikipedia") when that source is the one that answered, and if so,
 whether TMDB and TVmaze need the same treatment for consistency.
-
-### The extension name versus the repo name: open question
-
-The repository is `GNOME-Video-Menu` (its GitHub remote is
-`github.com/Jackicus/GNOME-Video-Menu`), to sit alongside its sibling
-`GNOME-Games-Menu`, and the shipped `name` and the README's title have
-followed it: both are "Video Menu". The UUID (`media-libraries@jackt`) has
-not, nor has the schema ID (`org.gnome.shell.extensions.media-libraries`)
-behind it. That is not itself a guideline violation — EGO reviews the shipped
-`name` and `uuid` for what they are, not for agreeing with each other — but it
-is worth resolving deliberately and *before* the first upload rather than
-after: the UUID becomes the EGO listing's permanent identity once published,
-and `dev.sh`'s own `LEGACY_UUIDS` array (`gnomeflix@jackt`,
-`media-workspace-desktop@jackt`) shows this extension has already been renamed
-more than once pre-release. Decide whether to keep `media-libraries@jackt` or
-move to something like `video-menu@jackt` (matching the name and the
-sibling's `games-menu@jackt`) before uploading — after the first upload it is
-fixed.
 
 ### Don't include unnecessary files: meets, verified by tooling
 
@@ -383,24 +365,18 @@ is for, and what breaks if a future GNOME shell changes it, is covered in
 
 What's actually left open:
 
-1. **Decide the UUID.** The name is now "Video Menu"; the UUID is still
-   `media-libraries@jackt`. Keep it, or move the UUID, the schema ID and path
-   to match the name, before the first upload — see
-   [the name](#the-extension-name-versus-the-repo-name-open-question). This
-   cannot be changed afterwards.
-2. **Decide how to answer the Python backend question**, if asked in review
+1. **Decide how to answer the Python backend question**, if asked in review
    — see [Scripts, subprocesses and network access](#scripts-subprocesses-and-network-access-the-reviews-centre-of-gravity-still-open).
-3. **Decide on per-item Wikipedia/TVmaze attribution** in the detail view —
+2. **Decide on per-item Wikipedia/TVmaze attribution** in the detail view —
    see [Wikipedia and TVmaze attribution](#wikipedia-and-tvmaze-attribution-open-question).
-4. **Test on GNOME 48 and 49** before claiming them in `shell-version` —
+3. **Test on GNOME 48 and 49** before claiming them in `shell-version` —
    they're currently audited against the shell's sources only, not booted
    (`docs/compatibility.md`).
 
 ## Uploading
 
 - **Web:** log in at https://extensions.gnome.org/upload/, choose
-  `dist/media-libraries@jackt.shell-extension.zip` (or whatever the UUID
-  becomes once the name question above is settled), and accept the terms.
+  `dist/video-library@jackicus.shell-extension.zip`, and accept the terms.
 - **Command line** (gnome-extensions 49 and later):
   `gnome-extensions upload --accept-tos dist/<uuid>.shell-extension.zip`. It
   prompts for the EGO username and password; `--user`, `--password` and

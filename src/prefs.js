@@ -111,7 +111,7 @@ const REMOTE_KEYS = {
     0x100811b6: 'Context Menu',
 };
 
-export default class MediaLibrariesPreferences extends ExtensionPreferences {
+export default class VideoLibraryPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const settings = this.getSettings();
         window.set_default_size(720, 640);
@@ -247,7 +247,7 @@ export default class MediaLibrariesPreferences extends ExtensionPreferences {
 
         // Shown for whichever of the two is set to claim one.
         const workspaces = new Adw.ActionRow({
-            title: 'Workspaces Video Menu is using stay open',
+            title: 'Workspaces Video Library is using stay open',
             subtitle: 'A workspace opened for the library or for a picked item is held until you close it or go back from it, so GNOME does not fold it away. With a fixed number of workspaces, set enough in Settings → Multitasking.',
             sensitive: false,
         });
@@ -373,7 +373,7 @@ export default class MediaLibrariesPreferences extends ExtensionPreferences {
             try {
                 Gio.Subprocess.new(['gnome-control-center', 'background'], Gio.SubprocessFlags.NONE);
             } catch (e) {
-                console.warn(`[Media Libraries] Could not open Settings: ${e.message}`);
+                console.warn(`[Video Library] Could not open Settings: ${e.message}`);
             }
         });
         appearance.add(accent);
@@ -1144,7 +1144,7 @@ export default class MediaLibrariesPreferences extends ExtensionPreferences {
             const [ok, bytes] = GLib.file_get_contents(path);
             return ok ? new TextDecoder().decode(bytes).trim() : '';
         } catch (e) {
-            console.warn(`[Media Libraries] Could not read ${path}: ${e.message}`);
+            console.warn(`[Video Library] Could not read ${path}: ${e.message}`);
             return '';
         }
     }
@@ -1362,10 +1362,10 @@ export default class MediaLibrariesPreferences extends ExtensionPreferences {
                         const [, , stderr] = p.communicate_utf8_finish(result);
                         failed = !p.get_successful();
                         if (failed)
-                            console.error(`[Media Libraries] Scan failed: ${stderr}`);
+                            console.error(`[Video Library] Scan failed: ${stderr}`);
                     } catch (e) {
                         failed = true;
-                        console.error(`[Media Libraries] Scan failed: ${e.message}`);
+                        console.error(`[Video Library] Scan failed: ${e.message}`);
                     }
                     button.set_sensitive(true);
                     content.set_icon_name(failed ? 'dialog-warning-symbolic' : 'view-refresh-symbolic');
@@ -1375,7 +1375,7 @@ export default class MediaLibrariesPreferences extends ExtensionPreferences {
                         refresh();
                 });
             } catch (e) {
-                console.error(`[Media Libraries] Could not launch scanner: ${e.message}`);
+                console.error(`[Video Library] Could not launch scanner: ${e.message}`);
                 button.set_sensitive(true);
                 content.set_icon_name('dialog-warning-symbolic');
                 content.set_label('Failed');

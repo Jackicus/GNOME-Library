@@ -1,6 +1,6 @@
 # Private and deep GNOME Shell API
 
-Media Libraries puts its button beside Show Apps, borrows the app grid for its
+Video Library puts its button beside Show Apps, borrows the app grid for its
 posters and the folder dialog for its pop-up pane, and makes both the overview
 and the workspace slide show its pages where they would otherwise show empty
 wallpaper. None of that has a public API of its own. This is everything it
@@ -60,7 +60,7 @@ the symptom in the "if it changes" column.
 `LibraryIcon extends Dash.ShowAppsIcon`:
 
 ```js
-class MediaLibrariesLibraryIcon extends Dash.ShowAppsIcon {
+class VideoLibraryLibraryIcon extends Dash.ShowAppsIcon {
     _init(gicon) {
         this._gicon = gicon;
         super._init();
@@ -101,7 +101,7 @@ try {
     if (panel?.showAppsIconWrapper && ...) this._attachToPanel(panel);
     else if (Main.overview.dash?._dashContainer) this._attachToDash(Main.overview.dash);
 } catch (e) {
-    console.warn(`[Media Libraries] No button beside Show Apps: ${e}`);
+    console.warn(`[Video Library] No button beside Show Apps: ${e}`);
     this._detach();
 }
 ```
@@ -211,7 +211,7 @@ time. Everything else in this file keys off `this._appsBox` being set.
 ```js
 if (!this._appDisplay || !this._appsBox || !this._sections.length) {
     if (this._sections.length)
-        console.warn('[Media Libraries] The overview is not laid out as expected; no media menu.');
+        console.warn('[Video Library] The overview is not laid out as expected; no media menu.');
     this._appsBox = null;
     return;
 }
@@ -398,7 +398,7 @@ every one of them keeping its current shape, name and calling convention.
 ### Private fields of `IconGrid.IconGridLayout` read in `PosterGridLayout.vfunc_allocate`
 
 ```js
-class MediaLibrariesPosterGridLayout extends IconGrid.IconGridLayout {
+class VideoLibraryPosterGridLayout extends IconGrid.IconGridLayout {
     vfunc_allocate() {
         if (!this._pageWidth || !this._pageHeight) return;
         const first = this._pages[0]?.visibleChildren[0];
@@ -523,13 +523,13 @@ if (ws._keepAliveId) { GLib.source_remove(ws._keepAliveId); ws._keepAliveId = 0;
 ...
 if (!ws || ws._keepAliveId) continue;   // set by someone else — the shell's own, mid drag-and-drop
 ws._keepAliveId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, GLib.MAXUINT32, () => GLib.SOURCE_CONTINUE);
-GLib.Source.set_name_by_id(ws._keepAliveId, '[media-libraries] keep workspace');
+GLib.Source.set_name_by_id(ws._keepAliveId, '[video-library] keep workspace');
 ```
 
 **What for.** GNOME's dynamic workspaces fold away any empty workspace that is
 not the active one or the last one; `_keepAliveId` is the field the shell's
 own `WorkspaceTracker._checkWorkspaces()` (`windowManager.js`) checks before
-folding a workspace, and `id !== 0` is what spares it. Media Libraries sets it
+folding a workspace, and `id !== 0` is what spares it. Video Library sets it
 on every workspace it is holding open — the one the library or the pane
 claimed, and the one being slid away from, whose picture the slide still
 needs — and clears it (removing the source explicitly) the moment nothing
@@ -540,7 +540,7 @@ same field — `Main.wm.keepWorkspaceAlive(workspace, duration)` (confirmed
 present, forwarding to `WorkspaceTracker.keepWorkspaceAlive`, at `48.0` and
 50.5) — but it is duration-bound: it arms a timeout that clears
 `_keepAliveId` and re-checks the workspaces itself once `duration` elapses.
-Media Libraries needs a workspace held for as long as the library (or a pick)
+Video Library needs a workspace held for as long as the library (or a pick)
 is open on it, which can be arbitrarily longer than any fixed duration, and
 released the instant that is no longer true — not re-armed on a clock. The
 `GLib.timeout_add(..., GLib.MAXUINT32, () => GLib.SOURCE_CONTINUE)` here never
@@ -600,7 +600,7 @@ const out = [];
 for (const view of views) out.push(...(view._workspaces ?? []));
 ```
 
-**The one difference from Wallpaper Engine's copy.** Media Libraries only ever
+**The one difference from Wallpaper Engine's copy.** Video Library only ever
 draws on the primary monitor (checked immediately after, in `_attach()`:
 `background._monitorIndex !== Main.layoutManager.primaryIndex` skips every
 other preview), so this file does not unwrap `SecondaryMonitorDisplay`'s own

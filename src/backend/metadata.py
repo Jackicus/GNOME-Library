@@ -1,4 +1,4 @@
-"""Online metadata and artwork, cached under ~/.cache/media-libraries.
+"""Online metadata and artwork, cached under ~/.cache/video-library.
 
 Sources, an ordered list per section in the preferences:
 
@@ -18,7 +18,7 @@ A source entry is a name, optionally with a credential slot — "tmdb" is the
 same as "tmdb@1", "tmdb@2" is a second TMDB key to fall back to. Credentials
 arrive from the preferences (the `credentials` setting, read by
 scan_library.py) or, for a standalone run, from the environment
-(MEDIA_LIBRARIES_TMDB_KEY). Neither is ever argv, so they do not show up in `ps`.
+(VIDEO_LIBRARY_TMDB_KEY). Neither is ever argv, so they do not show up in `ps`.
 
 Everything degrades to "no metadata" on failure: the UI draws a placeholder
 tile from the title when poster_path is null, so nothing is ever generated on
@@ -55,7 +55,7 @@ def _user_cache_dir():
     return home if os.path.isabs(home) else os.path.expanduser("~/.cache")
 
 
-CACHE_DIR = os.path.join(_user_cache_dir(), "media-libraries")
+CACHE_DIR = os.path.join(_user_cache_dir(), "video-library")
 POSTER_CACHE_DIR = os.path.join(CACHE_DIR, "posters")
 BACKDROP_CACHE_DIR = os.path.join(CACHE_DIR, "backdrops")
 METADATA_CACHE_DIR = os.path.join(CACHE_DIR, "metadata")
@@ -75,7 +75,7 @@ MISS_RETRY_SECONDS = 7 * 24 * 3600
 # timeout each) before the rest of the run is taken offline; one success in
 # between starts the count over.
 OFFLINE_AFTER_FAILURES = 6
-USER_AGENT = "MediaLibraries/2.0"
+USER_AGENT = "VideoLibrary/2.0"
 
 # The largest the desktop ever draws each kind of artwork, doubled where a
 # HiDPI monitor would ask for twice the pixels, and no further — everything
@@ -504,7 +504,7 @@ class MetadataService:
         # Slot 1 falls back to the environment, which is how a standalone run
         # (no preferences to read) is given a key.
         self._env_credentials = {
-            "tmdb": (os.environ.get("MEDIA_LIBRARIES_TMDB_KEY") or "").strip(),
+            "tmdb": (os.environ.get("VIDEO_LIBRARY_TMDB_KEY") or "").strip(),
         }
         self._warned = set()          # source names already complained about
         self._refused = set()         # entries whose key the source rejected

@@ -23,7 +23,7 @@ import {LIBRARY} from './library.js';
 
 // Show Apps with our icon and our tooltip, and nothing to drop on it.
 const LibraryIcon = GObject.registerClass(
-class MediaLibrariesLibraryIcon extends Dash.ShowAppsIcon {
+class VideoLibraryLibraryIcon extends Dash.ShowAppsIcon {
     _init(gicon) {
         // Read by _createIcon, which the BaseIcon super._init() builds calls
         // straight away — so it is set before the chain-up, as the shell sets
@@ -144,7 +144,7 @@ export class LibraryButton {
             else if (Main.overview.dash?._dashContainer)
                 this._attachToDash(Main.overview.dash);
         } catch (e) {
-            console.warn(`[Media Libraries] No button beside Show Apps: ${e}`);
+            console.warn(`[Video Library] No button beside Show Apps: ${e}`);
             this._detach();
         }
         this.sync(this._checked);

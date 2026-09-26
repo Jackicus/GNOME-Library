@@ -1,4 +1,4 @@
-// Media Libraries in the shell's own pictures of a workspace: the Activities
+// Video Library in the shell's own pictures of a workspace: the Activities
 // overview, and the slide between workspaces.
 //
 // Neither shows the desktop background group: every workspace
@@ -162,7 +162,7 @@ export class OverviewPreview {
         for (const workspace of this._workspacePreviews()) {
             const background = workspace._background;
             const group = background?._backgroundGroup;
-            // Media Libraries only ever draws on the primary monitor, so the other
+            // Video Library only ever draws on the primary monitor, so the other
             // monitors' previews are left as they are.
             if (!group || background._monitorIndex !== Main.layoutManager.primaryIndex)
                 continue;
@@ -177,7 +177,7 @@ export class OverviewPreview {
             // once into a texture and that is what the overview's animation
             // scales, rather than every tile of the page on every frame.
             const host = new PreviewHost({
-                name: `MediaLibrariesPreview:${place}`,
+                name: `VideoLibraryPreview:${place}`,
                 x_align: Clutter.ActorAlign.FILL,
                 y_align: Clutter.ActorAlign.FILL,
                 x_expand: true,

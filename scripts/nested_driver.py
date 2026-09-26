@@ -182,7 +182,7 @@ class Driver:
 
     def ensure_desktop(self):
         """The nested shell boots into the overview, and the hot corner can throw it
-        back there; either way it covers the surface Media Libraries draws on. Dismiss it
+        back there; either way it covers the surface Video Library draws on. Dismiss it
         -- and only wait for the animation when there was something to dismiss."""
         if self._overview_wanted():
             return

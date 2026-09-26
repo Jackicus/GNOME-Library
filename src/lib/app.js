@@ -1,4 +1,4 @@
-// MediaLibrariesApp: owns the library's button, the desktop surface, what is
+// VideoLibraryApp: owns the library's button, the desktop surface, what is
 // on it, and the transitions between them. Rendering happens on the wallpaper
 // layer of the active workspace, so the surface is shown and hidden as
 // workspaces change.
@@ -138,7 +138,7 @@ function workspaceIsLive(workspace) {
     return false;
 }
 
-export class MediaLibrariesApp {
+export class VideoLibraryApp {
     constructor(extension) {
         this._extension = extension;
         this._settings = extension.getSettings();
@@ -307,7 +307,7 @@ export class MediaLibrariesApp {
                     this._scheduleRebuild({reload: true, delay: 400});
             });
         } catch (e) {
-            console.warn(`[Media Libraries] Could not watch library.json: ${e}`);
+            console.warn(`[Video Library] Could not watch library.json: ${e}`);
         }
 
         this._syncVisibility(false);
@@ -565,7 +565,7 @@ export class MediaLibrariesApp {
             if (!ws || ws._keepAliveId)
                 continue;
             ws._keepAliveId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, GLib.MAXUINT32, () => GLib.SOURCE_CONTINUE);
-            GLib.Source.set_name_by_id(ws._keepAliveId, '[media-libraries] keep workspace');
+            GLib.Source.set_name_by_id(ws._keepAliveId, '[video-library] keep workspace');
             this._keptAlive.push(ws);
         }
         // Let the shell fold the now-empty workspaces back up.
@@ -598,7 +598,7 @@ export class MediaLibrariesApp {
     _takeWorkspace(what) {
         const workspace = this._claimWorkspace();
         if (!workspace) {
-            console.warn(`[Media Libraries] No free workspace to open ${what} on ` +
+            console.warn(`[Video Library] No free workspace to open ${what} on ` +
                 '(Settings → Multitasking, or open it on the desktop instead).');
             return null;
         }
@@ -978,7 +978,7 @@ export class MediaLibrariesApp {
             return;
         const workspace = this._claimWorkspace();
         if (!workspace) {
-            console.warn('[Media Libraries] No empty workspace to play on (Settings → Multitasking).');
+            console.warn('[Video Library] No empty workspace to play on (Settings → Multitasking).');
             return;
         }
         this._dismiss();
@@ -1050,7 +1050,7 @@ export class MediaLibrariesApp {
             return;
 
         this._container = new St.Widget({
-            name: 'MediaLibrariesContainer',
+            name: 'VideoLibraryContainer',
             layout_manager: new Clutter.BinLayout(),
             reactive: true,
             can_focus: true,

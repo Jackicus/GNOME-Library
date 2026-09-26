@@ -18,7 +18,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-export default class MediaLibrariesExtension extends Extension {
+export default class VideoLibraryExtension extends Extension {
     async enable() {
         // disable() can arrive while the import is still pending, and would
         // find no app to take down; the one built afterwards would then never
@@ -32,11 +32,11 @@ export default class MediaLibrariesExtension extends Extension {
             if (this._enabling !== enabling)
                 return;
             log.setVerbose(true);
-            this._app = new module.MediaLibrariesApp(this);
+            this._app = new module.VideoLibraryApp(this);
             this._app.enable();
-            console.log(`[Media Libraries] Enabled from ${runDir}`);
+            console.log(`[Video Library] Enabled from ${runDir}`);
         } catch (e) {
-            console.error('[Media Libraries] Failed to load lib/app.js:', e);
+            console.error('[Video Library] Failed to load lib/app.js:', e);
         }
     }
 
@@ -46,7 +46,7 @@ export default class MediaLibrariesExtension extends Extension {
             try {
                 this._app.disable();
             } catch (e) {
-                console.error('[Media Libraries] Error during disable:', e);
+                console.error('[Video Library] Error during disable:', e);
             }
             this._app = null;
         }
@@ -55,7 +55,7 @@ export default class MediaLibrariesExtension extends Extension {
     }
 
     _stageLib() {
-        const base = GLib.build_filenamev([GLib.get_user_runtime_dir(), 'media-libraries']);
+        const base = GLib.build_filenamev([GLib.get_user_runtime_dir(), 'video-library']);
 
         const src = this.dir.get_child('lib');
         const attrs = 'standard::name,standard::type,standard::size,time::modified,time::modified-usec';
@@ -131,7 +131,7 @@ export default class MediaLibrariesExtension extends Extension {
             it.close(null);
             file.delete(null);
         } catch (e) {
-            console.warn(`[Media Libraries] Could not clean ${file.get_path()}: ${e.message}`);
+            console.warn(`[Video Library] Could not clean ${file.get_path()}: ${e.message}`);
         }
     }
 }

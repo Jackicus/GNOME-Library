@@ -1,8 +1,8 @@
 // What has been watched. Two files, one format:
 //
-//   local   ~/.local/share/media-libraries/watched.json
+//   local   ~/.local/share/video-library/watched.json
 //           every mark made on this machine, keyed by absolute path
-//   folder  <library folder>/.media-libraries-watched.json
+//   folder  <library folder>/.video-library-watched.json
 //           the marks for what is in that folder, keyed by the path inside it
 //
 // The `tracking` setting picks which are used. "local" keeps the local file
@@ -38,11 +38,11 @@ import * as Signals from 'resource:///org/gnome/shell/misc/signals.js';
 
 import {SECTIONS} from './library.js';
 
-const FOLDER_FILE = '.media-libraries-watched.json';
+const FOLDER_FILE = '.video-library-watched.json';
 const VERSION = 1;
 
 function localPath() {
-    return GLib.build_filenamev([GLib.get_user_data_dir(), 'media-libraries', 'watched.json']);
+    return GLib.build_filenamev([GLib.get_user_data_dir(), 'video-library', 'watched.json']);
 }
 
 function parse(bytes) {
@@ -285,7 +285,7 @@ export class Tracker extends Signals.EventEmitter {
         } catch (e) {
             // Put aside rather than read as empty: the next mark would write
             // an empty file over every mark ever made here.
-            console.warn(`[Media Libraries] Could not read ${path}, keeping it as ${path}.broken: ${e}`);
+            console.warn(`[Video Library] Could not read ${path}, keeping it as ${path}.broken: ${e}`);
             GLib.rename(path, `${path}.broken`);
         }
     }
@@ -310,7 +310,7 @@ export class Tracker extends Signals.EventEmitter {
                 try {
                     file.replace_contents_finish(result);
                 } catch (e) {
-                    console.error(`[Media Libraries] Could not write ${path}: ${e.message}`);
+                    console.error(`[Video Library] Could not write ${path}: ${e.message}`);
                 }
                 if (this._saveAgain) {
                     this._saveAgain = false;
@@ -335,7 +335,7 @@ export class Tracker extends Signals.EventEmitter {
                 // Not there yet is the usual case, and one this writes below;
                 // a folder that cannot be read at all is not written either.
                 if (!isNotFound(e)) {
-                    console.warn(`[Media Libraries] Could not read ${file.get_path()}: ${e.message}`);
+                    console.warn(`[Video Library] Could not read ${file.get_path()}: ${e.message}`);
                     return;
                 }
             }
@@ -403,7 +403,7 @@ export class Tracker extends Signals.EventEmitter {
                     file.replace_contents_finish(result);
                     this._written.set(folder, contents);
                 } catch (e) {
-                    console.warn(`[Media Libraries] Could not write ${file.get_path()}: ${e.message}`);
+                    console.warn(`[Video Library] Could not write ${file.get_path()}: ${e.message}`);
                 }
                 if (this._again.delete(folder) && this._mode === 'source')
                     this._writeFolder(folder);
@@ -419,7 +419,7 @@ export class Tracker extends Signals.EventEmitter {
                     file.delete_finish(result);
                 } catch (e) {
                     if (!isNotFound(e) && !e.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
-                        console.warn(`[Media Libraries] Could not remove ${file.get_path()}: ${e.message}`);
+                        console.warn(`[Video Library] Could not remove ${file.get_path()}: ${e.message}`);
                 }
             });
         }

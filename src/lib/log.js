@@ -10,5 +10,5 @@ export function setVerbose(on) {
 
 export function note(message) {
     if (verbose)
-        console.log(`[Media Libraries] ${message}`);
+        console.log(`[Video Library] ${message}`);
 }

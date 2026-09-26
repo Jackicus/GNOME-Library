@@ -26,7 +26,7 @@ version and says what to check first on each. Below, "claimed version"/
 
 As with some sibling extensions, there is a separate development entry point:
 `scripts/dev-extension.js`, which never ships, stages `lib/` into
-`$XDG_RUNTIME_DIR/media-libraries/lib-<checksum>/` and imports it dynamically,
+`$XDG_RUNTIME_DIR/video-library/lib-<checksum>/` and imports it dynamically,
 so `make reload` can pick up an edit without a shell restart. `make link`
 installs it in place of `src/extension.js`; `make install` and `make pack`
 ship the real `src/extension.js`, a plain, static `enable()`/`disable()` with
@@ -212,7 +212,7 @@ not because the public method is missing on any claimed version.
 try {
     ({default: Manette} = await import('gi://Manette'));
 } catch {
-    console.log('[Media Libraries] libmanette is not installed; game controllers are not read.');
+    console.log('[Video Library] libmanette is not installed; game controllers are not read.');
     return;
 }
 ```
@@ -286,7 +286,7 @@ is not here, since neither entry point's `disable()` is async.
    `Adw.ShortcutLabel ?? Gtk.ShortcutLabel` fallback can drop its GTK half if
    the floor version is also being raised, but only then.
 4. Install the zip rather than the development link: `make uninstall`, then
-   `make pack`, then install the built `dist/media-libraries@jackt.shell-extension.zip`
+   `make pack`, then install the built `dist/video-library@jackicus.shell-extension.zip`
    with `gnome-extensions install`, then log out and in (a new UUID needs this
    the first time regardless). The dev link's entry point
    (`scripts/dev-extension.js`) and the shipped one (`src/extension.js`)
@@ -318,7 +318,7 @@ is not here, since neither entry point's `disable()` is async.
 10. Testing via `make link`, disable and enable the extension ten times in a
     row and watch `make logs` and the shell's CPU while idle, watching in
     particular for the staged `lib-<checksum>` directories under
-    `$XDG_RUNTIME_DIR/media-libraries/` not accumulating (the sweep in
+    `$XDG_RUNTIME_DIR/video-library/` not accumulating (the sweep in
     `scripts/dev-extension.js`'s `_sweepStages` should leave only the current
     one).
 11. If Games Menu is also installed and enabled, repeat steps 6–9 with both

@@ -4,7 +4,7 @@
 // pages in the overview's app-grid slot (mediaMenu.js) and the pages in the
 // folder's panel (libraryWindow.js) — so paging, swipe, the page dots, the
 // hover arrows, scroll-wheel paging and keyboard focus are the shell's
-// everywhere, and Media Libraries only says what a tile is.
+// everywhere, and Video Library only says what a tile is.
 //
 // A view is a subclass of the class the app grid itself is built on, and a
 // tile is an AppViewItem around a BaseIcon styled `overview-tile`. Three
@@ -108,7 +108,7 @@ function gridFor(width, height, aspect, wantColumns, wantRows) {
 // side of every cell. This one keeps the two apart, sets the cells the theme's
 // gap apart and centres the block on the page. Paging is untouched.
 const PosterGridLayout = GObject.registerClass(
-class MediaLibrariesPosterGridLayout extends IconGrid.IconGridLayout {
+class VideoLibraryPosterGridLayout extends IconGrid.IconGridLayout {
     vfunc_allocate() {
         if (!this._pageWidth || !this._pageHeight)
             return;
@@ -188,7 +188,7 @@ class MediaLibrariesPosterGridLayout extends IconGrid.IconGridLayout {
 });
 
 const MediaGrid = GObject.registerClass(
-class MediaLibrariesMediaGrid extends AppDisplay.AppGrid {
+class VideoLibraryMediaGrid extends AppDisplay.AppGrid {
     constructor({rows, columns, iconSize}) {
         super({
             allow_incomplete_pages: true,
@@ -217,7 +217,7 @@ class MediaLibrariesMediaGrid extends AppDisplay.AppGrid {
 // A BaseIcon is a square bin: it asks for the larger of its child's width and
 // height both ways. This one asks for what its child does, as a plain bin.
 const PosterIcon = GObject.registerClass(
-class MediaLibrariesPosterIcon extends IconGrid.BaseIcon {
+class VideoLibraryPosterIcon extends IconGrid.BaseIcon {
     vfunc_get_preferred_width(forHeight) {
         const node = this.get_theme_node();
         const [min, nat] = this.child.get_preferred_width(node.adjust_for_height(forHeight));
@@ -232,7 +232,7 @@ class MediaLibrariesPosterIcon extends IconGrid.BaseIcon {
 });
 
 const MediaItem = GObject.registerClass(
-class MediaLibrariesMediaItem extends AppDisplay.AppViewItem {
+class VideoLibraryMediaItem extends AppDisplay.AppViewItem {
     _init({item, section, order, onActivate}) {
         super._init({style_class: 'overview-tile'}, false, true);
         this._id = `${section.key}/${item.id}`;
@@ -268,7 +268,7 @@ class MediaLibrariesMediaItem extends AppDisplay.AppViewItem {
 let pendingGrid = null;
 
 const MediaView = GObject.registerClass(
-class MediaLibrariesMediaView extends BaseAppView {
+class VideoLibraryMediaView extends BaseAppView {
     constructor({section, items, onActivate}) {
         super({
             layout_manager: new Clutter.BinLayout(),

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Media Libraries development helper.
+# Video Library development helper.
 #
 #   ./scripts/dev.sh link       link src/ into the extensions dir (dev mode)
 #   ./scripts/dev.sh install    copy src/ into the extensions dir (real install)
@@ -19,11 +19,11 @@
 #
 set -euo pipefail
 
-UUID="media-libraries@jackt"
+UUID="video-library@jackicus"
 # Append to this on each rename so `prune` sweeps up every superseded build.
-LEGACY_UUIDS=("gnomeflix@jackt" "media-workspace-desktop@jackt")
+LEGACY_UUIDS=("gnomeflix@jackt" "media-workspace-desktop@jackt" "media-libraries@jackt")
 # As GLib.get_user_cache_dir() resolves it in the extension.
-CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/media-libraries"
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/video-library"
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC_DIR="$REPO_DIR/src"
@@ -161,12 +161,12 @@ cmd_reload() {
 cmd_logs() {
     require journalctl
     if [[ -n "${1:-}" ]]; then
-        info "Media Libraries log output since '$1':"
+        info "Video Library log output since '$1':"
         journalctl -o cat /usr/bin/gnome-shell --since "$1" 2>/dev/null \
-            | grep -iE 'media.libraries' || info "(nothing logged in that window)"
+            | grep -iE 'video.library' || info "(nothing logged in that window)"
     else
         info "Following GNOME Shell logs (Ctrl+C to stop)..."
-        journalctl -f -o cat /usr/bin/gnome-shell | grep --line-buffered -iE 'media.libraries'
+        journalctl -f -o cat /usr/bin/gnome-shell | grep --line-buffered -iE 'video.library'
     fi
 }
 

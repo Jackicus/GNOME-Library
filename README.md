@@ -1,4 +1,4 @@
-# Video Menu
+# Video Library
 
 Your own TV shows and films as a library in GNOME: posters, synopses, seasons
 and episodes, opened from one button beside Show Apps. It doesn't play
@@ -25,14 +25,14 @@ anything itself. Pick an episode and it opens in VLC, mpv or whatever you use.
 Needs GNOME Shell 50, and Python 3 for the folder scanner.
 
 ```bash
-git clone https://github.com/Jackicus/GNOME-Video-Menu.git
-cd GNOME-Video-Menu
+git clone https://github.com/Jackicus/GNOME-Video-Library.git
+cd GNOME-Video-Library
 make install
 ```
 
 Log out and back in. GNOME only picks up a new extension when you log in.
 
-Then open the preferences (`gnome-extensions prefs media-libraries@jackt`).
+Then open the preferences (`gnome-extensions prefs video-library@jackicus`).
 On the **TV Shows** and **Films** pages, add your folders and press
 **Rescan**:
 

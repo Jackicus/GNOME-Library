@@ -1,11 +1,11 @@
 ---
 name: drive-extension
-description: Run Media Libraries in a throwaway nested GNOME Shell, mirrored live on the user's desktop — click through it, screenshot it, then shut it down. Use whenever a change must be SEEN (layout, spacing, colour, animation end-states, the tabs, Library → Detail navigation, the overview and workspace-slide clones), or needs a fresh shell start (extension.js, metadata.json, a new UUID).
+description: Run Video Library in a throwaway nested GNOME Shell, mirrored live on the user's desktop — click through it, screenshot it, then shut it down. Use whenever a change must be SEEN (layout, spacing, colour, animation end-states, the tabs, Library → Detail navigation, the overview and workspace-slide clones), or needs a fresh shell start (extension.js, metadata.json, a new UUID).
 ---
 
-# Driving Media Libraries in a nested shell
+# Driving Video Library in a nested shell
 
-Media Libraries renders onto the desktop background, so the only way to verify a visual
+Video Library renders onto the desktop background, so the only way to verify a visual
 change is to look at it. The nested shell is a complete second GNOME Shell with its
 own session bus and virtual monitor, reading the same installed extension; if the
 code throws during `enable()` it takes down the *nested* shell, never the user's.
@@ -18,7 +18,7 @@ user through that window. Drive it so both can follow.
 
 ```bash
 S=/tmp/claude-1000/...scratchpad        # your scratchpad; keep shots out of the repo
-./scripts/nested.sh start               # ~2 s; Media Libraries is ACTIVE when it returns
+./scripts/nested.sh start               # ~2 s; Video Library is ACTIVE when it returns
 ./scripts/nested.sh do "say Baseline" "shot $S/before.png"
 # ... edit src/ ...
 ./scripts/nested.sh reload
@@ -77,7 +77,7 @@ iterating and `reload` into it; `start` reuses a running one.
 Backstops, so a forgotten `stop` never strands a window on the user's desktop:
 - the mirror window closes by itself when the nested shell stops or crashes;
 - a shell started from a Claude Code session stops itself after 10 minutes with no
-  `nested.sh` command (`MEDIA_LIBRARIES_NESTED_IDLE=<seconds>` at `start`, `0` = never);
+  `nested.sh` command (`VIDEO_LIBRARY_NESTED_IDLE=<seconds>` at `start`, `0` = never);
 - the project's SessionEnd hook stops it when that session ends.
 
 Do not rely on them — they are for accidents. If the idle stop hit mid-task,
@@ -145,7 +145,7 @@ contain an apostrophe — steps are shell-split.
 
 `logs` first. A JS exception during enable leaves the previous UI on screen, which
 reads as "no change". `logs` hides D-Bus activation and portal chatter; `logs 200
---all` shows everything. `[Media Libraries]` lines are the extension's own.
+--all` shows everything. `[Video Library]` lines are the extension's own.
 
 ## Gotchas
 
@@ -156,15 +156,15 @@ reads as "no change". `logs` hides D-Bus activation and portal chatter; `logs 20
   cache on its first write — so a setting changed for a test, even one made
   from a *different* project's nested shell, can silently revert within
   seconds. **To test a setting, `start --clean`**: the nested session gets a
-  database of its own (`media_libraries_nested`, a writable layer that starts
-  empty every time over a read-only one with Media Libraries alone enabled and
+  database of its own (`video_library_nested`, a writable layer that starts
+  empty every time over a read-only one with Video Library alone enabled and
   the real session's look), `run gsettings …` writes there, and `stop` deletes
   it. Nothing touches `~/.config/dconf/user`. The catch is that it has none of
   the real session's settings or extensions — no Dash to Panel, no Blur my
   Shell, no folders — so test against those without `--clean`, and change
   settings only while no other nested shell is up. A dconf database name must
   not contain a hyphen: it becomes a D-Bus object path element.
-- **`start` enables Media Libraries** if dconf doesn't list it — which writes
+- **`start` enables Video Library** if dconf doesn't list it — which writes
   `enabled-extensions`, so the real session will load it at the next login too.
 - **The one button sits beside Show Apps.** The nested shell loads the real
   session's extensions, so with Dash to Panel on it is in its bottom panel:
@@ -207,14 +207,14 @@ reads as "no change". `logs` hides D-Bus activation and portal chatter; `logs 20
   unclaimed on the throwaway bus) because the shell refuses unknown callers. Never
   try that against the real session.
 - **Other extensions load too** (the nested shell reads the same extension list), so
-  their log lines and top-bar icons appear alongside Media Libraries.
+  their log lines and top-bar icons appear alongside Video Library.
 - **The mirror needs GStreamer's PipeWire plugin.** If `mirror on` fails, use
   `start --headless` and screenshots, and tell the user.
-- **Driving the prefs window:** `./scripts/nested.sh run gnome-extensions prefs media-libraries@jackt &`
+- **Driving the prefs window:** `./scripts/nested.sh run gnome-extensions prefs video-library@jackicus &`
   opens it inside the nested session, where `shot` and the mirror both show it.
   The Extensions app outlives its window and keeps the `prefs.js` it first
   imported, so after editing it kill *the nested one* before reopening — the
-  process whose environment has `WAYLAND_DISPLAY=media-libraries-dev`, never a
+  process whose environment has `WAYLAND_DISPLAY=video-library-dev`, never a
   bare `pkill -f`, which also matches the real session's and your own shell.
 - **With the library on the surface, windows on its workspace get no keys.**
   The surface's focus watcher takes the keyboard back from them, so anything
@@ -227,8 +227,8 @@ reads as "no change". `logs` hides D-Bus activation and portal chatter; `logs 20
   the focus, so drive it with the prefs window closed.
 - **Watched marks are real data.** Ticking an episode in the nested shell (a
   click on the disc, Mark watched from a key or the pad) writes the real
-  `~/.local/share/media-libraries/watched.json` and, with `tracking` =
-  `source`, a `.media-libraries-watched.json` into the library folder itself.
+  `~/.local/share/video-library/watched.json` and, with `tracking` =
+  `source`, a `.video-library-watched.json` into the library folder itself.
   Don't, or put both back afterwards.
 - **The shell's "Allow inhibiting shortcuts" prompt writes the real permission
   store**, which the nested session shares. If a test has to answer it, delete

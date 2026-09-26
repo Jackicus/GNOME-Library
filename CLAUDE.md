@@ -1,16 +1,15 @@
-# Video Menu
+# Video Library
 
-A GNOME Shell extension (UUID `media-libraries@jackt`) that renders a video
+A GNOME Shell extension (UUID `video-library@jackicus`) that renders a video
 library — TV shows and films — directly onto the desktop wallpaper, in the
 overview beside the apps, or in a shell-native panel, depending on a setting.
 No window, no titlebar. `metadata.json` claims GNOME Shell 50 only; the code
 is also audited (not booted) against 48 and 49's sources — see the compat note
 in Gotchas and `docs/compatibility.md`.
-"Video Menu" is only the name it shows — `metadata.json`'s `name`, which is
-what the extension list and the preferences window read. Everything else
-still says `media-libraries` (the UUID, the schema, the cache folders, the
-`[Media Libraries]` log tag `make logs` filters on, and the `MediaLibraries*`
-class names), and the rest of this file calls it Media Libraries.
+The name matches throughout: `metadata.json`'s `name` ("Video Library", read
+by the extension list and the preferences window), the UUID, the schema, the
+cache and data folders, the `[Video Library]` log tag `make logs` filters on,
+and the `VideoLibrary*` class names.
 
 A sibling extension, **Games Menu** (`games-menu@jackt`, repo
 `GNOME-Games-Menu`), is the same idea for a games library and is meant to run
@@ -70,7 +69,7 @@ is an edit there plus the schema keys; `library.js` also exports `LIBRARY`,
 the one thing that is not per-section — the button's own title ("Videos") and
 its icon path — read by `libraryButton.js` and nowhere else.
 
-Runtime data: `~/.cache/media-libraries/` (under `$XDG_CACHE_HOME` when that
+Runtime data: `~/.cache/video-library/` (under `$XDG_CACHE_HOME` when that
 is set — the JS asks `GLib.get_user_cache_dir()` and `metadata.py` resolves
 it the same way, which is what lets the nested shell's `--demo` point both
 sides at a cache of its own) — `library.json`, `posters/`, `backdrops/`,
@@ -92,7 +91,7 @@ library still names. The JS treats an art path outside the cache as missing.
 ## How it fits together
 
 1. `scan_library.py` walks each section's folder, enriches items online and
-   writes `~/.cache/media-libraries/library.json` atomically, under an `flock` so two
+   writes `~/.cache/video-library/library.json` atomically, under an `flock` so two
    rescans cannot each write the other's sections back as they were. It reads
    the preferences itself with `--from-settings` (narrowed by `--only
    <section>`), so which setting becomes which flag is decided in one place and
@@ -140,15 +139,15 @@ library still names. The JS treats an art path outside the cache as missing.
    unkeyed in the default lists rather than being an error. The scanner reads
    `credentials` out of GSettings itself under `--from-settings`, so neither
    the Rescan buttons nor `dev.sh scan` hands it a key; only a standalone run
-   falls back to `$MEDIA_LIBRARIES_TMDB_KEY` for slot 1.
-2. `extension.js` is a plain entry point: `enable()` builds a `MediaLibrariesApp`
+   falls back to `$VIDEO_LIBRARY_TMDB_KEY` for slot 1.
+2. `extension.js` is a plain entry point: `enable()` builds a `VideoLibraryApp`
    from a static `import` of `lib/app.js` and calls its `enable()`; `disable()`
    is the reverse. That is what ships and what `make install`/`make pack` put
    on disk. `make link` installs `scripts/dev-extension.js` as `extension.js`
    instead, for development only — it never ships. GJS caches modules by URL
    for the life of the shell, so re-importing `lib/` after an edit would hand
    back the old code; `dev-extension.js` works around that by copying `lib/`
-   into `$XDG_RUNTIME_DIR/media-libraries/lib-<stamp>/` on every `enable()` and
+   into `$XDG_RUNTIME_DIR/video-library/lib-<stamp>/` on every `enable()` and
    importing from there, where `<stamp>` is a checksum of `lib/`'s file
    contents (name, size, mtime), not a timestamp of the build — a directory
    that changes name when the content changes is what lets a disable/enable
@@ -162,7 +161,7 @@ library still names. The JS treats an art path outside the cache as missing.
    of this: its static `import` of `lib/app.js` from `src/` is evaluated once,
    the same way `extension.js` itself is, and there is no separate stage to
    reuse or go stale.
-3. `MediaLibrariesApp` reads `library.json`, builds the surface inside the monitor's
+3. `VideoLibraryApp` reads `library.json`, builds the surface inside the monitor's
    work area, and attaches it to `Main.layoutManager._backgroundGroup` —
    rendering over the wallpaper itself. The surface holds **one library page** —
    tabs over a grid per section (`libraryView.js` over `mediaGrid.js`), each
@@ -175,8 +174,8 @@ library still names. The JS treats an art path outside the cache as missing.
    surface place — see below.
 
 **Watched marks** (`lib/tracking.js`, setting `tracking`) are two files of one
-format: `~/.local/share/media-libraries/watched.json`, every mark made on this
-machine keyed by absolute path, and `<folder>/.media-libraries-watched.json`
+format: `~/.local/share/video-library/watched.json`, every mark made on this
+machine keyed by absolute path, and `<folder>/.video-library-watched.json`
 at the top of each TV/film folder in `<prefix>-folders`, that folder's marks
 keyed by the path inside it so another machine mounting it elsewhere reads
 them. `local` uses the first alone; `source` also folds each folder's file
@@ -488,7 +487,7 @@ up in that, rather than a blocking `file_test` per poster.
 ## Design rules
 
 - **A modification of GNOME, not a second one.** Whatever the shell already has
-  is what Media Libraries uses: the app grid for a library, `AppViewItem` and
+  is what Video Library uses: the app grid for a library, `AppViewItem` and
   `overview-tile` for a tile, `icon-button` and `button` for the header and the
   actions, `global.focus_manager` for the keyboard, the dash's own
   `DashItemContainer` for the library's button, `AppFolderDialog` for a pop-up
@@ -727,12 +726,12 @@ Games Menu (`games-menu@jackt`) is built the same way — the same shell classes
 subclassed, the same folder-dialog and app-grid shapes borrowed — and the two
 run enabled at once on one machine, so nothing about how this extension
 reaches into the shell may assume it is the only one doing so. What keeps them
-apart: every `GObject.registerClass`'d class here is named `MediaLibraries*`
-(`MediaLibrariesLibraryIcon`, `MediaLibrariesMediaView`, …), never the bare
+apart: every `GObject.registerClass`'d class here is named `VideoLibrary*`
+(`VideoLibraryLibraryIcon`, `VideoLibraryMediaView`, …), never the bare
 shell name, so the two extensions' subclasses of the same shell class do not
 collide as GTypes; every stylesheet class is `ml-`-prefixed and every borrowed
 constant of the folder look is namespaced too (`panel.js`'s `BLUR` is
-`media-libraries-panel-blur`, not Games Menu's own `games-menu-panel-blur`).
+`video-library-panel-blur`, not Games Menu's own `games-menu-panel-blur`).
 Both wrap the same shell internals — Dash to Panel's
 `_updateGroupedElements`, the overview layout's `_getAppDisplayBoxForState` —
 chain-safely: call through to whatever was there first, and on the way out

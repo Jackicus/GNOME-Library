@@ -34,7 +34,7 @@ import {MediaPanel} from './panel.js';
 import {PANE_INSET} from './shape.js';
 
 export const DetailDialog = GObject.registerClass(
-class MediaLibrariesDetailDialog extends MediaPanel {
+class VideoLibraryDetailDialog extends MediaPanel {
     constructor({onOpen, tracker, size = 1, mode = 'menu'}) {
         super({
             size,

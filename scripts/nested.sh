@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
-# Drive a throwaway nested GNOME Shell for testing Media Libraries.
+# Drive a throwaway nested GNOME Shell for testing Video Library.
 #
 #   ./scripts/nested.sh start [WxH]   start a nested shell (default 1600x900) with
-#                                     Media Libraries ACTIVE, and open a live mirror window
+#                                     Video Library ACTIVE, and open a live mirror window
 #                                     of it on the real desktop
 #   ./scripts/nested.sh start --headless [WxH]
 #                                     no mirror window; screenshots are the only view
@@ -27,7 +27,7 @@
 #   ./scripts/nested.sh move X Y      move the pointer there (hover) without clicking
 #   ./scripts/nested.sh key KEYSYM    press a key or chord (Escape, Super+Page_Down, ...)
 #   ./scripts/nested.sh overview on|off   show/hide the Activities overview
-#   ./scripts/nested.sh reload        disable/enable Media Libraries inside the nested shell
+#   ./scripts/nested.sh reload        disable/enable Video Library inside the nested shell
 #   ./scripts/nested.sh mirror on|off open/close the live mirror window
 #   ./scripts/nested.sh run CMD...    run CMD against the nested shell's session bus
 #   ./scripts/nested.sh logs [N] [--all]
@@ -46,15 +46,15 @@
 #
 # Nothing is left behind on the desktop: the mirror closes when the shell stops or
 # dies, and a shell started from a Claude Code session stops itself after
-# MEDIA_LIBRARIES_NESTED_IDLE seconds (default 600, 0 = never) without a command here,
+# VIDEO_LIBRARY_NESTED_IDLE seconds (default 600, 0 = never) without a command here,
 # and when that session ends (the SessionEnd hook runs 'session-end').
 #
 set -euo pipefail
 
-UUID="media-libraries@jackt"
+UUID="video-library@jackicus"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SELF="$REPO_DIR/scripts/nested.sh"
-RUN_DIR="${XDG_RUNTIME_DIR:-/tmp}/media-libraries-nested"
+RUN_DIR="${XDG_RUNTIME_DIR:-/tmp}/video-library-nested"
 BUS_FILE="$RUN_DIR/bus"
 PID_FILE="$RUN_DIR/pid"
 LOG_FILE="$RUN_DIR/log"
@@ -71,7 +71,7 @@ PROFILE_FILE="$RUN_DIR/dconf-profile"
 # session's own dconf-service and deleted by 'stop'. dconf names a database by
 # a D-Bus object path element (/ca/desrt/dconf/Writer/<name>), so letters,
 # digits and underscores only: a hyphen fails every write.
-CLEAN_DB="media_libraries_nested"
+CLEAN_DB="video_library_nested"
 # --demo's cache home: the made-up library, and nothing else of the user's.
 DEMO_CACHE="$RUN_DIR/demo-cache"
 # GNOME Shell creates this for its first 60 s; if the shell crashes while it
@@ -79,13 +79,13 @@ DEMO_CACHE="$RUN_DIR/demo-cache"
 # runtime dir, so it creates the REAL session's copy -- and a stop inside those
 # 60 s leaves it behind, arming that for the user's next real crash.
 CRASH_GUARD="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/gnome-shell-disable-extensions"
-IDLE_SECS="${MEDIA_LIBRARIES_NESTED_IDLE:-600}"
+IDLE_SECS="${VIDEO_LIBRARY_NESTED_IDLE:-600}"
 # The real session's display and bus, captured before nested_env overrides them:
 # the mirror window has to open on the desktop the user is looking at.
 HOST_WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
 HOST_BUS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/bus}"
 DRIVER="$REPO_DIR/scripts/nested_driver.py"
-WL_DISPLAY="media-libraries-dev"
+WL_DISPLAY="video-library-dev"
 
 info() { printf '\033[1;34m→\033[0m %s\n' "$*"; }
 ok()   { printf '\033[1;32m✓\033[0m %s\n' "$*"; }
@@ -283,8 +283,8 @@ cmd_start() {
     # enabled is not listed: it would sit at INITIALIZED doing nothing.
     if nested_env gsettings get org.gnome.shell enabled-extensions 2>/dev/null | grep -qF "'$UUID'"; then
         wait_state ACTIVE \
-            || die "Media Libraries is $(nested_state) after startup -- check './scripts/nested.sh logs' for a JS error."
-        ok "Media Libraries ACTIVE."
+            || die "Video Library is $(nested_state) after startup -- check './scripts/nested.sh logs' for a JS error."
+        ok "Video Library ACTIVE."
     else
         enable_in_nested
     fi
@@ -299,7 +299,7 @@ enable_in_nested() {
     nested_env gnome-extensions enable "$UUID" 2>/dev/null || die "Could not enable $UUID in the nested shell."
     wait_state ACTIVE \
         || die "Enabled but $(nested_state) -- check './scripts/nested.sh logs' for a JS error."
-    ok "Media Libraries ACTIVE."
+    ok "Video Library ACTIVE."
 }
 
 # Stops the nested shell after IDLE_SECS without a command, and cleans up (the
@@ -471,7 +471,7 @@ cmd_run() {
 
 # The shell's log is mostly the bus daemon announcing service activations and the
 # portal complaining about services a throwaway session does not have. None of it
-# is about Media Libraries, and it buries the lines that are.
+# is about Video Library, and it buries the lines that are.
 filtered_log() {
     grep -Ev "^\s*$|Activating (via systemd: )?service name=|Successfully activated service|Activated service 'org.freedesktop.systemd1' failed|RealtimeKit|AT-SPI|atk-bridge|discover_other_daemon|gnome-shell-calendar-server|libecal|Error loading calendars|No entry for geolocation" \
         "$LOG_FILE" | tail -n "$1"

@@ -1,4 +1,4 @@
-// Reads ~/.cache/media-libraries/library.json (written by backend/scan_library.py)
+// Reads ~/.cache/video-library/library.json (written by backend/scan_library.py)
 // and normalises TV shows and films into one shape the views can render:
 //
 //   item = {
@@ -68,7 +68,7 @@ export function migrateOpenCommand(settings) {
 }
 
 function cacheDir() {
-    return GLib.build_filenamev([GLib.get_user_cache_dir(), 'media-libraries']);
+    return GLib.build_filenamev([GLib.get_user_cache_dir(), 'video-library']);
 }
 
 export function libraryPath() {
@@ -88,7 +88,7 @@ export function readSections() {
         const raw = JSON.parse(new TextDecoder('utf-8').decode(bytes));
         return {sections: raw?.sections ?? {}, generated: raw?.generated ?? null};
     } catch (e) {
-        console.error(`[Media Libraries] Failed to read ${path}: ${e}`);
+        console.error(`[Video Library] Failed to read ${path}: ${e}`);
         return nothing;
     }
 }

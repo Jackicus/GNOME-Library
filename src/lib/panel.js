@@ -52,7 +52,7 @@ const MAX_HEIGHT = 760;
 const SHADE = new Cogl.Color({red: 0, green: 0, blue: 0, alpha: 204});
 const CLEAR = new Cogl.Color({red: 0, green: 0, blue: 0, alpha: 0});
 // Our copy of a folder's blur, when its folders have one (folderLook).
-const BLUR = 'media-libraries-panel-blur';
+const BLUR = 'video-library-panel-blur';
 
 // What this desktop puts behind and around an open folder. Stock GNOME
 // shades to DIALOG_SHADE_NORMAL and draws the panel from its theme, and so
@@ -93,7 +93,7 @@ export const MediaPanel = GObject.registerClass({
     Signals: {
         'open-state-changed': {param_types: [GObject.TYPE_BOOLEAN]},
     },
-}, class MediaLibrariesPanel extends St.Bin {
+}, class VideoLibraryPanel extends St.Bin {
     constructor({host = null, dieWithSource = true, size = 1, inset = 0} = {}) {
         super({
             visible: false,

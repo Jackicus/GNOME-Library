@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Index the media library and write the library.json Media Libraries reads.
+"""Index the media library and write the library.json Video Library reads.
 
 Each section is scanned only when a folder is given for it, and the result is
 merged into the existing library.json so a rescan of one section keeps the
@@ -49,7 +49,7 @@ SECTIONS = ("tv", "films")
 # thing is not to provoke it).
 ENRICH_WORKERS = 6
 
-SCHEMA = "org.gnome.shell.extensions.media-libraries"
+SCHEMA = "org.gnome.shell.extensions.video-library"
 # The schemas ship beside the backend in the extension directory, so they are
 # found from the installed copy as readily as from the repo.
 SCHEMA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "schemas")
@@ -181,7 +181,7 @@ def apply_settings(args, parser):
     """
     if _setting("library-opens-in") is None:
         parser.error(
-            "--from-settings could not read the Video Menu settings. Compile the "
+            "--from-settings could not read the Video Library settings. Compile the "
             f"schemas ({SCHEMA_DIR}) or pass the folders explicitly.")
 
     only = set(args.only or SECTION_SETTINGS)
@@ -339,7 +339,7 @@ def main():
         # records that scan added back as they were.
         #
         # Keys come from the preferences, or from the environment
-        # (MEDIA_LIBRARIES_TMDB_KEY) for a standalone run. Never argv.
+        # (VIDEO_LIBRARY_TMDB_KEY) for a standalone run. Never argv.
         meta = MetadataService(
             online=not args.offline,
             sources=args.sources,
