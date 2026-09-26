@@ -149,7 +149,7 @@ Each of those sub-modules was checked directly rather than taken on trust:
   they do not own (`panel._updateGroupedElements`, the overview layout's
   `_getAppDisplayBoxForState`) and unwrap them chain-safely: each restores the
   stock method only if its own wrap is still the outermost one, so it cannot
-  take a wrap installed after it (Games Menu's own, per the coexistence note
+  take a wrap installed after it (Games Library's own, per the coexistence note
   in the root `CLAUDE.md`) down with it.
 
 If a gap exists, it is most likely in a codepath this pass did not reach

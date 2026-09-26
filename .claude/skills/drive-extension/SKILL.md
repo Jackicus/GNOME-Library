@@ -119,7 +119,7 @@ menu and no per-section button.
   overview onto the tabs over the grid, in the app-grid slot. Tabs at
   y ≈ 127 (TV Shows ≈ x 765, Films ≈ x 846), grid rows centred at y ≈ 320 and
   570. The tabs switch sections in place — no overview transition — unless
-  another extension's view (Games Menu's) is what is showing there, in which
+  another extension's view (Games Library's) is what is showing there, in which
   case pressing ours closes the overview and reopens it onto ours.
 - **The `modal` library** (`library-opens-in` `modal`) pops a panel over the
   desktop out of the button — with Dash to Panel, over the bottom panel — the

@@ -1423,7 +1423,7 @@ export class VideoLibraryApp {
     // is what the workspace shows, it is ours to take back. Focus that has
     // gone to another actor — a menu, the panel — is left where it is, and
     // so is the keyboard while anything holds a grab: our popup, or another
-    // extension's panel over the surface (Games Menu's), whose own focus can
+    // extension's panel over the surface (Games Library's), whose own focus can
     // drop to the stage as what had it inside is destroyed.
     _onStageFocusChanged() {
         if (!this._container)

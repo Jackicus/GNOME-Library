@@ -11,8 +11,8 @@ by the extension list and the preferences window), the UUID, the schema, the
 cache and data folders, the `[Video Library]` log tag `make logs` filters on,
 and the `VideoLibrary*` class names.
 
-A sibling extension, **Games Menu** (`games-menu@jackt`, repo
-`GNOME-Games-Menu`), is the same idea for a games library and is meant to run
+A sibling extension, **Games Library** (`games-library@jackicus`, repo
+`GNOME-Games-Library`), is the same idea for a games library and is meant to run
 alongside this one — see the coexistence note near the end of this file for
 what that costs each of them.
 
@@ -354,7 +354,7 @@ Apps itself is left alone — it leaves the grid as it always has, and the grid
 shows the apps again next time because a browser only lives as long as the
 grid is up. Switching sections is the tabs moving *in place* — no overview
 transition — except when another extension's view is showing in the same
-slot (Games Menu's own), where opening ours closes the overview and reopens
+slot (Games Library's own), where opening ours closes the overview and reopens
 it rather than drawing over what is there (`mediaMenu.js` `open()`, the
 `_next` field). A rebuild (a setting changing, a rescan landing) tears the
 browser down and makes another, and puts back the tab that was showing
@@ -720,9 +720,9 @@ up in that, rather than a blocking `file_test` per poster.
   The shipped `extension.js` has no stage at all, so this only matters when
   testing through `make link`/`make nested`.
 
-## Coexisting with Games Menu
+## Coexisting with Games Library
 
-Games Menu (`games-menu@jackt`) is built the same way — the same shell classes
+Games Library (`games-library@jackicus`) is built the same way — the same shell classes
 subclassed, the same folder-dialog and app-grid shapes borrowed — and the two
 run enabled at once on one machine, so nothing about how this extension
 reaches into the shell may assume it is the only one doing so. What keeps them
@@ -731,7 +731,7 @@ apart: every `GObject.registerClass`'d class here is named `VideoLibrary*`
 shell name, so the two extensions' subclasses of the same shell class do not
 collide as GTypes; every stylesheet class is `ml-`-prefixed and every borrowed
 constant of the folder look is namespaced too (`panel.js`'s `BLUR` is
-`video-library-panel-blur`, not Games Menu's own `games-menu-panel-blur`).
+`video-library-panel-blur`, not Games Library's own `games-library-panel-blur`).
 Both wrap the same shell internals — Dash to Panel's
 `_updateGroupedElements`, the overview layout's `_getAppDisplayBoxForState` —
 chain-safely: call through to whatever was there first, and on the way out
@@ -742,9 +742,9 @@ taking the other's wrap down with it (`libraryButton.js` `_attachToPanel`,
 disable goes inert, and the slot the menu measures for its next view is asked
 of the shell's own method rather than of the wrap beneath it, which the other
 may have grown for a view of its own. In the `menu` library, a button of ours
-pressed while Games Menu's view is showing in the overview's app-grid slot
+pressed while Games Library's view is showing in the overview's app-grid slot
 closes the overview and reopens it onto ours, rather than drawing over
-what is there — and Games Menu does the same in reverse — which is the one
+what is there — and Games Library does the same in reverse — which is the one
 place either extension reads what the other put there (`mediaMenu.js`
 `open()`, the `_next` field). And the Home action's own default binding
 differs between the two (`keys-home`/`pad-home` in each schema), so a remote

@@ -189,7 +189,7 @@ export class LibraryButton {
     // Show Apps is in, straight after it, each time the groups are made.
     //
     // By wrapping the panel's own `_updateGroupedElements` — which another
-    // extension can wrap as well (Games Menu puts its button there the same
+    // extension can wrap as well (Games Library puts its button there the same
     // way), so the wrap is taken off only while it is still the outermost,
     // and what was there before is put back rather than deleted. Wrapped over
     // since, it is left in place and goes inert instead: taking it out would

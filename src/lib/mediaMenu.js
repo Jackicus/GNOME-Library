@@ -21,7 +21,7 @@
 // is the apps, because the view only lives as long as the grid is up.
 //
 // Another extension can put a view of its own into the same slot the same
-// way — Games Menu does — and the button pressed while that one is up closes
+// way — Games Library does — and the button pressed while that one is up closes
 // the overview and opens it again onto ours: two of the shell's own
 // transitions, rather than two views drawn over each other.
 //
@@ -202,7 +202,7 @@ export class MediaMenu {
             // before it is ever allocated — measured by the shell's own
             // method rather than taken from `stock`, which can be another
             // extension's wrap that has already grown the slot for a view of
-            // its own (Games Menu folds the same row).
+            // its own (Games Library folds the same row).
             const own = Object.getPrototypeOf(this)._getAppDisplayBoxForState;
             const shell = own && own !== stock
                 ? own.call(this, state, box, searchHeight, dashHeight, workspacesBox, spacing) : slot;

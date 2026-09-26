@@ -278,7 +278,7 @@ entirely: the wrap is simply not installed, and the workspace row is never
 folded — the media menu still opens, just with the row of small workspaces
 left showing above it, taking its room.
 
-**Checked.** Guarded on entry as above; the chain-safety with Games Menu's own
+**Checked.** Guarded on entry as above; the chain-safety with Games Library's own
 wrap of the same method is covered separately below.
 
 ### `Object.getPrototypeOf(this)._getAppDisplayBoxForState` — the unwrapped size
@@ -293,7 +293,7 @@ menu._slot = [shell.get_width(), shell.get_height() + workspacesBox.get_height()
 ```
 
 **What for.** `stock` (the closed-over previous value of the property) can
-itself be Games Menu's own wrap, already grown to fit *its* view — reading the
+itself be Games Library's own wrap, already grown to fit *its* view — reading the
 slot from `slot` (this call's own return value) in that case would record a
 size grown for someone else's content, not the shell's true unfolded one. The
 prototype's own method — the shell's original, since neither extension's wrap
@@ -637,10 +637,10 @@ rebuild — every rescan — that took it out and put it back would drop a wrap
 another extension added over it in between. It hands each slide to the
 `OverviewPreview` that is current.
 
-## Chain-safe wraps, for coexisting with Games Menu
+## Chain-safe wraps, for coexisting with Games Library
 
 Two methods here are wrapped the same way a sibling extension
-(`games-menu@jackt`, meant to run alongside this one) wraps the same methods
+(`games-library@jackicus`, meant to run alongside this one) wraps the same methods
 for its own view: `panel._updateGroupedElements` (libraryButton.js
 `_attachToPanel`, Dash to Panel's) and `layout._getAppDisplayBoxForState`
 (mediaMenu.js `_foldWorkspaces`, the shell's). Both follow the same pattern —
@@ -670,7 +670,7 @@ what was under it, which can be the other extension's wrap, still live.
 
 **If it changes.** Nothing about this pattern depends on shell version; it
 depends only on both extensions still wrapping the same private
-method names Games Menu does. If a future Games Menu (or a future GNOME
+method names Games Library does. If a future Games Library (or a future GNOME
 renaming the wrapped methods) breaks the assumption, the practical failure is
 one of the two extensions' contributions going missing from the panel or the
 slot — not a throw, since each wrap calls through unconditionally regardless
@@ -678,5 +678,5 @@ of what it finds.
 
 **Checked.** Yes, in the sense that both wraps are internally consistent
 (`inert`/`hadOwn`/identity checks throughout); there is no way to check at
-runtime that Games Menu's own wraps follow the same protocol, since that lives
+runtime that Games Library's own wraps follow the same protocol, since that lives
 in a different extension's source.

@@ -321,7 +321,7 @@ is not here, since neither entry point's `disable()` is async.
     `$XDG_RUNTIME_DIR/video-library/` not accumulating (the sweep in
     `scripts/dev-extension.js`'s `_sweepStages` should leave only the current
     one).
-11. If Games Menu is also installed and enabled, repeat steps 6–9 with both
+11. If Games Library is also installed and enabled, repeat steps 6–9 with both
     extensions enabled together, and confirm disabling either one leaves the
     other's button, folded workspace row and app-grid slot view intact.
 12. Only then add the version to `shell-version` in `metadata.json`.
