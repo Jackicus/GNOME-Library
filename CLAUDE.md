@@ -3,18 +3,19 @@
 A GNOME Shell extension (UUID `media-libraries@jackt`) that renders a video
 library — TV shows and films — directly onto the desktop wallpaper, in the
 overview beside the apps, or in a shell-native panel, depending on a setting.
-No window, no titlebar. Shell versions 48 to 50 (48 and 49 by audit against
-the shell's sources, not by boot — see the compat note in Gotchas).
+No window, no titlebar. `metadata.json` claims GNOME Shell 50 only; the code
+is also audited (not booted) against 48 and 49's sources — see the compat note
+in Gotchas and `docs/compatibility.md`.
 "Video Menu" is only the name it shows — `metadata.json`'s `name`, which is
 what the extension list and the preferences window read. Everything else
 still says `media-libraries` (the UUID, the schema, the cache folders, the
 `[Media Libraries]` log tag `make logs` filters on, and the `MediaLibraries*`
 class names), and the rest of this file calls it Media Libraries.
 
-A sibling extension, **Games Menu** (`games-menu@jackt`,
-`/home/jackt/Projects/GNOME-Extensions/GNOME-Games-Menu`), is the same idea for a
-games library and is meant to run alongside this one — see the coexistence
-note near the end of this file for what that costs each of them.
+A sibling extension, **Games Menu** (`games-menu@jackt`, repo
+`GNOME-Games-Menu`), is the same idea for a games library and is meant to run
+alongside this one — see the coexistence note near the end of this file for
+what that costs each of them.
 
 ## Seeing it
 
@@ -52,9 +53,13 @@ guidelines), and `docs/screenshots/` (the README's images).
 
 ## Layout
 
-`src/` is an **exact mirror of the installed extension directory**. Installing is a
-plain copy or symlink, so there is no file list to keep in sync — add a file to
-`src/` and it ships.
+`src/` is an **exact mirror of the installed extension directory**, so there is
+no file list to keep in sync — add a file to `src/` and it ships. `make
+install`/`make pack` copy it or zip it as-is. `make link` instead builds a
+directory of symlinks, one per top-level entry of `src/`, then replaces just
+the `extension.js` link with one to `scripts/dev-extension.js` (below) — so
+edits under `src/` are live without a reinstall, but the entry point differs
+from what ships.
 
 A section's identity — its key, its `<prefix>-` settings, its title, its icon and
 the order they appear in — is `SECTIONS` in `lib/library.js` (TV Shows and
@@ -136,19 +141,27 @@ library still names. The JS treats an art path outside the cache as missing.
    `credentials` out of GSettings itself under `--from-settings`, so neither
    the Rescan buttons nor `dev.sh scan` hands it a key; only a standalone run
    falls back to `$MEDIA_LIBRARIES_TMDB_KEY` for slot 1.
-2. `extension.js` copies `lib/` into `$XDG_RUNTIME_DIR/media-libraries/lib-<stamp>/`
-   and imports `app.js` from there, where `<stamp>` is a checksum of `lib/`'s
-   file contents (name, size, mtime), not a timestamp of the build. GJS caches
-   modules by URL for the life of the shell, and static imports between
-   sibling modules would resolve to the cached copies, so a directory that
-   changes name when the content changes is what lets a disable/enable pick up
-   edits **without restarting the shell** — that matters on Wayland, where you
-   can't `Alt+F2 r`. A screen lock disables the extension and unlocking
-   re-enables it (`session-modes` defaults to `['user']`), which is not an
-   edit: it stages the same checksum, skips the copy, and re-imports the same
-   URL, which GJS serves from its module cache rather than re-executing — so
-   an unlock re-enables into the same module graph the previous session used,
-   and only an edit's changed checksum ever builds a new one.
+2. `extension.js` is a plain entry point: `enable()` builds a `MediaLibrariesApp`
+   from a static `import` of `lib/app.js` and calls its `enable()`; `disable()`
+   is the reverse. That is what ships and what `make install`/`make pack` put
+   on disk. `make link` installs `scripts/dev-extension.js` as `extension.js`
+   instead, for development only — it never ships. GJS caches modules by URL
+   for the life of the shell, so re-importing `lib/` after an edit would hand
+   back the old code; `dev-extension.js` works around that by copying `lib/`
+   into `$XDG_RUNTIME_DIR/media-libraries/lib-<stamp>/` on every `enable()` and
+   importing from there, where `<stamp>` is a checksum of `lib/`'s file
+   contents (name, size, mtime), not a timestamp of the build — a directory
+   that changes name when the content changes is what lets a disable/enable
+   pick up edits **without restarting the shell**, which matters on Wayland,
+   where there is no `Alt+F2 r`. A screen lock disables the extension and
+   unlocking re-enables it (`session-modes` defaults to `['user']`), which is
+   not an edit: under the dev entry point this stages the same checksum, skips
+   the copy, and re-imports the same URL, which GJS serves from its module
+   cache rather than re-executing — so an unlock re-enables into the same
+   module graph the previous session used. The shipped `extension.js` has none
+   of this: its static `import` of `lib/app.js` from `src/` is evaluated once,
+   the same way `extension.js` itself is, and there is no separate stage to
+   reuse or go stale.
 3. `MediaLibrariesApp` reads `library.json`, builds the surface inside the monitor's
    work area, and attaches it to `Main.layoutManager._backgroundGroup` —
    rendering over the wallpaper itself. The surface holds **one library page** —
@@ -320,8 +333,9 @@ is worked out fresh each time from what survives a rebuild — `_libraryWorkspac
 while `_shown` is what is actually on the stack, and does not survive one: a
 rebuild empties the stack without changing what a workspace is set to show.
 They differ exactly across a rebuild, which is why `_onWorkspaceChanged`
-compares the computed place against `_shown` — comparing it against itself
-left the surface blank after a rescan or a settings change.
+compares the computed place against `_shown` rather than against itself —
+comparing it against itself would leave the surface blank after a rescan or a
+settings change.
 
 `menu` and `modal` are the two places **outside** the surface, and a library
 in either is browsed by a *browser* of its own — `MediaMenu` or
@@ -346,8 +360,7 @@ it rather than drawing over what is there (`mediaMenu.js` `open()`, the
 `_next` field). A rebuild (a setting changing, a rescan landing) tears the
 browser down and makes another, and puts back the tab that was showing
 (`state`/`restore` on the browser), so the change shows where it is being
-looked for rather than on the next press — a `columns` change used to leave
-the overview on the app grid.
+looked for rather than on the next press.
 
 **One keyboard shortcut**, `library-shortcut` (`as`, empty by default so
 nothing of the system's is taken), is grabbed with `Main.wm.addKeybinding`
@@ -507,15 +520,16 @@ up in that, rather than a blocking `file_test` per poster.
   is centred under the full ones, as the app grid has it, or hugs the leading
   edge (`mediaGrid.js` `setGridAlign`, read by the layout as it allocates); the
   block itself is always centred, because `gridFor` shrinks the cover to fit
-  `rows` and `columns` exactly and a block hugging the edge left all of that
-  slack as one gap on the far side. The page dots keep their room on a one-page section — the
-  shell hides them for a single page and the grid re-centred seven pixels
-  lower — so every section's rows land on the same lines. The hero artwork under it
-  has a floor of its own (`detailView.js` `HERO_MIN`, 132 logical px):
-  on a small work area the smallest `detail-size` leaves less room than the
-  buttons beneath the artwork take, and without the floor the hero came out at
-  nothing — so the panel shrinks, the artwork does not vanish. There is no
-  per-view copy of any of them, and a change of one rebuilds whatever is built.
+  `rows` and `columns` exactly — a block hugging the edge instead would put
+  all of that slack in one gap on the far side. The page dots keep their room
+  on a one-page section too — the shell hides the dots for a single page, but
+  the grid still budgets their height — so every section's rows land on the
+  same lines. The hero artwork under it has a floor of its own (`detailView.js`
+  `HERO_MIN`, 132 logical px): on a small work area the smallest `detail-size`
+  leaves less room than the buttons beneath the artwork take, and without the
+  floor the hero would shrink to nothing — so the panel shrinks instead, and
+  the artwork does not vanish. There is no per-view copy of any of them, and a
+  change of one rebuilds whatever is built.
 - **Type is in em.** 1em is the stage's UI font, so every size in the
   stylesheet follows Settings → Accessibility → Large Text, and the values land
   on the shell's own steps (`%title_1` and friends in `_common.scss`). A px
@@ -530,14 +544,17 @@ up in that, rather than a blocking `file_test` per poster.
 
 ## Gotchas
 
-- **`extension.js` itself is cached for the life of the shell.** `make reload`
-  picks up everything under `lib/`, `stylesheet.css` and the schema, but an edit to
-  `extension.js` or `metadata.json` needs a log out / log back in (or, for the
-  nested shell, `stop` + `start`).
+- **`extension.js` itself is cached for the life of the shell.** GJS caches a
+  module by URL for the process's life, and `extension.js`'s own URL never
+  changes, so `make reload` picks up everything under `lib/`, `stylesheet.css`
+  and the schema, but an edit to `extension.js` (`scripts/dev-extension.js`
+  under `make link`) or `metadata.json` needs a log out / log back in (or, for
+  the nested shell, `stop` + `start`).
 - **New UUIDs need a logout** for the same reason: the shell only scans for
   unknown extension UUIDs at startup.
-- **`make reload` is not optional.** Edits in `src/` are live on disk via the
-  symlink, but the shell holds the old module until the disable/enable cycle.
+- **`make reload` is not optional.** Edits under `src/` are live on disk via
+  `make link`'s symlinks, but the shell holds the old module until the
+  disable/enable cycle.
 - **A rounded background image must carry its radius inline.** St bakes the
   corner radius into artwork only when it renders the background image itself,
   so `border-radius` has to travel in the same `set_style()` string as
@@ -562,8 +579,8 @@ up in that, rather than a blocking `file_test` per poster.
   — an `St.BoxLayout`'s `spacing`, a `margin` — are only picked up when
   `style-changed` is emitted on that widget, which happens no earlier than its
   first map. So `get_preferred_height` on a column built a moment ago answers as
-  if it had no spacing and no margins: the detail popup's panel came out
-  twenty-six pixels short of the pane inside it, and the clip cut the backdrop's
+  if it had no spacing and no margins: the detail popup's panel would come out
+  shorter than the pane inside it, and the clip would cut the backdrop's
   bottom corners off square against the panel's rounded ones. `ensure_style()`
   fixes it but only for the widget it is called on — it merely marks the
   children dirty — so the whole subtree has to be walked: `anim.js`
@@ -576,10 +593,10 @@ up in that, rather than a blocking `file_test` per poster.
   (`mediaMenu.js` `_slotSize`, for the button pressed before the overview
   has ever been shown) must start from `getWorkAreaForMonitor`, and must measure
   the dash whether or not it is *visible*, as the shell does. Getting either
-  wrong left the first tab's grid built against a taller box than every
-  later one, which is a different cover size for the same `columns`. The box the
-  views standing were built for is kept either way, and they are all dropped and
-  built again when it moves.
+  wrong builds the first tab's grid against a taller box than every later one
+  — a different cover size for the same `columns`. The box each standing view
+  was built for is kept either way, and every view is dropped and built again
+  when it moves.
 - **A scroll view's `St.Adjustment` is already disposed when its `destroy`
   fires.** Disconnecting a handler from it there throws "already disposed"
   rather than tidying anything — the adjustment dies with the view, so its
@@ -620,17 +637,17 @@ up in that, rather than a blocking `file_test` per poster.
   `appDisplay.visible`.** The shell holds the app display visible for the whole
   slide down to the window picker (`_updateAppDisplayVisibility` takes the
   *larger* of the states it is moving between) and does not update it again
-  once the transition is dropped, so a media view read from that visibility
-  outlived the grid: Escape left the view current and Show Apps still held by
-  us, and the next click on it went nowhere. The button's own checked state is
-  set as the grid opens and cleared on every way out — Escape, a swipe, a
-  search, leaving the overview — so `mediaMenu.js` follows it.
+  once the transition is dropped, so a media view keyed to that visibility
+  would stay current after Escape closes it, with Show Apps still held and the
+  next press going nowhere. The button's own checked state is set as the grid
+  opens and cleared on every way out — Escape, a swipe, a search, leaving the
+  overview — so `mediaMenu.js` follows it instead.
 - **`captured-event::key` is wider than a key press.** Key releases and the
   input method's own events carry the same detail, and asking one of those for
   a key symbol is a Clutter assertion in the journal, twice per keystroke. Check
-  `event.type() === Clutter.EventType.KEY_PRESS` first, exactly as the shell
-  does (`calendar.js:860`); `mediaMenu.js` `_force()` is the only such handler
-  here.
+  `event.type() === Clutter.EventType.KEY_PRESS` first, exactly as the date
+  menu's own capture handler does (`js/ui/calendar.js`); `mediaMenu.js`
+  `_force()` is the only such handler here.
 - **A preview's background group is the monitor, allocated small.** It is the
   box the wallpaper gets, stretched in x and y independently while the overview
   animates, and it is re-allocated without reliably notifying its size — so the
@@ -640,8 +657,10 @@ up in that, rather than a blocking `file_test` per poster.
   so the overview scales one texture per preview rather than a page of tiles.
 - **Never hardcode the repo path.** Resolve paths from `this.path` /
   `this.dir.get_uri()` in JS and `__file__` in Python — the extension has to work
-  from the installed copy, not just the symlink. Modules under `lib/` run from a
-  staging copy, so never derive resource paths from `import.meta.url` either.
+  from the installed copy, not just a dev link. Under `make link`, modules
+  under `lib/` run from a staging copy (`scripts/dev-extension.js`); shipped,
+  they run straight from `src/lib/` — the two locations differ, so never
+  derive a resource path from `import.meta.url` either.
 - **Never touch a media path synchronously.** The folders can sit on a network
   share behind a systemd automount that idles out, and the first stat after
   that blocks until it is mounted again — eleven seconds, measured. In
@@ -691,14 +710,16 @@ up in that, rather than a blocking `file_test` per poster.
   on HiDPI. `St.Icon.icon_size` is the one exception in the allocation
   direction: it is logical, so a size derived from physical px is *divided* by
   the scale factor, not multiplied (`widgets.js` `createArtwork`).
-- **The staged `lib/` copy survives a screen unlock, not just a reload.**
-  `extension.js` names the staging directory after a checksum of `lib/`'s file
-  contents (name, size, mtime), not the time it was built, so re-enabling after
-  a lock (GNOME disables every extension at lock and re-enables at unlock)
-  finds the same directory and re-imports from GJS's module cache rather than
-  copying and building again. Only an actual edit — which changes the checksum
-  — makes a new stage; the sweep on the next `enable()` removes whatever stage
-  is no longer current.
+- **Under the dev entry point, the staged `lib/` copy survives a screen
+  unlock, not just a reload.** `scripts/dev-extension.js` names the staging
+  directory after a checksum of `lib/`'s file contents (name, size, mtime),
+  not the time it was built, so re-enabling after a lock (GNOME disables every
+  extension at lock and re-enables at unlock) finds the same directory and
+  re-imports from GJS's module cache rather than copying and building again.
+  Only an actual edit — which changes the checksum — makes a new stage; the
+  sweep on the next `enable()` removes whatever stage is no longer current.
+  The shipped `extension.js` has no stage at all, so this only matters when
+  testing through `make link`/`make nested`.
 
 ## Coexisting with Games Menu
 

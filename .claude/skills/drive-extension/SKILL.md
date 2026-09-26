@@ -85,10 +85,12 @@ Do not rely on them — they are for accidents. If the idle stop hit mid-task,
 
 **`stop` + `start` at least once before calling a change done.** `reload` keeps the
 old workspaces, dconf snapshot and whatever the previous build left on screen; only
-a fresh start exercises `extension.js`, the enable path and first-frame layout the
-way a login does. Edits to `extension.js` or `metadata.json` *need* one.
+a fresh start exercises the entry point, the enable path and first-frame layout the
+way a login does. Edits to `scripts/dev-extension.js` (the entry point `make link`
+installs) or `metadata.json` *need* one — editing `src/extension.js` itself does
+nothing under `make link`, since that file isn't the one installed.
 
-## Reading the screen (1600×900, Dash to Panel on — measured 2026-09-25)
+## Reading the screen (1600×900, Dash to Panel on)
 
 Measure from a fresh screenshot if the columns setting, enabled sections, accent or
 geometry changed; these are what the layout gives with the defaults. There is one

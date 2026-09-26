@@ -14,5 +14,6 @@ Apply the current `src/` edits to the running shell, then confirm they took.
 
 If the shell reports the extension doesn't exist, it needs a log out / log back in
 before it will register the UUID — say so rather than retrying. The same applies
-when `extension.js` or `metadata.json` changed: the shell caches those for its
-whole lifetime, and a reload will run the old loader.
+when the entry point (`scripts/dev-extension.js`, installed as `extension.js` by
+`make link`) or `metadata.json` changed: the shell caches those for its whole
+lifetime, and a reload will run the old loader.

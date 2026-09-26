@@ -1,8 +1,13 @@
 # Compatibility
 
-`metadata.json` claims GNOME Shell 48, 49 and 50. Exactly one of those has
-been run. This page says which, lists every code path that depends on the
-version, and says what to check first on each claimed version.
+The code is built for GNOME Shell 48 to 50, but `metadata.json`'s
+`shell-version` currently claims only `["50"]`, the one version that's
+actually been run — 48 and 49 are audited against the shell's sources (below),
+not booted, so they're not claimed yet; the checklist at the end covers what
+adding one takes. This page lists every code path that depends on the
+version and says what to check first on each. Below, "claimed version"/
+"claimed floor" means this 48–50 design range, not literally what
+`metadata.json` lists today.
 
 ## What has been tested
 
@@ -17,29 +22,28 @@ version, and says what to check first on each claimed version.
   `folderLook()` and `libraryButton.js`'s Dash to Panel branch exist for.
 - **All four `library-opens-in` places** (`desktop`, `workspaces`, `menu`,
   `modal`), **the pop-up detail pane**, **the library's keyboard shortcut**,
-  and **the preferences' General page** were exercised in the nested shell on
-  2026-09-25.
+  and **the preferences' General page** were exercised in the nested shell.
 
-Unlike some sibling extensions, there is no separate development entry point
-here: `src/extension.js` is what both `make link` (a symlink, for editing) and
-`make install`/`make pack` (a plain copy or a zip) install, and it always
-stages `lib/` into `$XDG_RUNTIME_DIR/media-libraries/lib-<checksum>/` before
-importing it (see CLAUDE.md's "How it fits together", step 2, and the Gotcha
-on the staged copy surviving a lock). So testing through `make nested` already
-exercises the same loading path a real install does; there is no separate zip
-build to re-test the way Wallpaper Engine's compatibility notes call for.
+As with some sibling extensions, there is a separate development entry point:
+`scripts/dev-extension.js`, which never ships, stages `lib/` into
+`$XDG_RUNTIME_DIR/media-libraries/lib-<checksum>/` and imports it dynamically,
+so `make reload` can pick up an edit without a shell restart. `make link`
+installs it in place of `src/extension.js`; `make install` and `make pack`
+ship the real `src/extension.js`, a plain, static `enable()`/`disable()` with
+no staging (see CLAUDE.md's "How it fits together", step 2). So testing
+through `make nested`/`make link` exercises the dev loader, not the exact path
+a real install takes — the packed zip is worth testing separately, per the
+checklist below.
 
 Nothing else has been tested:
 
-- **GNOME 48 and 49 are claimed and have never been run.** Every entry below
-  marked "confirmed at 48.0/49.0" was checked by reading the actual
-  `GNOME/gnome-shell` source at those git tags on gitlab.gnome.org (fetched
-  live, not from a local checkout) — not by booting either version. Entries
-  with no such mark were checked only against the local 50.5 extraction and
-  are assumed, not confirmed, to hold at 48 and 49; CLAUDE.md's own compat
-  note makes the same distinction ("48 and 49 by audit against the shell's
-  sources, not by boot").
-- **GNOME 51 or later** is not claimed and has not been read at all here.
+- **GNOME 48 and 49 are not yet claimed in `metadata.json`, and have never
+  been run.** Every entry below marked "confirmed at 48.0/49.0" was checked by
+  reading the actual `GNOME/gnome-shell` source at those git tags on
+  gitlab.gnome.org, not by booting either version. Entries with no such mark
+  were checked only against the local 50.5 extraction and are assumed, not
+  confirmed, to hold at 48 and 49.
+- **GNOME 51 or later** is not built for and has not been read at all here.
 - **No Mesa GPU** (AMD, Intel), no virtual machine, no X11 session (removed
   in mutter 50; 48 and 49 still have one).
 - **Multi-monitor.** The overview-preview code (`overviewPreview.js`) only
@@ -85,7 +89,7 @@ combo box or a crash.
 
 ```js
 // Clutter.ClickGesture is 49 and later; on 48 this is the shell's own
-// AppFolderDialog click action (`git show 48.0:js/ui/appDisplay.js`, line 2497).
+// AppFolderDialog's click-away action, js/ui/appDisplay.js.
 _addClickAway() {
     if (Clutter.ClickGesture) { ... this.add_action(clickGesture); return; }
     const clickAction = new Clutter.ClickAction();
@@ -254,19 +258,17 @@ section's own), confirm no page throws building itself, use the folder
 Browse… button, capture a keyboard shortcut and a controller input, and Import
 a key from `~/Documents/keys/<SERVICE>/`.
 
-### `enable()`/`disable()` synchronity (extension.js)
+### `enable()`/`disable()` synchronity
 
-```js
-async enable() { ... }
-disable() { ... }
-```
-
-`enable()` is `async` because it awaits the dynamic `import()` of the staged
-`lib/app.js`; `disable()` is synchronous. The shell has awaited `enable()`
-since GNOME 45 (`extensionSystem.js`, `await extension.stateObj.enable()`),
-so this is not a version gap on any claimed version; it would only matter if
+The shipped `src/extension.js` has a synchronous `enable()`/`disable()`
+(a plain, static `import` of `lib/app.js`), so there's nothing to check here.
+`scripts/dev-extension.js`, the dev-only entry point `make link` installs, has
+an `async enable()` because it awaits the dynamic `import()` of the staged
+`lib/app.js`; its `disable()` is synchronous. The shell has awaited `enable()`
+since GNOME 45 (`extensionSystem.js`, `await extension.stateObj.enable()`), so
+neither shape is a version gap on any claimed version; it would only matter if
 GNOME 51's stricter rule (an async `disable()` throws) were relevant, which it
-is not here, since `disable()` never was async.
+is not here, since neither entry point's `disable()` is async.
 
 ## Checklist for a new GNOME version
 
@@ -285,9 +287,13 @@ is not here, since `disable()` never was async.
    the floor version is also being raised, but only then.
 4. Install the zip rather than the development link: `make uninstall`, then
    `make pack`, then install the built `dist/media-libraries@jackt.shell-extension.zip`
-   with `gnome-extensions install`, then log out and in (a new UUID needs
-   this the first time regardless; every other GNOME-version test can reuse
-   `make link` afterwards, since both paths run the same `extension.js`).
+   with `gnome-extensions install`, then log out and in (a new UUID needs this
+   the first time regardless). The dev link's entry point
+   (`scripts/dev-extension.js`) and the shipped one (`src/extension.js`)
+   differ, so this first pass should go through the real zip; once the UUID is
+   registered, later iteration on a version-gated code path can go back to
+   `make link`, since `lib/`, `prefs.js`, `stylesheet.css` and the schema are
+   shared between the two paths either way.
 5. `make logs '10 min ago'` should show no `TypeError`, no "No button beside
    Show Apps", no "not laid out as expected", and no libmutter CRITICAL from
    `Meta.Workspace.index()`.
@@ -300,18 +306,21 @@ is not here, since `disable()` never was async.
    `workspaces`-mode library or pane is claimed, and confirm it travels with
    its workspace both in the live slide and in the overview's thumbnail
    strip.
-8. Lock and unlock the screen with the library open, and confirm the staged
-   `lib/` directory is reused (`make logs` should show no new "Enabled from"
-   line with a different checksum) rather than rebuilt.
+8. Lock and unlock the screen with the library open. Testing via `make link`,
+   confirm the staged `lib/` directory is reused (`make logs` should show no
+   new "Enabled from" line with a different checksum) rather than rebuilt.
+   Testing the packed zip, there is no stage to check — `src/extension.js` has
+   none — so just confirm the library survives the unlock.
 9. With Dash to Panel installed and enabled, and again with it disabled,
    confirm the button appears beside Show Apps in both places, and toggle
    Blur my Shell to confirm the pop-up panel's shade and translucency follow
    a folder's own look in both states.
-10. Disable and enable the extension ten times in a row and watch `make logs`
-    and the shell's CPU while idle, watching in particular for the staged
-    `lib-<checksum>` directories under `$XDG_RUNTIME_DIR/media-libraries/`
-    not accumulating (the sweep in `extension.js` `_sweepStages` should leave
-    only the current one).
+10. Testing via `make link`, disable and enable the extension ten times in a
+    row and watch `make logs` and the shell's CPU while idle, watching in
+    particular for the staged `lib-<checksum>` directories under
+    `$XDG_RUNTIME_DIR/media-libraries/` not accumulating (the sweep in
+    `scripts/dev-extension.js`'s `_sweepStages` should leave only the current
+    one).
 11. If Games Menu is also installed and enabled, repeat steps 6–9 with both
     extensions enabled together, and confirm disabling either one leaves the
     other's button, folded workspace row and app-grid slot view intact.
