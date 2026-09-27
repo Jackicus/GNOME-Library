@@ -600,11 +600,11 @@ const out = [];
 for (const view of views) out.push(...(view._workspaces ?? []));
 ```
 
-**The one difference from Wallpaper Engine's copy.** Video Library only ever
+**The one difference from Wallpaper FX's copy.** Video Library only ever
 draws on the primary monitor (checked immediately after, in `_attach()`:
 `background._monitorIndex !== Main.layoutManager.primaryIndex` skips every
 other preview), so this file does not unwrap `SecondaryMonitorDisplay`'s own
-`_workspacesView`/`ExtraWorkspaceView` wrapper the way Wallpaper Engine's does
+`_workspacesView`/`ExtraWorkspaceView` wrapper the way Wallpaper FX's does
 for its multi-monitor patterns. Confirmed at 50.5: `_workspacesViews[i]` for
 `i === primaryIndex` is always a plain `WorkspacesView` with a `_workspaces`
 array (`workspacesView.js` `_updateWorkspacesViews()`); every other monitor's
@@ -613,13 +613,13 @@ and so silently contributes nothing (`?? []`) here — which is already the
 right answer, since this file was going to skip it by monitor index anyway.
 If a future GNOME wraps the *primary* monitor's view the same way secondary
 monitors are (`workspaces-only-on-primary` off, say), this would need the same
-unwrapping Wallpaper Engine's copy already does.
+unwrapping Wallpaper FX's copy already does.
 
 ### `workspace._background`, `._backgroundGroup`, `._monitorIndex`; `controls._thumbnailsBox._thumbnails`, `thumbnail._contents`; `Main.wm._workspaceAnimation` and its `_prepareWorkspaceSwitch`; `switchData.monitors`, `strip._monitor`, `strip._workspaceGroups`, `group._background`
 
-Identical in shape and reasoning to Wallpaper Engine's own copy — see that
+Identical in shape and reasoning to Wallpaper FX's own copy — see that
 document. One shape fact was independently confirmed here, since this
-extension's slide code (unlike Wallpaper Engine's) does not comment on it:
+extension's slide code (unlike Wallpaper FX's) does not comment on it:
 at 50.5, `group._background` (inside `switchData.monitors[]._workspaceGroups[]`)
 is a `WorkspaceBackground` (`workspaceAnimation.js`, distinct from the
 same-named class in `workspace.js`) whose own `_createBackground()` builds a

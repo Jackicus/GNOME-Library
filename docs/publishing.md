@@ -324,10 +324,9 @@ under `src/` itself.
 ### Copyrights and trademarks: no issue found
 
 "Video Library" is not, as far as this review found, a name in current
-commercial or trademarked use in this space (unlike this extension's sibling,
-Wallpaper Engine, which shares a name with a well-known Steam application).
-No copyrighted third-party content — icons, artwork, code — appears to be
-bundled; the one shipped icon (`icons/library-symbolic.svg`) is original.
+commercial or trademarked use in this space. No copyrighted third-party
+content — icons, artwork, code — appears to be bundled; the one shipped icon
+(`icons/library-symbolic.svg`) is original.
 
 ### Wikipedia and TVmaze attribution: open question
 

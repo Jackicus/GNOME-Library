@@ -49,7 +49,7 @@ Nothing else has been tested:
 - **Multi-monitor.** The overview-preview code (`overviewPreview.js`) only
   ever draws on the primary monitor by design (see `private-api.md`), so a
   second monitor was not part of this pass the way it was for Wallpaper
-  Engine's.
+  FX's.
 
 ## Version-sensitive code paths
 
@@ -173,10 +173,10 @@ The paths into the workspace previews and the thumbnail strip
 (`Main.overview._overview.controls._workspacesDisplay._workspacesViews`,
 `workspace._background`/`_backgroundGroup`/`_monitorIndex`,
 `controls._thumbnailsBox._thumbnails`/`_contents`) are the same private shape
-Wallpaper Engine's `compatibility.md` reports unchanged from `45.0` to `51.0`.
+Wallpaper FX's `compatibility.md` reports unchanged from `45.0` to `51.0`.
 Only 50.5 was checked directly here, with one monitor; see `private-api.md`
 for why the `SecondaryMonitorDisplay`/`ExtraWorkspaceView` wrapper Wallpaper
-Engine has to unwrap does not need handling in this extension (it only draws
+FX has to unwrap does not need handling in this extension (it only draws
 on the primary monitor).
 
 *Check first:* open the overview with a section's library set to `menu`, or

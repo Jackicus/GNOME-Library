@@ -150,7 +150,7 @@ reads as "no change". `logs` hides D-Bus activation and portal chatter; `logs 20
 ## Gotchas
 
 - **dconf is shared with the real session, and other projects' nested shells
-  clobber it too.** Every nested shell (this one, Wallpaper Engine's, Media
+  clobber it too.** Every nested shell (this one, Wallpaper FX's, Media
   Controls') writes the same real dconf file, and each one's `dconf-service`
   caches the database at start and rewrites the whole file from that stale
   cache on its first write — so a setting changed for a test, even one made
