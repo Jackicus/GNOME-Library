@@ -5,10 +5,10 @@
         <!-- Media sections. Each looks in an ordered list of folders,
              <prefix>-folders. There is no default: the Videos folder cannot
              serve both TV shows and films, so a section stays off until
-             pointed at one. <prefix>-path is the single folder earlier
-             releases kept: the preferences move it into the list the first
-             time they open, and the scanner reads it only while the list is
-             still empty. -->
+             pointed at one. <prefix>-path is a single folder, superseded by
+             the list: the preferences move its value into the list the first
+             time they open, and the scanner reads <prefix>-path only while
+             the list is still empty. -->
         <key name="tv-shows-enabled" type="b">
             <default>true</default>
             <summary>Show TV shows</summary>
@@ -286,7 +286,7 @@
             <description>How many seconds before where it stopped playback picks up again, so the moment it was left at is seen again.</description>
         </key>
 
-        <!-- The one player command earlier releases kept for videos. The
+        <!-- The one player command, superseded by a command per section. The
              preferences and the extension move it into tv-shows-open-command
              and films-open-command the first time either runs, and nothing
              reads it after that. -->

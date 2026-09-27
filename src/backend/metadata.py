@@ -59,10 +59,11 @@ CACHE_DIR = os.path.join(_user_cache_dir(), "video-library")
 POSTER_CACHE_DIR = os.path.join(CACHE_DIR, "posters")
 BACKDROP_CACHE_DIR = os.path.join(CACHE_DIR, "backdrops")
 METADATA_CACHE_DIR = os.path.join(CACHE_DIR, "metadata")
-# One file for every cached record. The first release wrote one small file per
-# item, which cost an open() per item per scan just to check the provider still
-# matched; those files are still read when the index has no record for an item,
-# so upgrading re-reads each of them exactly once and never refetches.
+# One file for every cached record now. A cache can still have one small file
+# per item instead — a whole open() per item per scan just to check the
+# provider still matched — and those are read once when the index has no
+# record for an item, so upgrading re-reads each of them exactly once and
+# never refetches.
 METADATA_INDEX = os.path.join(METADATA_CACHE_DIR, "index.json")
 # The index is rewritten this often as well as at the end, so a scan that is
 # interrupted loses at most this many freshly fetched records (never artwork,
@@ -309,8 +310,8 @@ def localise_art(sections):
     """Bring every artwork path in the library inside the cache.
 
     A section that was not rescanned, or an item reused from the previous scan
-    on its folder signature, still carries whatever an older release wrote for
-    it — and the shell must be handed a cache path or nothing at all. Copies
+    on its folder signature, can still carry a path outside the cache — and
+    the shell must be handed a cache path or nothing at all. Copies
     already made are reused, so for a library that is already right this is one
     string comparison per item.
     """
@@ -326,7 +327,7 @@ def localise_art(sections):
 
 
 def fit_cached_art():
-    """Shrink artwork an older release cached at full resolution.
+    """Shrink cached artwork still sitting at full resolution.
 
     Everything written from here on is fitted as it is written, so this is only
     for what is already on disk — and reading one file's dimensions costs about
@@ -379,9 +380,8 @@ def prune_art(sections):
                 removed += 1
             except OSError:
                 pass
-    # Photos, and the thumbs/ folder only they used, are gone; sweep what an
-    # older release left behind once, here, rather than keeping thumbnail
-    # cache code around just for this.
+    # thumbs_dir predates this cache layout; sweep it away once, here, rather
+    # than keeping thumbnail-cache code around just for this.
     thumbs_dir = os.path.join(CACHE_DIR, "thumbs")
     if os.path.isdir(thumbs_dir):
         shutil.rmtree(thumbs_dir, ignore_errors=True)
@@ -565,19 +565,20 @@ class MetadataService:
             return {}
         if not isinstance(data, dict):
             return {}
-        # Music and games are gone; drop what their scans cached rather than
-        # carry it forward forever unread. The next flush writes the index
-        # back without them.
+        # `album_`/`game_` records predate this build's sections; drop them
+        # rather than carry them forward forever unread. The next flush writes
+        # the index back without them.
         kept = {k: v for k, v in data.items() if not k.startswith(("album_", "game_"))}
         self._unflushed += len(data) - len(kept)
         return kept
 
     def _paths(self, item):
-        # TV shows keep the unprefixed names the first release used, so posters
-        # already on disk are not fetched twice. An id keeps every letter it
-        # has (media_scanner.slug) and the `~n` of a name found twice: folded
-        # to ASCII, "foo~2" was "foo2", and two titles that differ only in
-        # script were one record.
+        # TV shows keep the unprefixed names slug() gives them, so posters
+        # already on disk are not fetched twice under a new id. The pattern
+        # below keeps every letter an id has, non-ASCII script included, and
+        # the `~n` a repeated name gets: stripping either would let two
+        # different titles, or two copies of one repeated name, land on the
+        # same cache entry.
         prefix = "" if item["kind"] == "tv" else f"{item['kind']}_"
         safe = re.sub(r"[^\w~]", "", f"{prefix}{item['id']}")
         return (
@@ -587,8 +588,8 @@ class MetadataService:
         )
 
     def _record(self, key):
-        """The cached record for `key`, from the index or — once, for a cache
-        the first release wrote — from that item's own file."""
+        """The cached record for `key`, from the index or — once, when a cache
+        still has one — from that item's own file."""
         with self._lock:
             if key in self._index:
                 return self._index[key]

@@ -131,7 +131,7 @@ def _setting_value(key):
 
     gsettings prints GVariants in a syntax that is also valid Python literal
     syntax — strings in either kind of quote with backslash escapes, so a
-    folder called "Jack's Films" reads back as written — optionally behind an
+    folder called "Old Films" reads back as written — optionally behind an
     `@type` prefix for an empty container, and `true`/`false` for a bool. So
     ast.literal_eval reads them without pulling gi into the backend. It only
     ever evaluates literals, so a credential holding anything at all is still
@@ -188,9 +188,9 @@ def apply_settings(args, parser):
     for key, prefix in SECTION_SETTINGS.items():
         folders = section_folders(prefix)
         # Every section's folders are kept out of the other's walk whether
-        # or not it is being scanned now: a TV folder inside the films folder
-        # was read as one film with every episode as a file when the Films
-        # page's own Rescan, which scans films alone, ran.
+        # or not it is being scanned now, so a TV folder inside the films
+        # folder is not read as one film with every episode as a file when
+        # the Films page's own Rescan, which scans films alone, runs.
         args.exclude[key] = folders
         if key not in only or _setting_value(f"{prefix}-enabled") is not True:
             continue
@@ -348,7 +348,7 @@ def main():
         )
         # Every artwork path the shell is given has to be a file in the cache,
         # no larger than the desktop draws it; these three keep that true for
-        # what earlier releases left behind as well as for what is scanned now.
+        # artwork already in the cache as well as for what is scanned now.
         fitted = fit_cached_art()
         sections = load_existing(args.out)
         scanned = {}
@@ -405,9 +405,9 @@ def main():
         library = {
             "version": LIBRARY_VERSION,
             "generated": time.time(),
-            # Only what this run knows about: a section this scanner no longer
-            # has (music, photos, games, from an install that had them) is
-            # dropped here rather than carried forward from the old file.
+            # Only what this run knows about: a section not in SECTIONS, which
+            # an older library.json can still have, is dropped here rather
+            # than carried forward from the old file.
             "sections": {k: sections.get(k, []) for k in SECTIONS},
             "scanned": scanned,
         }

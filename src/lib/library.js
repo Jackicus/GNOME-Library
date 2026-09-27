@@ -51,9 +51,9 @@ export function openCommandKey(section) {
     return `${section.prefix}-open-command`;
 }
 
-// Earlier releases kept one player command for every video. It is moved into
-// the TV shows and films commands once, here, by whichever of the extension
-// and the preferences runs first, and nothing reads the old key after that.
+// `player-command` is superseded by the per-section open commands. Whichever
+// of the extension and the preferences runs first moves it into the TV shows
+// and films commands once, here, and nothing reads the old key after that.
 export function migrateOpenCommand(settings) {
     const legacy = settings.get_string('player-command');
     if (!legacy)
@@ -198,8 +198,8 @@ function seasonNumberOf(name) {
 
 const EPISODE_TAG = /S(\d+)\s*E(\d+)/i;
 
-// "Black Clover - S01E01 - Asta and Yuno" -> "Asta and Yuno". Falls back to
-// the input when nothing readable is left.
+// "Harbour Lights - S01E01 - The Pilot" -> "The Pilot". Falls back to the
+// input when nothing readable is left.
 function episodeTitle(raw) {
     const stripped = raw
         .replace(/^\[[^\]]*\]\s*/, '')
@@ -220,7 +220,7 @@ function groupOf(ep) {
         if (n !== null)
             return `Season ${n}`;
     } else if (group === undefined) {
-        // An episode list a release before `group` was written left behind,
+        // An older library.json can have episodes with no `group` field,
         // which named a subfolder in the title instead: "[Extras] OP01".
         const title = ep.title || '';
         if (title.startsWith('[') && title.includes(']'))

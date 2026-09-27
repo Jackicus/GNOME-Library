@@ -29,12 +29,12 @@ def natural_sort_key(s):
 
 
 def slug(name):
-    """A folder name as an id. Letters and digits of any script stay: two
-    titles in Japanese or Cyrillic came out as the same run of underscores
-    otherwise, and were only told apart by their place in the list — so the
-    cached record and poster of one moved to the other as titles came and
-    went. Punctuation and spaces go, as they always did, so an existing
-    ASCII id is the same id."""
+    """A folder name as an id. Letters and digits of any script stay: folding
+    them all down to ASCII would turn two titles in, say, Japanese and
+    Cyrillic into the same run of underscores, told apart only by their place
+    in the list — so the cached record and poster of one would skid onto the
+    other's title as the list changes. Punctuation and spaces go, so an
+    existing ASCII id is still the same id."""
     return re.sub(r"[^\w]", "_", name.lower())
 
 
@@ -182,8 +182,8 @@ def scan_tv(root, previous=None, exclude=()):
         if episodes is None:
             episodes = _video_entries(folder)
             for ep in episodes:
-                # Legacy display form the UI groups by: "[Extras] OP01 - ..."
-                # for named subfolders; plain for season folders (grouped by
+                # The display form the UI groups by: "[Extras] OP01 - ..." for
+                # named subfolders; plain for season folders (grouped by
                 # SxxEyy). Only ever applied to a freshly walked list: a reused
                 # one carries its prefixes already.
                 group = ep["group"]

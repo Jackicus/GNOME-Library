@@ -33,7 +33,7 @@ const BaseAppView = Object.getPrototypeOf(AppDisplay.AppDisplay);
 //
 // The smallest a cover is allowed to get; it is what caps "columns" and "rows".
 const MIN_ART = 96;
-// .icon-grid column-spacing/row-spacing (data/theme/…/_app-grid.scss:8-9), the
+// .icon-grid column-spacing/row-spacing (data/theme/…/_app-grid.scss), the
 // value the theme hands the layout; only gridFor, which runs before the grid
 // exists, needs it here.
 const GAP = 12;

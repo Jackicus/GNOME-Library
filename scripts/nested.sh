@@ -8,11 +8,11 @@
 #   ./scripts/nested.sh start --headless [WxH]
 #                                     no mirror window; screenshots are the only view
 #   ./scripts/nested.sh start --clean [--demo] [WxH]
-#                                     a settings database of its own: only Media
-#                                     Libraries enabled, the real session's look copied
+#                                     a settings database of its own: only Video
+#                                     Library enabled, the real session's look copied
 #                                     in, nothing written to ~/.config/dconf/user. With
 #                                     --demo, the made-up library of demo_library.py
-#                                     instead of yours -- what the README's
+#                                     instead of the real one -- what the README's
 #                                     screenshots (docs/screenshots/) are taken of
 #   ./scripts/nested.sh do "STEP" "STEP"...
 #                                     run several steps in one go (one connection):
@@ -123,8 +123,8 @@ nested_env() {
 }
 
 # --clean: a dconf profile of the nested session's own. Its writable database
-# starts empty every time, over a read-only one seeded here with Media
-# Libraries alone in enabled-extensions and the real session's look, so the
+# starts empty every time, over a read-only one seeded here with Video
+# Library alone in enabled-extensions and the real session's look, so the
 # nested shell shows nothing of the other extensions and matches the desktop
 # it is screenshotted for. The real ~/.config/dconf/user is never opened for
 # writing -- which also keeps it out of the way of any other project's nested
