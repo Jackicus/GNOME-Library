@@ -14,7 +14,7 @@ version and says what to check first on each. Below, "claimed version"/
 - **GNOME Shell 50.5** on CachyOS (Arch-based), Wayland, with an NVIDIA
   GeForce GTX 1080 on the proprietary driver 580.178.04. The rest of the
   stack on that machine: mutter 50.5, GJS 1.88.1, GLib 2.88.3, GTK 4.22.5,
-  libadwaita 1.9.4, libmanette 0.2.13, Python 3.14.7.
+  libadwaita 1.9.4, libmanette 0.2.13, libsoup 3.6.6, gdk-pixbuf 2.44.7.
 - **The same shell headless and nested** (`make nested`, `scripts/nested.sh`,
   which runs `gnome-shell --wayland --headless --virtual-monitor ...` on its
   own session bus), both with and without Dash to Panel enabled, and both
@@ -22,7 +22,13 @@ version and says what to check first on each. Below, "claimed version"/
   `folderLook()` and `libraryButton.js`'s Dash to Panel branch exist for.
 - **All four `library-opens-in` places** (`desktop`, `workspaces`, `menu`,
   `modal`), **the pop-up detail pane**, **the library's keyboard shortcut**,
-  and **the preferences' General page** were exercised in the nested shell.
+  and **the preferences' General page**, Rescan included, were exercised in
+  the nested shell.
+- **The scanner** on a real library of 17 shows and 7 films on a local
+  drive, online against TMDB, TVmaze and Wikipedia, and on a made-up library
+  of the awkward cases: names in other scripts, seasons and extras,
+  dot-files, links, covers with and without alpha, one section's folder
+  inside the other's, the same film on two drives.
 
 As with some sibling extensions, there is a separate development entry point:
 `scripts/dev-extension.js`, which never ships, stages `lib/` into

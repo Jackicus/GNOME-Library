@@ -15,7 +15,7 @@
 #   ./scripts/dev.sh stalls [LOG]  watch for desktop freezes: shell main-loop
 #                                  stalls, processes stuck in the kernel and
 #                                  automount triggers, with timestamps
-#   ./scripts/dev.sh clean      remove compiled schemas, dist/ and unshipped files
+#   ./scripts/dev.sh clean      remove compiled schemas and dist/
 #
 set -euo pipefail
 
@@ -56,19 +56,11 @@ is_enabled() {
     gnome-extensions list --enabled 2>/dev/null | grep -qx "$UUID"
 }
 
-# Bytecode Python leaves behind. Nothing here is checked in, so it is the only
-# part of the strip that is safe to run over the working tree itself.
-strip_pycache() {
-    find "$1" -name '__pycache__' -type d -prune -exec rm -rf {} +
-    find "$1" -name '*.pyc' -type f -delete
-}
-
 # Drop what the extension directory ships from but a checkout doesn't need:
-# bytecode caches and the per-directory CLAUDE.md notes. Only ever called on a
-# COPY of src/ — the plain-cp install fallback and the pack staging copy — since
-# those CLAUDE.md files are checked in and deleting them from src/ is a loss.
+# the per-directory CLAUDE.md notes. Only ever called on a COPY of src/ — the
+# plain-cp install fallback and the pack staging copy — since those CLAUDE.md
+# files are checked in and deleting them from src/ is a loss.
 strip_unshipped() {
-    strip_pycache "$1"
     find "$1" -name 'CLAUDE.md' -type f -delete
 }
 
@@ -99,9 +91,7 @@ cmd_install() {
     remove_installed
     mkdir -p "$EXT_DIR"
     if command -v rsync >/dev/null 2>&1; then
-        rsync -a --delete \
-            --exclude '__pycache__/' --exclude '*.pyc' --exclude 'CLAUDE.md' \
-            "$SRC_DIR"/ "$EXT_DIR"/
+        rsync -a --delete --exclude 'CLAUDE.md' "$SRC_DIR"/ "$EXT_DIR"/
     else
         cp -r "$SRC_DIR"/. "$EXT_DIR"/
         strip_unshipped "$EXT_DIR"
@@ -218,7 +208,7 @@ check_pack() {
         cd "$SRC_DIR"
         printf '%s\n' extension.js prefs.js metadata.json stylesheet.css schemas/*.gschema.xml LICENSE
         find lib -type f -name '*.js'
-        find backend -type f -name '*.py' -not -path '*/__pycache__/*'
+        find backend -type f -name '*.js'
         find icons -type f -name '*.svg'
     )"
     actual="$(unzip -Z1 "$zip" | grep -v '/$')"
@@ -235,12 +225,12 @@ check_pack() {
 # one place rather than here and in the preferences' Rescan buttons as well.
 # Extra arguments are passed straight through, e.g. '--only films' or '--force'.
 cmd_scan() {
-    require python3
+    require gjs
     compile_schemas
     # The API keys are read straight out of the preferences by the scanner,
     # along with everything else --from-settings covers, so nothing has to be
     # handed to it here and no key ever reaches a command line.
-    python3 "$SRC_DIR/backend/scan_library.py" --from-settings "$@"
+    gjs -m "$SRC_DIR/backend/scanLibrary.js" --from-settings "$@"
 }
 
 # Remove superseded builds of this extension, leaving the current one alone.
@@ -267,8 +257,7 @@ cmd_uninstall() {
 cmd_clean() {
     rm -f "$SRC_DIR/schemas/gschemas.compiled"
     rm -rf "$REPO_DIR/dist"
-    strip_pycache "$SRC_DIR"
-    ok "Cleaned compiled schemas, dist/ and bytecode caches under src/."
+    ok "Cleaned compiled schemas and dist/."
 }
 
 # A freeze is over by the time anyone looks; this leaves a log of what stalled.
@@ -296,15 +285,12 @@ cmd_status() {
     fi
     echo "cache:    $CACHE_DIR$([[ -d "$CACHE_DIR" ]] || echo ' (absent)')"
     if [[ -f "$CACHE_DIR/library.json" ]]; then
-        # Read through the scanner's own loader rather than restating how the
-        # file is shaped (and how the version 1 format is read) a second time.
-        echo "library:  $(python3 -c '
-import sys
-sys.path.insert(0, sys.argv[1])
-from scan_library import load_existing
-s = load_existing(sys.argv[2])
-print(", ".join(f"{len(v)} {k}" for k, v in s.items()) or "empty")' \
-            "$SRC_DIR/backend" "$CACHE_DIR/library.json" 2>/dev/null || echo 'unreadable')"
+        # Read through the extension's own reader rather than restating how
+        # the file is shaped a second time.
+        echo "library:  $(gjs -c 'import(imports.gi.GLib.filename_to_uri(ARGV[0], null)).then(
+            ({readSections}) => print(Object.entries(readSections().sections)
+                .map(([k, v]) => `${Array.isArray(v) ? v.length : 0} ${k}`).join(", ") || "empty"))' \
+            "$SRC_DIR/lib/library.js" 2>/dev/null || echo 'unreadable')"
     else
         echo "library:  not scanned yet"
     fi

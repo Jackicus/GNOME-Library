@@ -24,7 +24,7 @@ try:
 except ImportError:
     sys.exit("demo_library.py needs Pillow (python-pillow).")
 
-# The cache's own caps (backend/metadata.py POSTER_BOX, BACKDROP_BOX).
+# The cache's own caps (backend/metadata.js POSTER_BOX, BACKDROP_BOX).
 POSTER = (512, 768)
 BACKDROP = (960, 540)
 FONT = "/usr/share/fonts/Adwaita/AdwaitaSans-Regular.ttf"

@@ -1316,13 +1316,15 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         return `Last scanned ${when.format('%-d %b %H:%M')}`;
     }
 
-    // A button that runs backend/scan_library.py for `sections`, then
+    // A button that runs backend/scanLibrary.js for `sections`, then
     // re-reads the counts. The desktop picks the new library up on its own.
     //
     // The scanner reads the folders, sources, credentials and online switches
     // out of GSettings itself, so nothing here has to turn a setting into a
     // flag or hand it a key — `--only` just narrows it to the section whose
-    // page this button is on.
+    // page this button is on. Two buttons pressed at once are two scans, and
+    // the second waits for the first: the scanner holds a lock on the
+    // library while it writes.
     _scanButton(state, sections) {
         const content = new Adw.ButtonContent({label: 'Rescan', icon_name: 'view-refresh-symbolic'});
         const button = new Gtk.Button({child: content, valign: Gtk.Align.CENTER, css_classes: ['flat']});
@@ -1343,8 +1345,8 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
                 return;
             }
             const argv = [
-                'python3',
-                GLib.build_filenamev([this.path, 'backend', 'scan_library.py']),
+                'gjs', '-m',
+                GLib.build_filenamev([this.path, 'backend', 'scanLibrary.js']),
                 '--from-settings',
             ];
             for (const s of ready)

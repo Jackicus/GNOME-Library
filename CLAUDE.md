@@ -70,16 +70,16 @@ the one thing that is not per-section — the button's own title ("Videos") and
 its icon path — read by `libraryButton.js` and nowhere else.
 
 Runtime data: `~/.cache/video-library/` (under `$XDG_CACHE_HOME` when that
-is set — the JS asks `GLib.get_user_cache_dir()` and `metadata.py` resolves
-it the same way, which is what lets the nested shell's `--demo` point both
-sides at a cache of its own) — `library.json`, `posters/`, `backdrops/`,
-`metadata/` (one `index.json` of every cached record; the per-item files the
-first release wrote are still read once and folded in). The JS never
-scrapes; it only reads `library.json` that Python wrote.
+is set — the extension and the scanner both ask `GLib.get_user_cache_dir()`,
+which is what lets the nested shell's `--demo` point both sides at a cache
+of its own) — `library.json`, `posters/`, `backdrops/`, `metadata/` (one
+`index.json` of every cached record; the per-item files the first release
+wrote are still read once and folded in). The shell side never scrapes; it
+only reads the `library.json` the scanner wrote.
 
 **Every artwork path in `library.json` is a file in that cache, already scaled
 to what the desktop ever draws, HiDPI included** (posters 512×768, backdrops
-960×540; `metadata.py POSTER_BOX`/`BACKDROP_BOX` hold the caps, sized off
+960×540; `metadata.js POSTER_BOX`/`BACKDROP_BOX` hold the caps, sized off
 `mediaGrid.js`'s tile and `detailView.js HERO_MAX_HEIGHT`). St decodes a
 background image at full size on the compositor thread and keeps it, so the
 scanner shrinks on the way in, copies a `cover.jpg` it finds beside the media
@@ -90,15 +90,27 @@ library still names. The JS treats an art path outside the cache as missing.
 
 ## How it fits together
 
-1. `scan_library.py` walks each section's folder, enriches items online and
-   writes `~/.cache/video-library/library.json` atomically, under an `flock` so two
-   rescans cannot each write the other's sections back as they were. It reads
-   the preferences itself with `--from-settings` (narrowed by `--only
-   <section>`), so which setting becomes which flag is decided in one place and
-   both the Rescan buttons and `dev.sh scan` just run it. Enrichment runs on a
-   small thread pool — it is nearly all waiting on other people's servers — and
-   each item records a `scan_sig` of its folder, so a rescan reuses the file
-   list of anything that has not changed and only `--force` re-reads the lot.
+1. **The scanner** — `backend/scanLibrary.js`, over `mediaScanner.js` (the
+   folders) and `metadata.js` (the sources and the artwork cache) — is a GJS
+   program run as `gjs -m` in a process of its own, never inside the shell or
+   the preferences: the folder walk is synchronous, and a share that has
+   idled out takes seconds to answer it, which in either of those would be
+   the desktop or the preferences window standing still. It needs nothing
+   but the libraries the shell itself runs on (Gio, Soup 3, GdkPixbuf) and
+   imports only `SECTIONS` and `libraryPath` from `lib/library.js`.
+
+   It walks each section's folder, enriches items online and writes
+   `~/.cache/video-library/library.json` atomically, under a lock (an abstract
+   Unix socket named after the library, which the kernel lets go however the
+   process ends) so two rescans cannot each write the other's sections back
+   as they were. It reads the preferences itself with `--from-settings`
+   (narrowed by `--only <section>`), so which setting becomes which flag is
+   decided in one place and both the Rescan buttons and `dev.sh scan` just
+   run it. Enrichment runs six items at a time, since it is nearly all
+   waiting on other people's servers — concurrent requests on the one main
+   loop, with artwork scaled on GdkPixbuf's worker threads — and each item
+   records a `scan_sig` of its folder, so a rescan reuses the file list of
+   anything that has not changed and only `--force` re-reads the lot.
    Where a section looks is an **ordered list** of sources,
    `<prefix>-sources`, tried one after another until one comes back with the
    artwork: TV shows can name TVmaze, TMDB and Wikipedia; films TMDB and
@@ -655,11 +667,14 @@ up in that, rather than a blocking `file_test` per poster.
   shape around it. The monitor-sized frame inside it is redirected offscreen,
   so the overview scales one texture per preview rather than a page of tiles.
 - **Never hardcode the repo path.** Resolve paths from `this.path` /
-  `this.dir.get_uri()` in JS and `__file__` in Python — the extension has to work
-  from the installed copy, not just a dev link. Under `make link`, modules
-  under `lib/` run from a staging copy (`scripts/dev-extension.js`); shipped,
+  `this.dir.get_uri()` — the extension has to work from the installed copy,
+  not just a dev link. Under `make link`, modules under `lib/` run from a
+  staging copy (`scripts/dev-extension.js`); shipped,
   they run straight from `src/lib/` — the two locations differ, so never
-  derive a resource path from `import.meta.url` either.
+  derive a resource path from `import.meta.url` either. The one exception is
+  `backend/scanLibrary.js`, which is never staged — it runs in a process of
+  its own, straight from the extension directory — and so takes its folder
+  from `import.meta.url`.
 - **Never touch a media path synchronously.** The folders can sit on a network
   share behind a systemd automount that idles out, and the first stat after
   that blocks until it is mounted again — eleven seconds, measured. In

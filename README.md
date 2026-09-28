@@ -22,7 +22,7 @@ anything itself. Pick an episode and it opens in VLC, mpv or whatever you use.
 
 ## Install
 
-Needs GNOME Shell 50, and Python 3 for the folder scanner.
+Needs GNOME Shell 50, and nothing else.
 
 ```bash
 git clone https://github.com/Jackicus/GNOME-Video-Library.git

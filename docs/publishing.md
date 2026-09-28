@@ -21,8 +21,8 @@ This runs `scripts/dev.sh pack` (`cmd_pack`), which:
    "$SRC_DIR/schemas"` and stops if it fails — the same check an install
    enforces, run as part of every pack rather than left as a manual step;
 2. copies `src/` into a temporary staging directory, strips it with
-   `strip_unshipped` (`__pycache__/`, `*.pyc`, every `CLAUDE.md` including
-   `src/backend/CLAUDE.md`) and the compiled schema, and copies the repo
+   `strip_unshipped` (every `CLAUDE.md`, `src/backend/CLAUDE.md` included)
+   and the compiled schema, and copies the repo
    root's `LICENSE` into the stage;
 3. runs `gnome-extensions pack --force --extra-source=lib --extra-source=backend
    --extra-source=icons --extra-source=LICENSE -o dist .` from inside that
@@ -32,7 +32,7 @@ This runs `scripts/dev.sh pack` (`cmd_pack`), which:
    naming because none of them is one of its recognised top-level files;
 4. calls `check_pack`, which computes the expected file list (`extension.js
    prefs.js metadata.json stylesheet.css schemas/*.gschema.xml LICENSE`, every
-   `lib/*.js`, every `backend/*.py` outside `__pycache__`, every `icons/*.svg`)
+   `lib/*.js`, every `backend/*.js`, every `icons/*.svg`)
    and diffs it against `unzip -Z1` of the built zip, failing loudly and
    naming both what's missing and what shouldn't be there on any mismatch;
 5. deletes the staging directory and reports
@@ -48,14 +48,14 @@ What each shipped part is:
   detail pane, tracking, playback-following, controls, the wrap/unwrap points
   into Dash to Panel and the overview. All of it runs inside the compositor
   process.
-- **`backend/`** — a Python 3 program (`scan_library.py`, `media_scanner.py`,
-  `metadata.py`) that walks the configured folders, fetches artwork and
-  metadata online, and writes `~/.cache/video-library/library.json`. It is
-  not GJS and is not spawned by `extension.js`: the preferences' Rescan
-  buttons and `dev.sh scan` both invoke it out-of-process with `python3`. See
+- **`backend/`** — the folder scanner, in GJS (`scanLibrary.js`,
+  `mediaScanner.js`, `metadata.js`, `files.js`, `html.js`): it walks the
+  configured folders, fetches artwork and metadata online, and writes
+  `~/.cache/video-library/library.json`. It is not spawned by
+  `extension.js`: the preferences' Rescan buttons and `dev.sh scan` run it
+  out-of-process with `gjs -m`. See
   [Scripts, subprocesses and network access](#scripts-subprocesses-and-network-access)
-  below — this is the part of the review most worth thinking about before
-  uploading.
+  below.
 - **`icons/library-symbolic.svg`** — the one icon, used for the button beside
   Show Apps.
 
@@ -65,7 +65,6 @@ What is left out, and why it is safe to leave out:
   GNOME 46 onward compiles the schema on install rather than expecting it in
   the zip (`extensionDownloader.js` runs `glib-compile-schemas --strict` after
   unzipping an EGO download).
-- **`__pycache__/`, `*.pyc`** — stripped by `strip_pycache`.
 - **`CLAUDE.md`** (root and `src/backend/`) — stripped by `strip_unshipped`.
 - **`scripts/`, `README.md`, `docs/`, `.claude/`, `.git`, `dist/`** — never
   part of `src/`, so never seen by the packer at all; `--extra-source` only
@@ -101,7 +100,7 @@ Current contents:
 |---|---|---|
 | `uuid` | `video-library@jackicus` | Valid characters, not under `gnome.org`. Cannot change after the first upload |
 | `name` | `Video Library` | Matches the UUID, the schema and the repo name |
-| `description` | multi-paragraph, with the TMDB notice | Says what it draws, that Python and a Rescan are needed, where it looks things up, and that it plays nothing itself |
+| `description` | multi-paragraph, with the TMDB notice | Says what it draws, that a Rescan is needed, where it looks things up, and that it plays nothing itself |
 | `settings-schema` | set | Correct; `getSettings()` is called with no arguments in both `lib/app.js` and `prefs.js`, as Best Practices asks |
 | `shell-version` | `["50"]` | The only version actually booted (per `CLAUDE.md`, 48 and 49 are audited against the shell's sources, not booted, so they're not claimed yet) |
 | `version-name` | `"1.0"` | Valid: letters, numbers, space and period only, ≤ 16 characters |
@@ -198,52 +197,40 @@ which only logs when `setVerbose(true)` has been called; only
 `scripts/dev-extension.js` (dev-only, never shipped) calls it. The shipped
 `extension.js` never logs on a successful enable or an ordinary rebuild.
 
-### Scripts, subprocesses and network access: the review's centre of gravity, still open
+### Scripts, subprocesses and network access
 
 The review guidelines' "Scripts and Binaries" rule is that a script "MUST be
 written in GJS, unless absolutely necessary," and Best Practices separately
 says "Avoid spawning external shell commands where possible... use D-Bus for
 system service communication; offload heavy tasks to separate apps
-communicating via D-Bus." This extension's `backend/` is a substantial,
-non-GJS program: three Python files (`scan_library.py`, `media_scanner.py`,
-`metadata.py`) that walk the filesystem, make outbound HTTPS requests to
-`api.tvmaze.com`, `api.themoviedb.org` and `en.wikipedia.org` with
-`urllib.request`, and write image and JSON files into
-`~/.cache/video-library/`. It is launched two ways, both already careful
-about the one thing that matters most (never putting a credential on a
-command line):
+communicating via D-Bus." The one script here is the scanner, and it is GJS:
+`backend/scanLibrary.js` and its modules walk the filesystem, make outbound
+HTTPS requests to `api.tvmaze.com`, `api.themoviedb.org` and
+`en.wikipedia.org` with Soup 3, and write image and JSON files into
+`~/.cache/video-library/`, scaling the artwork with GdkPixbuf on the way in.
+It needs nothing beyond the libraries GNOME Shell itself runs on and imports
+nothing from the shell.
+
+It runs as `gjs -m` in a process of its own — the "separate app" Best
+Practices asks for, communicating through the one file it writes, which the
+extension watches — rather than inside the compositor, where the folder walk
+and the network waits would be the dropped frames `CLAUDE.md`'s performance
+rules forbid, or inside the preferences, where the walk would stall the
+window on a share that has to be woken and closing the window would kill a
+scan halfway. It is launched two ways, both careful about the one thing that
+matters most (never putting a credential on a command line):
 
 - **From the preferences.** `prefs.js`'s `_scanButton` runs
-  `Gio.Subprocess.new(['python3', '<path>/backend/scan_library.py',
+  `Gio.Subprocess.new(['gjs', '-m', '<path>/backend/scanLibrary.js',
   '--from-settings', '--only', <section>, ...], ...)`, with stdout silenced
   and stderr captured only to log a failure. Only ever on a Rescan button
   press — nothing runs on enable, on a timer, or in the background.
-- **From the scanner itself.** `scan_library.py --from-settings` reads every
-  setting it needs — folders, source order, the online switch, `credentials`
-  — by spawning `gsettings get <schema> <key>` per key
-  (`_setting`/`_setting_value` in `scan_library.py`) rather than linking
-  PyGObject's `Gio.Settings` for it (PyGObject *is* used, but only for
-  `GdkPixbuf` in `metadata.py`, to scale artwork on the way into the cache).
-  A value read this way is held in memory only long enough to build the
-  request that needs it, exactly as CLAUDE.md's API-key rule requires, and is
-  never echoed.
-
-None of this is secretive — the root `CLAUDE.md` documents the whole design,
-down to which source needs a key and why the scanner reads settings itself
-rather than being handed them — but "is this justified" is a judgement call
-the guidelines leave to the reviewer, and a bundled Python backend making
-outbound network calls on the user's behalf, with an optional third-party API
-key stored in GSettings, is exactly the shape of thing the "unless absolutely
-necessary" clause exists to gate. The `description` already says so plainly
-(above); still worth having ready for the upload notes is *why* this can't
-reasonably be GJS — GJS has no equivalent of Python's standard library for
-this (a threaded fetch pool, `urllib`; `GdkPixbuf` is available to GJS too,
-but the scanning and enrichment logic itself would have to be rewritten
-wholesale), and a same-language rewrite under `lib/` would run the network
-waits and the folder walk on the compositor's own thread, which `CLAUDE.md`'s
-own performance rules ("nothing stats per item", "a long synchronous block is
-a dropped frame for the whole desktop") rule out as firmly as the review
-guideline does.
+- **From the scanner itself.** `scanLibrary.js --from-settings` reads every
+  setting it needs — folders, source order, the online switch,
+  `credentials` — with `Gio.Settings`, from the schemas shipped beside it
+  (`applySettings`). A value read this way is held in memory only long
+  enough to build the request that needs it, exactly as `CLAUDE.md`'s
+  API-key rule requires, and is never echoed.
 
 Two smaller points under the same heading:
 
@@ -364,11 +351,9 @@ is for, and what breaks if a future GNOME shell changes it, is covered in
 
 What's actually left open:
 
-1. **Decide how to answer the Python backend question**, if asked in review
-   — see [Scripts, subprocesses and network access](#scripts-subprocesses-and-network-access-the-reviews-centre-of-gravity-still-open).
-2. **Decide on per-item Wikipedia/TVmaze attribution** in the detail view —
+1. **Decide on per-item Wikipedia/TVmaze attribution** in the detail view —
    see [Wikipedia and TVmaze attribution](#wikipedia-and-tvmaze-attribution-open-question).
-3. **Test on GNOME 48 and 49** before claiming them in `shell-version` —
+2. **Test on GNOME 48 and 49** before claiming them in `shell-version` —
    they're currently audited against the shell's sources only, not booted
    (`docs/compatibility.md`).
 

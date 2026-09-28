@@ -1,4 +1,4 @@
-// Reads ~/.cache/video-library/library.json (written by backend/scan_library.py)
+// Reads ~/.cache/video-library/library.json (written by backend/scanLibrary.js)
 // and normalises TV shows and films into one shape the views can render:
 //
 //   item = {
