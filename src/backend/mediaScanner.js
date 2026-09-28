@@ -6,8 +6,8 @@
 // folder and stat'ing each file in it is the bulk of a rescan, and almost
 // nothing has changed between one scan and the next, so an item whose folder
 // still carries the signature recorded last time reuses the file list it
-// already had. The metadata fields are always rebuilt from scratch, so
-// switching provider still refetches everything.
+// already had. The metadata fields are never carried over from the last
+// scan, so a change of sources takes effect at the next one.
 //
 // Each item's folder is walked once: the signature, the file list and the
 // cover all come out of the same walk.
@@ -92,10 +92,14 @@ function sortNatural(items, keys) {
 // --------------------------------------------------------------------------
 // The filesystem
 // --------------------------------------------------------------------------
+// A stat that is refused comes back as an info without the attribute rather
+// than as an error, hence the has_attribute before each read.
 function sizeMb(path) {
     try {
         const info = Gio.File.new_for_path(path).query_info('standard::size', Gio.FileQueryInfoFlags.NONE, null);
-        return Number((info.get_size() / (1024 * 1024)).toFixed(1));
+        return info.has_attribute('standard::size')
+            ? Number((info.get_size() / (1024 * 1024)).toFixed(1))
+            : 0;
     } catch {
         return 0;
     }
@@ -103,9 +107,8 @@ function sizeMb(path) {
 
 function followedType(path) {
     try {
-        return Gio.File.new_for_path(path)
-            .query_info('standard::type', Gio.FileQueryInfoFlags.NONE, null)
-            .get_file_type();
+        const info = Gio.File.new_for_path(path).query_info('standard::type', Gio.FileQueryInfoFlags.NONE, null);
+        return info.has_attribute('standard::type') ? info.get_file_type() : Gio.FileType.UNKNOWN;
     } catch {
         return Gio.FileType.UNKNOWN;
     }
@@ -117,15 +120,26 @@ function followedType(path) {
 // stat every name — on a share, a round trip each — so only a link, or a
 // filesystem that does not say, costs a stat. Null when the folder cannot be
 // read, whole.
+//
+// A name that is not UTF-8 — a share written from an old system in Latin-1 —
+// cannot be held in a JavaScript string, and so cannot be opened from here
+// either. It is skipped, and said so, rather than taking its folder with it.
 function list(path, quiet = false) {
     let entries = null;
+    let unreadable = 0;
     try {
         const enumerator = Gio.File.new_for_path(path).enumerate_children(
             'standard::name,standard::type', Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS, null);
         try {
             entries = [];
             for (let info = enumerator.next_file(null); info; info = enumerator.next_file(null)) {
-                const name = info.get_name();
+                let name;
+                try {
+                    name = info.get_name();
+                } catch {
+                    unreadable++;
+                    continue;
+                }
                 let type = info.get_file_type();
                 const link = type === Gio.FileType.SYMBOLIC_LINK;
                 if (link)
@@ -144,6 +158,8 @@ function list(path, quiet = false) {
             print(`Cannot read ${path}: ${e.message}`);
         return null;
     }
+    if (unreadable)
+        print(`${path}: skipping ${unreadable} name(s) that are not UTF-8`);
     return entries;
 }
 
@@ -254,6 +270,14 @@ function signature(folder, tree) {
     return `${tree.seen}:${tree.newest.toFixed(3)}:${folder}`;
 }
 
+// The previous item from `folder`, kept as it was when the folder cannot be
+// read this time — a share dropping out mid-scan — rather than letting it,
+// and its artwork, go until the next scan finds it again.
+function unread(previous, id, folder) {
+    const entry = previous?.get(id);
+    return entry?.folder_path === folder ? entry : null;
+}
+
 // The cached `field` of a previous item whose folder has not changed.
 function reusable(previous, id, sig, field) {
     if (!previous?.size || !sig)
@@ -306,16 +330,28 @@ function videoEntries(tree) {
 
 // --------------------------------------------------------------------------
 // TV shows: <root>/<Show>/[Season N/]<episode>.mkv
+//
+// Both scanners return null when `root` itself cannot be listed, which is
+// out of reach, not empty.
 // --------------------------------------------------------------------------
 export async function scanTv(root, previous = null, exclude = []) {
+    const entries = list(root);
+    if (!entries)
+        return null;
     const skipped = exclusions(root, exclude);
     const shows = [];
-    for (const entry of subdirs(list(root) ?? [])) {
+    for (const entry of subdirs(entries)) {
         if (skipped(entry))
             continue;
         const folder = join(root, entry.name);
         const id = slug(entry.name);
         const tree = walk(folder);
+        if (!tree.seen) {
+            const kept = unread(previous, id, folder);
+            if (kept)
+                shows.push(kept);
+            continue;
+        }
         const sig = signature(folder, tree);
         let episodes = reusable(previous, id, sig, 'episodes');
         if (episodes === null) {
@@ -356,14 +392,22 @@ export async function scanTv(root, previous = null, exclude = []) {
 // Films: <root>/<Film (Year)>/<file>.mkv  or  <root>/<Film (Year)>.mkv
 // --------------------------------------------------------------------------
 export async function scanFilms(root, exclude = [], previous = null) {
+    const entries = list(root);
+    if (!entries)
+        return null;
     const skipped = exclusions(root, exclude);
-    const entries = list(root) ?? [];
     const films = [];
     for (const entry of subdirs(entries)) {
         if (skipped(entry))
             continue;
         const folder = join(root, entry.name);
         const tree = walk(folder);
+        if (!tree.seen) {
+            const kept = unread(previous, slug(entry.name), folder);
+            if (kept)
+                films.push(kept);
+            continue;
+        }
         const sig = signature(folder, tree);
         const files = reusable(previous, slug(entry.name), sig, 'files') ?? videoEntries(tree);
         if (!files.length)

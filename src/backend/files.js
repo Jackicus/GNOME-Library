@@ -25,16 +25,22 @@ export function exists(path) {
 }
 
 // A file's modification time in seconds, nanoseconds and all, following a
-// link; null if it cannot be read.
+// link; null if it cannot be read. The seconds come by way of a GDateTime:
+// Gio keeps them as an unsigned attribute, which turns a time before 1970
+// into a number past anything a folder could be touched to since.
 const MODIFIED = 'time::modified,time::modified-usec,time::modified-nsec';
 
 export function modified(path) {
     try {
         const info = Gio.File.new_for_path(path).query_info(MODIFIED, Gio.FileQueryInfoFlags.NONE, null);
+        const usec = info.get_modification_date_time()?.to_unix_usec();
+        if (usec === undefined)
+            return null;
+        const seconds = Math.floor(usec / 1e6);
         const nanoseconds = info.has_attribute('time::modified-nsec')
             ? info.get_attribute_uint32('time::modified-nsec')
-            : info.get_attribute_uint32('time::modified-usec') * 1000;
-        return info.get_attribute_uint64('time::modified') + nanoseconds * 1e-9;
+            : (usec - seconds * 1e6) * 1000;
+        return seconds + nanoseconds * 1e-9;
     } catch {
         return null;
     }

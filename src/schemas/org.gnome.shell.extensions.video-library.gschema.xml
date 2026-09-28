@@ -32,7 +32,7 @@
         <key name="tv-shows-online" type="b">
             <default>true</default>
             <summary>Fetch artwork and descriptions online for TV shows</summary>
-            <description>Off leaves this section with whatever is already cached. Every section has its own; there is no longer a global switch.</description>
+            <description>Off leaves this section with whatever is already cached. Every section has its own; there is no global switch.</description>
         </key>
         <key name="tv-shows-open-command" type="s">
             <default>"vlc --fullscreen --play-and-exit --qt-continue=0"</default>
@@ -63,7 +63,7 @@
         <key name="films-online" type="b">
             <default>true</default>
             <summary>Fetch artwork and descriptions online for films</summary>
-            <description>Off leaves this section with whatever is already cached. Every section has its own; there is no longer a global switch.</description>
+            <description>Off leaves this section with whatever is already cached. Every section has its own; there is no global switch.</description>
         </key>
         <key name="films-open-command" type="s">
             <default>"vlc --fullscreen --play-and-exit --qt-continue=0"</default>

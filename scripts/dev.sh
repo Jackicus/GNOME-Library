@@ -56,8 +56,8 @@ is_enabled() {
     gnome-extensions list --enabled 2>/dev/null | grep -qx "$UUID"
 }
 
-# Drop what the extension directory ships from but a checkout doesn't need:
-# the per-directory CLAUDE.md notes. Only ever called on a COPY of src/ — the
+# Remove what a checkout needs but an installed copy has no use for: the
+# per-directory CLAUDE.md notes. Only ever called on a COPY of src/ — the
 # plain-cp install fallback and the pack staging copy — since those CLAUDE.md
 # files are checked in and deleting them from src/ is a loss.
 strip_unshipped() {
@@ -175,7 +175,7 @@ cmd_pack() {
     mkdir -p "$out"
     info "Packing $UUID..."
     # pack bundles everything under --extra-source dirs and has no exclude flag,
-    # so pack a staged copy with the byte-compiled cruft and CLAUDE.md notes removed
+    # so pack a staged copy with the CLAUDE.md notes removed
     local stage
     stage=$(mktemp -d)
     cp -r "$SRC_DIR"/. "$stage"/
@@ -289,7 +289,8 @@ cmd_status() {
         # the file is shaped a second time.
         echo "library:  $(gjs -c 'import(imports.gi.GLib.filename_to_uri(ARGV[0], null)).then(
             ({readSections}) => print(Object.entries(readSections().sections)
-                .map(([k, v]) => `${Array.isArray(v) ? v.length : 0} ${k}`).join(", ") || "empty"))' \
+                .map(([k, v]) => `${Array.isArray(v) ? v.length : 0} ${k}`).join(", ") || "empty"),
+            () => print("unreadable"))' \
             "$SRC_DIR/lib/library.js" 2>/dev/null || echo 'unreadable')"
     else
         echo "library:  not scanned yet"

@@ -30,12 +30,14 @@ import System from 'system';
 import {SECTIONS, libraryPath} from '../lib/library.js';
 import {scanFilms, scanTv} from './mediaScanner.js';
 import {
-    ENRICH_WORKERS, PROVIDERS, MetadataService, fitCachedArt, localiseArt, pathKey,
-    pruneArt, sourceId,
+    CACHE_DIR, ENRICH_WORKERS, PROVIDERS, MetadataService, fitCachedArt, localiseArt,
+    pathKey, pruneArt, sourceId,
 } from './metadata.js';
 import {join, readJson, writeJson} from './files.js';
 
 const LIBRARY_VERSION = 2;
+const DBUS_NAME_FLAG_DO_NOT_QUEUE = 4;
+const DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER = 1;
 const SCHEMA = 'org.gnome.shell.extensions.video-library';
 // This file's own folder. It is never run from the staged copy of lib/ the
 // dev entry point makes, so import.meta.url is where it really is.
@@ -196,25 +198,32 @@ function applySettings(args) {
 // --------------------------------------------------------------------------
 // Every scan reads the whole library.json, replaces the sections it was asked
 // for and writes all of them back, so two at once would each write the
-// other's sections back as they were. The lock is an abstract Unix socket
-// named after the library: binding it is refused while another scan holds it,
-// and the kernel lets it go the moment that scan's process ends, however it
-// ends, so nothing is ever left behind to go stale — easily needed, since the
-// preferences offer a Rescan button per section and one for the lot.
-async function holdLock(out) {
-    GLib.mkdir_with_parents(GLib.path_get_dirname(out) || '.', 0o755);
-    const where = Gio.File.new_for_path(out).get_path();
-    const address = Gio.UnixSocketAddress.new_with_type(
-        `video-library-scan-${pathKey(where)}`, Gio.UnixSocketAddressType.ABSTRACT);
-    const socket = Gio.Socket.new(Gio.SocketFamily.UNIX, Gio.SocketType.STREAM, Gio.SocketProtocol.DEFAULT);
+// other's sections back as they were — easily done, since the preferences
+// offer a Rescan button per section and one for the lot — and both share the
+// record index and the artwork cache besides.
+//
+// The lock is a name on the session bus, one per cache: asking for it is
+// refused while another scan holds it, and the bus lets it go the moment that
+// scan's process ends, however it ends, so nothing is left behind to go
+// stale. The bus is the user's own, and a sandboxed app cannot take a name
+// outside its own, so nothing else can hold it. Without a session bus at all
+// — a scan run over ssh — the scan goes ahead unlocked.
+async function holdLock() {
+    let bus;
+    try {
+        bus = Gio.DBus.session;
+    } catch (e) {
+        print(`No session bus (${e.message}); scanning without a lock.`);
+        return;
+    }
+    const name = `org.gnome.shell.extensions.VideoLibrary.Scan.c${pathKey(CACHE_DIR)}`;
     for (let waiting = false; ; waiting = true) {
-        try {
-            socket.bind(address, false);
-            return socket;
-        } catch (e) {
-            if (!e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.ADDRESS_IN_USE))
-                throw e;
-        }
+        const [reply] = bus.call_sync(
+            'org.freedesktop.DBus', '/org/freedesktop/DBus', 'org.freedesktop.DBus', 'RequestName',
+            new GLib.Variant('(su)', [name, DBUS_NAME_FLAG_DO_NOT_QUEUE]), new GLib.VariantType('(u)'),
+            Gio.DBusCallFlags.NONE, -1, null).deep_unpack();
+        if (reply === DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER)
+            return;
         if (!waiting)
             print('Another scan is already running; waiting for it to finish...');
         // eslint-disable-next-line no-await-in-loop -- polling is the waiting
@@ -278,7 +287,7 @@ function unchanged(items, previous) {
     return items.filter(item => item.scan_sig && previous.get(item.id)?.scan_sig === item.scan_sig).length;
 }
 
-// ~ and ~/..., as os.path.expanduser() reads them.
+// The home folder for ~ and ~/... (not ~user).
 function expandUser(path) {
     if (path === '~' || path.startsWith('~/'))
         return GLib.get_home_dir() + path.slice(1);
@@ -318,39 +327,51 @@ function previousItems(items, force) {
     return previous;
 }
 
+// Whether `folder` is `root` or somewhere under it.
+function within(folder, root) {
+    const trim = path => String(path ?? '').replace(/\/+$/, '');
+    const [inner, outer] = [trim(folder), trim(root)];
+    return inner === outer || inner.startsWith(`${outer}/`);
+}
+
 // Scan one section's folders into `sections[key]` and say what was found in
 // `scanned[key]`.
+//
+// A folder out of reach — a share that is offline, a drive not plugged in, a
+// mount that fails — is not an empty one: what the last scan found in it is
+// kept, artwork and all, rather than dropped and pruned, to be fetched all
+// over again when it comes back. Only a folder that is reached and found
+// empty, or taken out of the list, loses what it had.
 async function scanSection(key, paths, {sections, scanned, meta, exclude, force}) {
     const t0 = GLib.get_monotonic_time();
-    const previous = previousItems(sections[key], force);
+    const last = Array.isArray(sections[key]) ? sections[key] : [];
+    const previous = previousItems(last, force);
     const items = [];
     const missing = [];
     for (const path of paths) {
-        if (!GLib.file_test(path, GLib.FileTest.IS_DIR)) {
+        let found = null;
+        if (GLib.file_test(path, GLib.FileTest.IS_DIR))
+            // eslint-disable-next-line no-await-in-loop -- a folder at a time, in the order they are listed
+            found = await SCANNERS[key](path, previous, exclude);
+        else
             print(`${key}: ${path} is not a folder, skipping it`);
-            missing.push(path);
+        if (found) {
+            items.push(...found);
             continue;
         }
-        // eslint-disable-next-line no-await-in-loop -- a folder at a time, in the order they are listed
-        items.push(...await SCANNERS[key](path, previous, exclude));
-    }
-    scanned[key] = {paths, count: items.length};
-    if (missing.length)
-        scanned[key].missing = missing;
-    // Every folder out of reach — a share that is offline, a drive not
-    // plugged in — is not an empty library: what the last scan found is kept,
-    // artwork and all, rather than written out empty and pruned, to be fetched
-    // all over again when the share comes back.
-    if (paths.length && missing.length === paths.length && sections[key]?.length) {
-        print(`${key}: none of its folders can be reached; keeping the last scan`);
-        scanned[key].count = sections[key].length;
-        return;
+        missing.push(path);
+        const kept = last.filter(item => within(item?.folder_path, path));
+        if (kept.length)
+            print(`${key}: keeping what the last scan found in ${path} (${kept.length})`);
+        items.push(...kept);
     }
     uniqueIds(items);
     await enrichAll(meta, items);
 
     sections[key] = items;
-    scanned[key].count = items.length;
+    scanned[key] = {paths, count: items.length};
+    if (missing.length)
+        scanned[key].missing = missing;
     const reused = unchanged(items, previous);
     const note = reused ? `, ${reused} unchanged` : '';
     const where = paths.join(', ') || 'no folder';
@@ -387,52 +408,49 @@ async function main(argv) {
             exclude[key] = [...new Set([...(exclude[key] ?? []), ...folders])];
     }
 
-    const lock = await holdLock(args.out);
-    try {
-        // Under the lock, since it reads the record index another scan may be
-        // writing. Keys come from the preferences, or from the environment
-        // (VIDEO_LIBRARY_TMDB_KEY) for a standalone run. Never argv.
-        const meta = new MetadataService({
-            online: !args.offline,
-            sources: args.sources,
-            credentials: args.credentials,
-            offlineKinds: args.offlineKinds,
-        });
-        // Every artwork path the shell is given has to be a file in the cache,
-        // no larger than the desktop draws it.
-        const fitted = await fitCachedArt();
-        const run = {sections: loadExisting(args.out), scanned: {}, meta, exclude, force: args.force};
-        for (const [key, paths] of Object.entries(requested)) {
-            if (paths !== null)
-                // eslint-disable-next-line no-await-in-loop -- one section at a time
-                await scanSection(key, paths, run);
-        }
-
-        meta.flush();
-        // Only what this run knows about: a section an older library.json
-        // still has is dropped rather than carried forward.
-        const written = Object.fromEntries(SECTIONS.map(({key}) => [key, run.sections[key] ?? []]));
-        const moved = await localiseArt(written);
-        const library = {
-            version: LIBRARY_VERSION,
-            generated: GLib.get_real_time() / 1e6,
-            sections: written,
-            scanned: run.scanned,
-        };
-        writeJson(args.out, library, 1);
-        print(`Wrote ${args.out}`);
-        // Pruned after the write and against every section at once, and only
-        // for the real library: a run written elsewhere was merged onto that
-        // file's sections, and pruning against it would delete the artwork
-        // the extension is still pointing at.
-        let dropped = 0;
-        if (Gio.File.new_for_path(args.out).equal(Gio.File.new_for_path(LIBRARY_PATH)))
-            dropped = pruneArt(library.sections);
-        if (fitted || moved || dropped)
-            print(`Artwork cache: ${fitted} scaled down, ${moved} copied in, ${dropped} removed`);
-    } finally {
-        lock.close();
+    GLib.mkdir_with_parents(GLib.path_get_dirname(args.out), 0o755);
+    await holdLock();
+    // Under the lock, since it reads the record index another scan may be
+    // writing. Keys come from the preferences, or from the environment
+    // (VIDEO_LIBRARY_TMDB_KEY) for a standalone run. Never argv.
+    const meta = new MetadataService({
+        online: !args.offline,
+        sources: args.sources,
+        credentials: args.credentials,
+        offlineKinds: args.offlineKinds,
+    });
+    // Every artwork path the shell is given has to be a file in the cache,
+    // no larger than the desktop draws it.
+    const fitted = await fitCachedArt();
+    const run = {sections: loadExisting(args.out), scanned: {}, meta, exclude, force: args.force};
+    for (const [key, paths] of Object.entries(requested)) {
+        if (paths !== null)
+            // eslint-disable-next-line no-await-in-loop -- one section at a time
+            await scanSection(key, paths, run);
     }
+
+    meta.flush();
+    // Only what this run knows about: a section an older library.json
+    // still has is dropped rather than carried forward.
+    const written = Object.fromEntries(SECTIONS.map(({key}) => [key, run.sections[key] ?? []]));
+    const moved = await localiseArt(written);
+    const library = {
+        version: LIBRARY_VERSION,
+        generated: GLib.get_real_time() / 1e6,
+        sections: written,
+        scanned: run.scanned,
+    };
+    writeJson(args.out, library, 1);
+    print(`Wrote ${args.out}`);
+    // Pruned after the write and against every section at once, and only
+    // for the real library: a run written elsewhere was merged onto that
+    // file's sections, and pruning against it would delete the artwork
+    // the extension is still pointing at.
+    let dropped = 0;
+    if (Gio.File.new_for_path(args.out).equal(Gio.File.new_for_path(LIBRARY_PATH)))
+        dropped = pruneArt(library.sections);
+    if (fitted || moved || dropped)
+        print(`Artwork cache: ${fitted} scaled down, ${moved} copied in, ${dropped} removed`);
     return 0;
 }
 

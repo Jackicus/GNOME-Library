@@ -78,9 +78,9 @@ wrote are still read once and folded in). The shell side never scrapes; it
 only reads the `library.json` the scanner wrote.
 
 **Every artwork path in `library.json` is a file in that cache, already scaled
-to what the desktop ever draws, HiDPI included** (posters 512×768, backdrops
-960×540; `metadata.js POSTER_BOX`/`BACKDROP_BOX` hold the caps, sized off
-`mediaGrid.js`'s tile and `detailView.js HERO_MAX_HEIGHT`). St decodes a
+down** (posters to 512×768, backdrops to 960×540; `metadata.js
+POSTER_BOX`/`BACKDROP_BOX` hold the caps and say what they are sized for —
+the detail hero, and a grid cover in all but the largest layouts). St decodes a
 background image at full size on the compositor thread and keeps it, so the
 scanner shrinks on the way in, copies a `cover.jpg` it finds beside the media
 in with the rest, and sweeps and prunes the cache on each scan — only when it
@@ -100,10 +100,10 @@ library still names. The JS treats an art path outside the cache as missing.
    imports only `SECTIONS` and `libraryPath` from `lib/library.js`.
 
    It walks each section's folder, enriches items online and writes
-   `~/.cache/video-library/library.json` atomically, under a lock (an abstract
-   Unix socket named after the library, which the kernel lets go however the
-   process ends) so two rescans cannot each write the other's sections back
-   as they were. It reads the preferences itself with `--from-settings`
+   `~/.cache/video-library/library.json` atomically, under a lock (a name on
+   the session bus, one per cache, which the bus lets go however the process
+   ends) so two rescans cannot each write the other's sections back as they
+   were. It reads the preferences itself with `--from-settings`
    (narrowed by `--only <section>`), so which setting becomes which flag is
    decided in one place and both the Rescan buttons and `dev.sh scan` just
    run it. Enrichment runs six items at a time, since it is nearly all
@@ -130,9 +130,10 @@ library still names. The JS treats an art path outside the cache as missing.
    (prefs, `dev.sh scan` and the scanner all follow this). A section that is
    switched on and named in the run but has no folder is written out
    *empty*, so removing a section's last folder clears it at the next scan;
-   one whose folders are all out of reach (a share offline, a drive not
-   plugged in) keeps what the last scan found, artwork included, rather than
-   being emptied and its cache pruned. Each section's folders are kept out of
+   a folder out of reach (a share offline, a drive not plugged in, a mount
+   that fails) keeps what the last scan found in it, artwork included, rather
+   than being emptied and its cache pruned — so does a show or film folder
+   that cannot be read this time. Each section's folders are kept out of
    the other's walk whichever of them a run scans — the Films page's own
    Rescan scans films alone, and a TV folder inside the films folder must
    not be read as a film then.

@@ -59,8 +59,8 @@ one-off; prefer `do`. Other commands: `status`, `reload`, `logs [N] [--all]`,
 ## Screenshots for the docs
 
 `docs/screenshots/` — the README's images — are taken in
-`./scripts/nested.sh start --clean --demo`: settings of its own with only Media
-Libraries enabled and the real session's look copied in (so GNOME's default
+`./scripts/nested.sh start --clean --demo`: settings of its own with only Video
+Library enabled and the real session's look copied in (so GNOME's default
 wallpaper, and the library button in the overview's dash at ≈ (960, 838)), and
 the made-up library `scripts/demo_library.py` draws, pointed at through the
 session's `XDG_CACHE_HOME` — never the user's own collection, which is not for

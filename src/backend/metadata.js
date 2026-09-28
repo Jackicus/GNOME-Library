@@ -72,12 +72,14 @@ const USER_AGENT = 'VideoLibrary/2.0';
 // polite thing is not to provoke it).
 export const ENRICH_WORKERS = 6;
 
-// The largest the desktop ever draws each kind of artwork, doubled where a
-// HiDPI monitor would ask for twice the pixels, and no further — everything
-// above this is memory the compositor holds and never uses.
-//   poster    a 320px grid tile (mediaGrid.js iconSize, floored by MIN_ART) at
-//             scale 2, and the 560px detail hero (detailView.js
-//             HERO_MAX_HEIGHT) at scale 1
+// The largest each kind of artwork is kept at. St decodes an image whole and
+// keeps it, so every pixel past what is drawn is memory the compositor holds
+// for nothing.
+//   poster    768 tall: the detail hero (detailView.js HERO_MAX_HEIGHT, 560)
+//             at scale 1, or a grid cover up to 384 at scale 2. A bigger
+//             cover — mediaGrid.js gridFor sets no ceiling, and one row of four
+//             on a large screen passes it — is drawn scaled up from this
+//             rather than every poster paying for a larger decode.
 //   backdrop  the detail pane's own backing, dimmed under a veil
 const POSTER_BOX = [512, 768];
 const BACKDROP_BOX = [960, 540];
@@ -230,7 +232,7 @@ async function fitImage(src, box, dest = null) {
         // Loaded no larger than the box's long side either way, so a 90-degree
         // orientation still has its long side whole, then oriented and fitted
         // to the box as it now stands.
-        let pixbuf = await load(src, scale < 1 ? Math.max(...box) : null);
+        let pixbuf = await load(src, scale < 1 ? Math.min(Math.max(...box), Math.max(...size)) : null);
         pixbuf = pixbuf.apply_embedded_orientation() ?? pixbuf;
         const fit = Math.min(1, box[0] / pixbuf.get_width(), box[1] / pixbuf.get_height());
         if (fit < 1) {
@@ -288,8 +290,8 @@ export async function cacheLocalArt(path, kind = 'poster') {
 // A section that was not rescanned, or an item reused from the previous scan
 // on its folder signature, can still carry a path outside the cache — and the
 // shell must be handed a cache path or nothing at all. Copies already made are
-// reused, so for a library that is already right this is one string
-// comparison per item.
+// reused, so for a library that is already right this is a string comparison
+// or two per item.
 export async function localiseArt(sections) {
     const outside = [];
     for (const items of Object.values(sections)) {
@@ -417,7 +419,7 @@ async function fetch(url, timeout) {
     for (let attempt = 0; ; attempt++) {
         const message = Soup.Message.new('GET', url);
         if (!message)
-            throw new Error(`not a URL: ${url}`);
+            throw new Error('not a URL Soup can parse');
         let bytes;
         try {
             // eslint-disable-next-line no-await-in-loop -- a retry waits for the answer before it
@@ -430,7 +432,9 @@ async function fetch(url, timeout) {
             }
             throw e;
         }
-        const status = message.get_status();
+        // status_code, not get_status(): the latter is an enum, and one with no
+        // member for 429 — reading it throws rather than returning the number.
+        const status = message.status_code;
         if (status >= 200 && status < 300) {
             failures = 0;
             return bytes.toArray();
@@ -461,13 +465,15 @@ function query(params) {
 // shell may be drawing the old file, and a body that is not an image at all
 // (an error page) must not become the poster, or it would be kept — it exists
 // — and drawn as nothing, not even the placeholder.
+class NotAnImage extends Error {}
+
 async function download(url, dest, box, timeout = 10) {
     const data = await fetch(url, timeout);
     const tmp = `${dest}.download`;
     GLib.file_set_contents(tmp, data);
     if (await fitImage(tmp, box) === null) {
         remove(tmp);
-        throw new Error('not an image that can be scaled');
+        throw new NotAnImage('not an image that can be scaled');
     }
     rename(tmp, dest);
     return dest;
@@ -492,7 +498,8 @@ function stripHtml(text) {
 // "X is a 2017 American superhero film", up to its full stop.
 const LEAD_IN = /^[^.]*\bis an? (\d{4} )?[^.]*\.\s*/;
 // What a cache name may hold of an id: every letter and number of any script,
-// and the `~n` a repeated name gets.
+// and the `~n` a repeated name gets. Stripping either would put two titles,
+// or two copies of one name, on the same cache entry.
 const UNSAFE = /[^\p{L}\p{N}_~]/gu;
 
 // A folder name as a search term.
@@ -589,11 +596,11 @@ export class MetadataService {
     _loadIndex() {
         const data = readJson(METADATA_INDEX);
         if (!data || typeof data !== 'object' || Array.isArray(data))
-            return {};
+            return Object.create(null);
         // `album_`/`game_` records predate this build's sections; dropped
         // rather than carried forward forever unread. The next flush writes
         // the index back without them.
-        const kept = {};
+        const kept = Object.create(null); // keyed by id, which may be any name
         for (const [key, record] of Object.entries(data)) {
             if (key.startsWith('album_') || key.startsWith('game_'))
                 this._unflushed++;
@@ -604,10 +611,7 @@ export class MetadataService {
     }
 
     // An item's cache key and artwork files. TV shows keep the bare id, so
-    // posters already on disk are not fetched twice under a new name; every
-    // letter an id has, of any script, and the `~n` a repeated name gets are
-    // kept, since stripping either would let two titles, or two copies of one
-    // repeated name, land on the same cache entry.
+    // posters already on disk are not fetched twice under a new name.
     _paths(item) {
         const prefix = item.kind === 'tv' ? '' : `${item.kind}_`;
         const safe = `${prefix}${item.id}`.replace(UNSAFE, '');
@@ -615,10 +619,11 @@ export class MetadataService {
     }
 
     // The cached record for `key`, from the index or — once, when a cache
-    // still has one — from that item's own file.
+    // still has one — from that item's own file. A show called "Index" has
+    // the index's own name, and no file of its own.
     _record(key) {
-        if (Object.hasOwn(this._index, key))
-            return this._index[key];
+        if (Object.hasOwn(this._index, key) || key === 'index')
+            return this._index[key] ?? null;
         const data = readJson(join(METADATA_CACHE_DIR, `${key}.json`));
         if (!data || typeof data !== 'object' || Array.isArray(data))
             return null;
@@ -653,11 +658,12 @@ export class MetadataService {
 
     // Record what the sources came back with — or, with `provider` null, that
     // none of them had anything, keeping whatever facts an earlier run
-    // cached. Either way, when no artwork arrived, the time and the sources
-    // that were `asked` and answered go in too, so the same question is not
-    // put to the same sources again for a while (_missed). A source that could
-    // not be asked — the network down, a key refused — is not among them, and
-    // is asked next time.
+    // cached. When nothing was found, or no artwork arrived, the time and the
+    // sources that were `asked` and answered go in too, so the same question
+    // is not put to the same sources again for a while (_missed) — a title
+    // with a cover of its own and no match online included. A source that
+    // could not be asked — the network down, a key refused — is not among
+    // them, and is asked next time.
     _save(item, provider, key, asked, previous) {
         let record = {};
         if (provider) {
@@ -671,7 +677,7 @@ export class MetadataService {
                     record[k] = v;
             }
         }
-        if (!item.poster_path) {
+        if (!provider || !item.poster_path) {
             record.tried = now();
             record.sources = [...asked].sort();
         }
@@ -753,7 +759,13 @@ export class MetadataService {
                 continue; // nothing found here; the next source gets its turn
             answered = name;
             // eslint-disable-next-line no-await-in-loop -- whether it arrives decides the next source
-            await this._download(item, typeof art === 'string' ? {poster: art} : art, posterFile, backdropFile);
+            const cut = await this._download(item, typeof art === 'string' ? {poster: art} : art,
+                posterFile, backdropFile);
+            // A poster that did not arrive — a timeout, a dropped connection,
+            // a 429 — was never really answered, so it is asked for again
+            // next scan rather than put off for a week.
+            if (cut)
+                asked.pop();
             if (item.poster_path)
                 break;
         }
@@ -763,12 +775,15 @@ export class MetadataService {
         this._save(item, answered, key, asked, record);
     }
 
-    // The artwork a source pointed at, whichever of it the item still lacks.
+    // The artwork a source pointed at, whichever of it the item still lacks;
+    // whether the poster was cut off on the way rather than found wanting.
     async _download(item, art, posterFile, backdropFile) {
+        let cut = false;
         if (art.poster && !item.poster_path) {
             try {
                 item.poster_path = await download(art.poster, posterFile, POSTER_BOX);
             } catch (e) {
+                cut = !(e instanceof NotAnImage);
                 print(`Artwork download failed for '${item.title}': ${describe(e)}`);
             }
         }
@@ -779,6 +794,7 @@ export class MetadataService {
                 print(`Backdrop download failed for '${item.title}': ${describe(e)}`);
             }
         }
+        return cut;
     }
 
     // -- providers -------------------------------------------------------
@@ -836,7 +852,7 @@ export class MetadataService {
             return null;
 
         const best = results[0];
-        const details = await getJson(`${TMDB_API}/${media}/${best.id}?api_key=${apiKey}`);
+        const details = await getJson(`${TMDB_API}/${media}/${best.id}?${query({api_key: apiKey})}`);
         fillTmdb(item, media, details, best);
         const poster = details.poster_path || best.poster_path;
         const backdrop = details.backdrop_path || best.backdrop_path;
@@ -859,7 +875,8 @@ export class MetadataService {
         if (!hits.length)
             return null;
 
-        // Prefer an article whose snippet mentions the year; else the top hit.
+        // Prefer an article whose snippet or title mentions the year; else the
+        // top hit.
         let best = hits[0];
         if (year) {
             best = hits.find(h => (h.snippet ?? '').includes(String(year)) ||
@@ -881,7 +898,7 @@ export class MetadataService {
     }
 }
 
-// The facts in a TMDB details answer, where the item lacks them.
+// The facts in a TMDB details answer, wherever it has them.
 function fillTmdb(item, media, details, best) {
     fill(item, 'summary', details.overview || best.overview);
     fill(item, 'tagline', details.tagline);

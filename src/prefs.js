@@ -1345,7 +1345,7 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
                 return;
             }
             const argv = [
-                'gjs', '-m',
+                gjsPath(), '-m',
                 GLib.build_filenamev([this.path, 'backend', 'scanLibrary.js']),
                 '--from-settings',
             ];
@@ -1441,6 +1441,17 @@ function keyLabel(keyval, mods) {
         return Gtk.accelerator_get_label(keyval, mods);
     // The modifiers' half of the label, off a key GTK does know.
     return mods ? Gtk.accelerator_get_label(Gdk.KEY_a, mods).slice(0, -1) + named : named;
+}
+
+// The gjs these preferences are running in, which is certain to be there
+// wherever they are, whatever PATH says; "gjs" off PATH where /proc cannot
+// tell.
+function gjsPath() {
+    try {
+        return GLib.file_read_link('/proc/self/exe');
+    } catch {
+        return 'gjs';
+    }
 }
 
 // libmanette, if it is installed; loaded once, when first wanted.

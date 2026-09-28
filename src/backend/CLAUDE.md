@@ -14,8 +14,7 @@ sources and the artwork cache), `files.js` (the file helpers both use) and
   a film that still fails is simply retried on the next scan.
 - **A credential is one slotted value.** `credential()` returns a single
   string per slot (`tmdb@1`, `tmdb@2`, …); TMDB is the only provider that
-  needs a key, and a second slot is a fallback to try when the first is
-  rate-limited or has never heard of the title.
+  needs one, and what a second slot is for is in the root `CLAUDE.md`.
 - **A title no source had artwork for is not asked about again for a week.**
   `_save` stamps the record with `tried` and the sources that *answered* (a
   source that could not be asked — the network down, a key TMDB refused — is
@@ -54,7 +53,14 @@ sources and the artwork cache), `files.js` (the file helpers both use) and
   other five lookups in flight up behind it — two seconds of a five-second
   first scan, measured. `get_file_info_async`, `new_from_stream_*_async` and
   `save_to_streamv_async` run on a worker thread.
-- **The lock is an abstract Unix socket**, `video-library-scan-<hash of the
-  library path>`: binding it is refused while another scan holds it, and the
-  kernel frees it the moment that scan's process ends, however it ends, so
-  there is no lock file to go stale. A second scan waits for the first.
+- **The lock is a session-bus name**, one per cache folder
+  (`org.gnome.shell.extensions.VideoLibrary.Scan.c<hash>`): asking for it is
+  refused while another scan holds it, and the bus frees it the moment that
+  scan's process ends, however it ends, so there is no lock file to go
+  stale; a sandboxed app cannot take a name outside its own. A second scan
+  waits for the first; a scan with no session bus at all goes ahead
+  unlocked.
+- **A name that is not UTF-8 is skipped, not fatal.** GJS cannot turn one
+  into a string, so it cannot be opened either; `list` drops just that entry
+  and says so. Letting the error through would lose the whole folder — at a
+  section's root, the whole section and its artwork.
