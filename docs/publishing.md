@@ -20,22 +20,24 @@ This runs `scripts/dev.sh pack` (`cmd_pack`), which:
 1. checks the schema with `glib-compile-schemas --strict --dry-run
    "$SRC_DIR/schemas"` and stops if it fails — the same check an install
    enforces, run as part of every pack rather than left as a manual step;
-2. copies `src/` into a temporary staging directory, strips it with
-   `strip_unshipped` (every `CLAUDE.md`, `src/backend/CLAUDE.md` included)
-   and the compiled schema, and copies the repo
-   root's `LICENSE` into the stage;
+2. copies `src/` into a temporary staging directory, deletes every
+   `CLAUDE.md` in it with `strip_unshipped` (`backend/CLAUDE.md` is the one
+   there), removes the compiled schema with a separate `rm -f`, and copies the
+   repo root's `LICENSE` into the stage;
 3. runs `gnome-extensions pack --force --extra-source=lib --extra-source=backend
    --extra-source=icons --extra-source=LICENSE -o dist .` from inside that
    staged copy. `gnome-extensions` adds `extension.js`, `metadata.json`,
    `prefs.js`, `stylesheet.css` and every `schemas/*.gschema.xml` itself
    (`command-pack.c`); `lib/`, `backend/`, `icons/` and `LICENSE` all need
    naming because none of them is one of its recognised top-level files;
-4. calls `check_pack`, which computes the expected file list (`extension.js
+4. deletes the staging directory (also when the pack fails, before
+   stopping);
+5. calls `check_pack`, which computes the expected file list (`extension.js
    prefs.js metadata.json stylesheet.css schemas/*.gschema.xml LICENSE`, every
    `lib/*.js`, every `backend/*.js`, every `icons/*.svg`)
    and diffs it against `unzip -Z1` of the built zip, failing loudly and
    naming both what's missing and what shouldn't be there on any mismatch;
-5. deletes the staging directory and reports
+   then lists the zip with `unzip -l` and reports
    `dist/video-library@jackicus.shell-extension.zip`.
 
 What each shipped part is:
@@ -65,8 +67,10 @@ What is left out, and why it is safe to leave out:
   GNOME 46 onward compiles the schema on install rather than expecting it in
   the zip (`extensionDownloader.js` runs `glib-compile-schemas --strict` after
   unzipping an EGO download).
-- **`CLAUDE.md`** (root and `src/backend/`) — stripped by `strip_unshipped`.
-- **`scripts/`, `README.md`, `docs/`, `.claude/`, `.git`, `dist/`** — never
+- **`src/backend/CLAUDE.md`** — deleted by `strip_unshipped`, which removes
+  every `CLAUDE.md` in the stage.
+- **`scripts/`, `README.md`, the root `CLAUDE.md`, `docs/`, `.claude/`, `.git`,
+  `dist/`** — never
   part of `src/`, so never seen by the packer at all; `--extra-source` only
   reaches directories under the packed tree.
 
@@ -113,14 +117,19 @@ Current contents:
 
 ### Only use initialization for static resources: meets
 
-`src/extension.js`'s class body has no constructor; module scope across every
-file under `lib/` is `import`, `const`, `class` and `GObject.registerClass()`
-definitions — spot-checked in `lib/library.js`, `lib/controls.js` and
-`lib/panel.js`, where the only top-level `new` calls are plain values
-(`new Set([...])` in `controls.js`, two `new Cogl.Color(...)` constants in
-`panel.js`), which is what the guideline allows ("static data structures and
-instances of built-in JavaScript objects"). Nothing is instantiated,
-connected or scheduled before `enable()` runs.
+`src/extension.js`'s class body has no constructor. Module scope under `lib/`
+is imports, constants, functions, classes and `GObject.registerClass()`
+definitions, plus a few plain values: top-level `let` variables holding
+module state (`log.js`'s `verbose`, `shape.js`'s `styles`, `mediaGrid.js`'s
+`gridAlign` and `pendingGrid`, `controls.js`'s and `overviewPreview.js`'s
+`current`), `new Set([...])` in `controls.js`, two `new Cogl.Color(...)`
+constants in `panel.js`, an `InjectionManager` in `overviewPreview.js` (a
+plain JavaScript object that overrides nothing until a method is overridden
+through it), and a `setCornerRadius(DEFAULT_RADIUS)` call in `shape.js`
+that fills a table of CSS strings. That is the static data the guideline
+allows ("static data structures and instances of built-in JavaScript
+objects"): no GObject instance, signal connection or main-loop source is
+created before `enable()` runs.
 
 ### Destroy all objects / disconnect all signals / remove main loop sources: meets, spot-checked
 
@@ -128,10 +137,12 @@ connected or scheduled before `enable()` runs.
 (`Main.wm.removeKeybinding('library-shortcut')`), disconnects every
 `connectObject` owner it holds (`global.workspace_manager`, `global.display`,
 `Main.layoutManager`, `Main.overview`, `global.stage`, the theme context, its
-own settings), removes its rebuild timer with `GLib.source_remove`, and calls
-`_teardown()`, which removes the focus group
-(`global.focus_manager.remove_group`) and disables the browser, tracker,
-playback watcher and controls in turn.
+own settings), cancels its file monitor, removes its rebuild and close timers
+with `GLib.source_remove`, and calls `_teardown()`, which destroys the
+previews, disables the browser, destroys the pane and the pop-up, removes the
+focus group (`global.focus_manager.remove_group`) and destroys the container.
+After `_teardown()`, `disable()` removes the workspace-slide hook, detaches
+the button, and disables the playback watcher, tracker and controls in turn.
 
 Each of those sub-modules was checked directly rather than taken on trust:
 
@@ -148,8 +159,8 @@ Each of those sub-modules was checked directly rather than taken on trust:
   they do not own (`panel._updateGroupedElements`, the overview layout's
   `_getAppDisplayBoxForState`) and unwrap them chain-safely: each restores the
   stock method only if its own wrap is still the outermost one, so it cannot
-  take a wrap installed after it (Games Library's own, per the coexistence note
-  in the root `CLAUDE.md`) down with it.
+  take a wrap installed after it (Games Library's own, per the root `CLAUDE.md`'s
+  "Coexisting with Games Library") down with it.
 
 If a gap exists, it is most likely in a codepath this pass did not reach
 (`lib/mediaGrid.js`, `lib/detailView.js`, `lib/widgets.js`,
@@ -174,7 +185,8 @@ The shipped `src/extension.js` is a plain, synchronous `enable()`/`disable()`
 that statically imports `./lib/app.js` — nothing is staged, checksummed or
 dynamically imported from outside the extension's own tree. The
 checksum-staging trick that makes `make reload` pick up an edit without a
-shell restart (documented in the root `CLAUDE.md`) lives only in
+shell restart (documented in `scripts/dev-extension.js` itself and the kit's
+`gjs-st.md`) lives only in
 `scripts/dev-extension.js`, which `make link` installs in its place for
 development and which never ships. The `_sweepStages` cleanup that keeps that
 mechanism from accumulating stale directories lives there too, so it's not a
@@ -214,23 +226,27 @@ nothing from the shell.
 It runs as `gjs -m` in a process of its own — the "separate app" Best
 Practices asks for, communicating through the one file it writes, which the
 extension watches — rather than inside the compositor, where the folder walk
-and the network waits would be the dropped frames `CLAUDE.md`'s performance
-rules forbid, or inside the preferences, where the walk would stall the
+and the network waits would be the dropped frames the kit's `gjs-st.md`
+forbids, or inside the preferences, where the walk would stall the
 window on a share that has to be woken and closing the window would kill a
 scan halfway. It is launched two ways, both careful about the one thing that
 matters most (never putting a credential on a command line):
 
 - **From the preferences.** `prefs.js`'s `_scanButton` runs
-  `Gio.Subprocess.new(['gjs', '-m', '<path>/backend/scanLibrary.js',
-  '--from-settings', '--only', <section>, ...], ...)`, with stdout silenced
-  and stderr captured only to log a failure. Only ever on a Rescan button
-  press — nothing runs on enable, on a timer, or in the background.
+  `Gio.Subprocess.new([gjsPath(), '-m', '<path>/backend/scanLibrary.js',
+  '--from-settings', '--only', <section>, ...], ...)`, where `gjsPath()` is
+  the gjs the preferences are running in (`/proc/self/exe`, or `gjs` from
+  `PATH` when that cannot be read), with stdout silenced and stderr captured
+  only to log a failure. Only ever on a Rescan button press — nothing runs on
+  enable, on a timer, or in the background. The only other process the
+  preferences start is `gnome-control-center background`, when the Accent
+  colour row is activated, to open Settings at the accent choice.
 - **From the scanner itself.** `scanLibrary.js --from-settings` reads every
   setting it needs — folders, source order, the online switch,
   `credentials` — with `Gio.Settings`, from the schemas shipped beside it
   (`applySettings`). A value read this way is held in memory only long
-  enough to build the request that needs it, exactly as `CLAUDE.md`'s
-  API-key rule requires, and is never echoed.
+  enough to build the request that needs it, exactly as the kit's rule on
+  secrets requires, and is never echoed.
 
 Two smaller points under the same heading:
 
@@ -246,8 +262,8 @@ Two smaller points under the same heading:
 - **No telemetry, no clipboard access, no privileged subprocess** anywhere in
   `lib/`, `prefs.js` or `backend/` — nothing calls `pkexec`, nothing touches
   `St.Clipboard` or `Gtk.Clipboard`, and nothing phones anywhere but the three
-  metadata sources above, each opt-in per section (`<prefix>-online`) and
-  each only touched from a Rescan press.
+  metadata sources above, each on by default and switched off per section
+  (`<prefix>-online`), and each only touched from a Rescan press.
 
 ### Extensions must be functional: worth a note, not a risk
 
@@ -277,8 +293,8 @@ they submit." Spot-checking the patterns Best Practices calls out:
 
 The comments throughout — this file's own sourcing from `CLAUDE.md` is a
 good example — consistently explain *why*, which is what the guideline wants,
-though their length and density (the root `CLAUDE.md` alone runs to several
-thousand words) is unusual enough that a reviewer skimming for AI tells may
+though their length and density (the root `CLAUDE.md` alone runs to nearly
+two thousand words) is unusual enough that a reviewer skimming for AI tells may
 notice it either way.
 
 ### metadata.json must be well-formed: meets
@@ -317,9 +333,9 @@ content — icons, artwork, code — appears to be bundled; the one shipped icon
 
 ### Wikipedia and TVmaze attribution: open question
 
-TVmaze's and Wikipedia's content is used under CC BY-SA, and both `metadata.json`'s
-`description` and the README carry a blanket credit line. What they don't
-have is per-item attribution in the UI itself: `lib/detailView.js` shows a
+TVmaze's and Wikipedia's content is used under CC BY-SA, and the README
+carries a blanket credit line; `metadata.json`'s `description` names both
+sources but carries no licence credit. What neither has is per-item attribution in the UI itself: `lib/detailView.js` shows a
 synopsis TVmaze or Wikipedia supplied with no indication, next to it, of
 which source it came from. Wikipedia's own reuse terms generally expect
 attribution "where you use the content," and a blanket mention in the
@@ -339,7 +355,10 @@ something to catch by reading `unzip -l` by hand.
 ### Use a linter: meets
 
 `eslint.config.mjs` configures gjs.guide's shared ESLint rules; `make lint`
-(`npm run lint` → `eslint .`) currently reports zero errors.
+(`npx --no-install eslint .`) currently reports zero errors. `make check`,
+which CI runs, runs `make lint` and then `./scripts/dev.sh check`: the schema
+under `glib-compile-schemas --strict --dry-run`, the scanner's imports (`gjs
+-m src/backend/scanLibrary.js --help`) and a byte-compile of `scripts/*.py`.
 
 ## Private API
 

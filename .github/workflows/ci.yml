@@ -1,0 +1,76 @@
+# Runs `make check` (ESLint, and whatever else the repository checks without a GNOME
+# Shell) on every push to main and every pull request. The job's name, `make check`, is
+# the status check main's protection requires.
+#
+# Copied from the GNOME-EXTENSIONS kit (template/.github/workflows/ci.yml) by its
+# scripts/sync.sh: change it there. Packages this repository needs beyond the base go in
+# .github/ci-packages, one Arch package per line.
+#
+# GNOME Shell 50's gjs and GLib are not in the Ubuntu runner images, so the job runs in an
+# Arch Linux container, the distribution the extensions are developed on.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: make check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: archlinux:latest
+    env:
+      LANG: C.UTF-8
+    steps:
+      - name: Name this week's package cache
+        id: week
+        run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the pacman package cache
+        uses: actions/cache@v6
+        with:
+          path: /var/cache/pacman/pkg
+          # Saved once per ISO week and restored from the newest otherwise; -Syu below
+          # downloads whatever changed since.
+          key: pacman-${{ runner.os }}-${{ steps.week.outputs.week }}
+          restore-keys: |
+            pacman-${{ runner.os }}-
+
+      - name: Install git
+        run: pacman -Syu --noconfirm --needed git
+
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Trust the checkout
+        # The container runs as root over a workspace owned by the runner user.
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Install build and test dependencies
+        run: |
+          extra=()
+          if [ -f .github/ci-packages ]; then
+            mapfile -t extra < <(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' .github/ci-packages)
+          fi
+          pacman -S --noconfirm --needed \
+            make nodejs npm gjs glib2 gdk-pixbuf2 librsvg python unzip "${extra[@]}"
+          # Keep only the installed versions, so the saved cache does not grow.
+          pacman -Sc --noconfirm
+          pacman -Q gjs glib2 nodejs
+
+      - name: Install ESLint
+        run: npm ci --no-audit --no-fund
+
+      - name: Run make check
+        run: make check

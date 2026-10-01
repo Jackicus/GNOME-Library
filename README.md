@@ -17,8 +17,8 @@ anything itself. Pick an episode and it opens in VLC, mpv or whatever you use.
   colour, with the same paging, swiping and keyboard.
 - **Remote or controller.** Map a TV remote's keys or a game controller's
   buttons, and browse from the sofa.
-- **Four places to open.** In the overview, in a pop-up panel, or right on the
-  desktop.
+- **Four places to open.** In the overview, in a pop-up panel, right on the
+  desktop, or on a workspace of its own.
 
 ## Install
 
@@ -108,6 +108,7 @@ what went wrong.
 make link      # install as a link to src/, for development
 make reload    # apply your edits to the running shell, no logout needed
 make nested    # start a throwaway nested GNOME Shell, mirrored in a window
+make check     # ESLint, the schema, the scanner's imports: what CI runs
 ```
 
 `CLAUDE.md` explains how it's built. [`docs/`](docs/) covers the shell

@@ -28,24 +28,31 @@ instead.
 | `Main.overview.dash._dashContainer`, `dash._hookUpLabel` | libraryButton.js | No button in the dash (the `menu`/`modal` places lose their only way in there) | Yes, checked before use; falls through to Dash to Panel or nothing |
 | `global.dashToPanel`, `panels[0]`, `panels-created` | libraryButton.js | No button in Dash to Panel's panel; falls back to the dash, or to nothing if that has none either | Yes, every field checked before use |
 | `panel.showAppsIconWrapper.realShowAppsIcon`, `panel.panel`, `panel._updateGroupedElements`, `panel.geom`, `panel.updateElementPositions` | libraryButton.js | Same as above; the whole attach is wrapped in try/catch | Yes |
+| `panel._elementGroups`, each group's `.elements` and `.expandableIndex`, an element's `.actor` and `.position` (read inside the `_updateGroupedElements` wrap) | libraryButton.js | `_elementGroups` gone: the button is added to the panel but never given a place in its layout. A group or element of another shape: the wrap throws; the layout `_attachToPanel()` asks for runs inside `_attach()`'s try/catch, so no button and a warning | Partly — `_elementGroups` is `?? []`; the entries' shape is not checked |
 | `Main.overview._overview.controls`, `.appDisplay`, `._box` | mediaMenu.js | No media menu; a warning once, if sections are enabled | Yes, logs a warning |
-| `Main.overview.dash.showAppsButton` (`.checked`) | mediaMenu.js | The view can no longer tell "is the app grid up" from "is it ours"; see the Gotcha in CLAUDE.md | No |
+| `Main.overview.dash.showAppsButton` (`.checked`) | mediaMenu.js | The view can no longer tell "is the app grid up" from "is it ours"; see CLAUDE.md's "Traps of its own" | No |
 | `controls._searchController`, `.searchActive` | mediaMenu.js | Workspaces do not reappear for a search while the view is up | No, optional-chained |
 | `controls._stateAdjustment` | mediaMenu.js | The workspace row is not folded/unfolded in step with the overview's own transition | No, optional-chained |
+| `controls._workspacesDisplay` (`.opacity`, `.reactive`, `setPrimaryWorkspaceVisible`) | mediaMenu.js | The slot still grows over the workspace row, but the row is never faded out or made unreactive, so it stays over the top of the posters and takes their clicks | No, optional-chained |
 | `controls.layout_manager._getAppDisplayBoxForState` (wrapped) | mediaMenu.js | The slot is never grown, so the view has no room above the workspace row | Yes, guarded and chain-safe (below) |
 | `Object.getPrototypeOf(this)._getAppDisplayBoxForState` | mediaMenu.js | The measured slot can be a size another extension's wrap grew for its own view | No — falls back to the (possibly wrong) size the stock call already returned |
-| `Object.getPrototypeOf(AppDisplay.AppDisplay)` (`BaseAppView`) | mediaGrid.js | `MediaView`'s `_init` throws; no grid anywhere | No — a straight top-level throw |
+| Restated `DASH_MAX_HEIGHT_RATIO` and `VERTICAL_SPACING_RATIO` (as `DASH_MAX_SHARE`, `VERTICAL_SPACING_SHARE`), and `_slotSize()` restating `ControlsManagerLayout.vfunc_allocate` step for step | mediaMenu.js | A view built before the overview has ever laid out its slot is sized for a slot a little off, until it is next opened and built again against the shell's own measurement | No |
+| `Object.getPrototypeOf(AppDisplay.AppDisplay)` (`BaseAppView`) | mediaGrid.js | `mediaGrid.js` throws as it loads, and the extension fails to load at all | No — a straight top-level throw |
 | `AppDisplay.AppViewItem`, `AppDisplay.AppGrid`, `IconGrid.BaseIcon`, `IconGrid.IconGridLayout` (exported, but their private fields below are not) | mediaGrid.js | Depends on which field; see the grid section | Partial — see below |
-| `this._parentalControlsManager`, `this._appFavorites` (disconnected) on `BaseAppView` | mediaGrid.js | A no-op reconnect fails silently; the grid redisplays on an app being favourited, which cannot happen to media, so nothing is ever seen | No |
-| `this._pageIndicators`, `this._box`, `this._adjustment` on `BaseAppView` | mediaGrid.js | The page dots and the scroll position can no longer be read/held; the grid still shows, at worst with a jump on the first page turn | No |
+| `this._parentalControlsManager`, `this._appFavorites` (disconnected) on `BaseAppView` | mediaGrid.js | `disconnectObject` on `undefined` throws in `MediaView`'s constructor; no grid anywhere | No |
+| `this._box`, `this._pageIndicators`, `this._grid` on `BaseAppView` | mediaGrid.js | `MediaView`'s constructor throws (`add_child`, `dots.connect`, `this._grid.connect`); no grid anywhere | No |
+| `this._adjustment` on `BaseAppView` | mediaGrid.js | `_shownPage()` throws, and with it the staggered reveal, where the keyboard lands on a page and a remote's page turn; the grid still draws and pages by swipe, wheel and arrows | No |
+| `AppViewItem`'s `this._id`/`this._name` (set directly) and its positional `_init(params, isDraggable, expandTitleOnHover)` | mediaGrid.js | Renamed fields: tiles still draw, but the parent's id-keyed bookkeeping no longer tells them apart. A changed signature: the two flags land on the wrong parameters, so a poster becomes draggable or its title stops unfolding on hover | No |
+| Restated `PAGE_PREVIEW_RATIO` (as `ARROWS_SHARE`) | mediaGrid.js | Covers are sized for a margin beside the grid that no longer matches where the shell puts its page arrows; cosmetic | No |
 | `this._pages`, `_pageWidth`, `_pageHeight`, `_shouldEaseItems`, `_pageSizeChanged` on `IconGrid.IconGridLayout` | mediaGrid.js | `PosterGridLayout.vfunc_allocate` throws or lays every tile at (0,0); no grid draws | No |
 | `Main.overview._overview.controls._appDisplay._folderIcons`, `icon._dialog`, `dialog._viewBox` | panel.js `folderLook()` | The pop-up panel always uses the shell's own shade and theme, even where Blur my Shell changes a folder's | Yes, fails soft to `null` |
 | `Cogl.Color`, restated `DIALOG_SHADE_NORMAL` | panel.js | Cosmetic only if the shade colour ever changes upstream | No |
 | `Main.overview._overview.controls._workspacesDisplay._workspacesViews`, `view._workspaces` | overviewPreview.js | No clones in the overview's workspace previews | Yes, optional-chained to `[]` |
 | `workspace._background`, `._backgroundGroup`, `._monitorIndex` | overviewPreview.js | No clone in that preview | Yes, skipped per preview |
 | `controls._thumbnailsBox._thumbnails`, `thumbnail._contents` | overviewPreview.js | No clone in the thumbnail strip | Yes, optional-chained |
-| `Main.wm._workspaceAnimation`, override of `_prepareWorkspaceSwitch` | overviewPreview.js | No clones during a workspace slide; the library blinks back once it lands | Yes, guarded and chain-safe via `InjectionManager` |
+| `Main.wm._workspaceAnimation`, override of `_prepareWorkspaceSwitch`, its `this._switchData` | overviewPreview.js | No clones during a workspace slide; the library blinks back once it lands | Yes, guarded and chain-safe via `InjectionManager` |
 | `switchData.monitors`, `strip._monitor`, `strip._workspaceGroups`, `group._background` | overviewPreview.js | No clones during the slide | Yes, optional-chained throughout |
+| Restated `WINDOW_ANIMATION_TIME` (as `WORKSPACE_SLIDE_TIME`) | app.js | The timer that releases a claimed workspace after a slide fires a little before or after the slide ends; cosmetic | No |
 | `Main.wm.addKeybinding` / `removeKeybinding` | app.js | Public, listed for completeness — the shortcut simply would not grab | N/A (public) |
 
 "Checked in code" of **No** does not mean unguarded outright — most of these
@@ -90,9 +97,10 @@ does.
 
 **If it changes.** `_createIcon` is called from inside `BaseIcon._init`
 (itself called from `ShowAppsIcon._init`, called from the subclass's own
-`super._init()`), so a renamed or removed hook throws there and the whole
-`attach()` call catches it (below): no button appears anywhere, and a warning
-is logged once.
+`super._init()`), so a renamed or removed hook throws there and the
+`_attach()` call catches it (below): no button appears anywhere, and a warning
+is logged on every attempt — at enable, and on each re-attach, which with no
+button standing is every `extension-state-changed`.
 
 **Checked.** `_attach()` wraps the whole build:
 
@@ -158,7 +166,11 @@ size and style are copied so the button matches; `_updateGroupedElements` is
 the method that lays its elements out into groups, wrapped chain-safely
 (below) to insert the library's button straight after Show Apps every time it
 runs; `updateElementPositions` asks the panel to re-run its own layout once
-the wrap is in (or out).
+the wrap is in (or out). Inside the wrap, `this._elementGroups` is the list of
+groups the stock method has just made: each group's `elements` (entries of
+the shape `{actor, box, position}`, Show Apps found by its `actor`) gets the
+button's own entry spliced in after Show Apps, with Show Apps' `position`, and
+the group's `expandableIndex` is moved up one if it lay beyond.
 
 **Why nothing public.** Dash to Panel exposes none of its layout as public
 API; this is the same kind of reach any extension coexisting with it has to
@@ -168,7 +180,11 @@ make.
 before `_attachToPanel` is even called, so a changed shape falls through to
 the dash branch instead — the button still appears, just in the wrong place
 relative to Dash to Panel's own layout, or (with the dash also gone, which
-does not happen on stock GNOME) not at all.
+does not happen on stock GNOME) not at all. `_elementGroups` gone (`?? []`):
+the button is in `panel.panel` but never given a place in Dash to Panel's
+layout. A group or entry of another shape makes the wrap throw; the layout
+`_attachToPanel()` asks for runs inside `_attach()`'s try/catch, so that is
+no button and a warning.
 
 **Checked.** Yes, gated on entry as above, and the whole call is inside the
 `_attach()` try/catch. `panels-created`, Dash to Panel's own signal, and
@@ -196,8 +212,8 @@ this._appsBox = this._appDisplay?._box ?? null;
 (the same first link every entry below climbs through); `appDisplay` is a
 public getter for the `AppDisplay` instance; `_box` is the `St.BoxLayout`
 `AppDisplay` fills with its scroll view and page dots — the media menu's own
-`LibraryView` is added as a second child of it, hidden until shown, taking
-turns with the apps by toggling `_appsBox.visible`.
+`LibraryView` is added to `AppDisplay` itself, beside `_box`, hidden until
+shown, taking turns with the apps by toggling `_appsBox.visible`.
 
 **Why nothing public.** There is no supported way to add a second view into
 the app grid's own slot; the overview offers no such extension point.
@@ -219,14 +235,14 @@ if (!this._appDisplay || !this._appsBox || !this._sections.length) {
 
 ### `Main.overview.dash.showAppsButton` and its `checked`
 
-Followed in `enable()`; see CLAUDE.md's own Gotcha ("Is the app grid up?") for
-why `checked` and not `appDisplay.visible`. `showAppsButton` is a public
-getter on `Dash`.
+Followed in `enable()`; see the "Is the app grid up?" note in CLAUDE.md's
+"Traps of its own" for why `checked` and not `appDisplay.visible`.
+`showAppsButton` is a public getter on `Dash`.
 
 **If it changes.** The view can no longer tell whether the app grid is
 actually showing from whether Show Apps is lit; Escape or a swipe could leave
-the media menu current with nothing showing it, the way the bug this Gotcha
-describes did before the fix.
+the media menu current with nothing showing it, the trap that note
+describes.
 
 **Checked.** No — `this._showAppsButton = Main.overview.dash.showAppsButton;`
 is unguarded, since `dash` and `showAppsButton` are both long-standing public
@@ -234,13 +250,41 @@ getters, not underscore fields.
 
 ### `controls._searchController` and `controls._stateAdjustment`
 
-Both private fields of `ControlsManagerLayout`'s owner (`OverviewControls`),
+Both private fields of `ControlsManagerLayout`'s owner (`ControlsManager`),
 read once in `enable()` and used throughout to fold the workspace row and to
 show it again once a search ends. Every use is `?.`-guarded
 (`this._controls._searchController?.searchActive`,
 `this._adjustment?.value`), so a missing field means the workspace row is
 simply never folded or unfolded by this extension — the shell's own overview
 still behaves correctly, just with the row always showing behind the posters.
+
+### `controls._workspacesDisplay`
+
+The workspace row itself, read in `_syncWorkspaces()` (`this._controls?._workspacesDisplay`)
+and faded and made unreactive there as the fold goes in, with
+`setPrimaryWorkspaceVisible?.(false)` once it is folded whole, as the shell
+hides the row for a search; overviewPreview.js reaches the same
+field for its previews (below). If it is gone, `_syncWorkspaces()` returns
+early: the slot is still grown over the row, but the row is never faded, so
+it stays drawn over the top of the posters and takes their clicks. Checked:
+optional-chained, no warning.
+
+### Restated `DASH_MAX_HEIGHT_RATIO` and `VERTICAL_SPACING_RATIO`, and `_slotSize()`
+
+```js
+const DASH_MAX_SHARE = 0.16;
+const VERTICAL_SPACING_SHARE = 0.02;
+```
+
+Module-private constants of `overviewControls.js`, copied by inspection, and
+used only by `_slotSize()`, which works out the app grid's slot step for step
+as `ControlsManagerLayout.vfunc_allocate` does (search entry, dash, spacing),
+for a button pressed before the overview has ever laid the slot out. Once the
+shell has measured it, `menu._slot` is used instead. If either value or the
+shell's own division of the overview changes, the view built from the
+estimate is sized for a slot a little off, until it is next opened and
+`_view()` builds it again against the shell's own measurement. Cosmetic, and
+nothing to check for at runtime.
 
 ### `controls.layout_manager._getAppDisplayBoxForState` — the fold
 
@@ -260,7 +304,7 @@ this._foldedBox = layout._getAppDisplayBoxForState = folded;
 
 **What for.** `ControlsManagerLayout._getAppDisplayBoxForState` is the private
 method (confirmed present, with this exact six-argument signature, at GNOME
-`48.0`, `49.0` and `50.5`) that works out the app grid's box for a given
+`48.0` and `50.5`) that works out the app grid's box for a given
 overview state — app grid, window picker, and the states between, during a
 transition. There is no signal or hook for "the app grid's slot is about to be
 laid out"; wrapping the method that computes it is the only way to grow it
@@ -329,37 +373,42 @@ prototype chain is the only way to subclass it without subclassing
 `AppDisplay` and then stripping out the apps-only parts (favourites, folders,
 search).
 
-**If it changes.** A straight top-level `Object.getPrototypeOf` call — if
-`AppDisplay.AppDisplay` no longer has a `BaseAppView` as its prototype (or
-`AppDisplay` itself is gone), `MediaView`'s `_init` throws the moment the
-first grid is built, and nothing built on `mediaGrid.js` works: no page, no
-library, on the wallpaper or anywhere else.
+**If it changes.** A straight top-level `Object.getPrototypeOf` call, in a
+module `app.js` imports and `extension.js` imports in turn — if
+`AppDisplay.AppDisplay` is gone, it throws as `mediaGrid.js` loads, and the
+extension fails to load at all: no button, no library anywhere. If
+`AppDisplay` stays but no longer has a `BaseAppView` as its prototype,
+`MediaView` subclasses whatever it does extend, and its constructor throws
+the first time a grid is built, on the first `BaseAppView` field it reads.
 
 **Checked.** No. There is no fallback shape for the grid; this is the one
 single point of failure the whole poster grid stands on.
 
 ### Private fields of `BaseAppView` read or disconnected
 
-`MediaView._init()`:
+`MediaView`'s constructor:
 
 ```js
+this.add_child(this._box);
 this._parentalControlsManager.disconnectObject(this);
 this._appFavorites.disconnectObject(this);
 ...
 const dots = this._pageIndicators;
 ...
+dots.connect('notify::visible', holdRoom);
+this._grid.connect('pages-changed', holdRoom);
+...
 this._adjustment  // via `_shownPage()`, elsewhere
-this._box         // added as this.add_child(this._box) in the parent; media
-                   // libraries adds its own view as a second child of it
-                   // indirectly, through libraryView.js/mediaMenu.js
 ```
 
 Plus, called from the parent's own machinery rather than read directly:
-`_createGrid()`, `_loadApps()`, `_compareItems(a, b)`, `_addItem(item, page,
-position)` — all private methods `BaseAppView`'s own `_redisplay()` calls, and
-all overridden here (the first three) or called directly (`_addItem`, since
+`_createGrid()`, which `BaseAppView`'s own `_init` calls (before
+`MediaView`'s constructor body has run, hence the module-level `pendingGrid`
+it builds from), and `_loadApps()`, `_compareItems(a, b)`, `_addItem(item,
+page, position)` — private methods `BaseAppView`'s own `_redisplay()` calls.
+The first three are overridden here; `_addItem` is called directly, since
 media's own `goToPage`/`_fillTo` place tiles outright rather than going
-through a diff-based `_redisplay`).
+through a diff-based `_redisplay`.
 
 **What for.** `_parentalControlsManager` and `_appFavorites` are disconnected
 because `BaseAppView` re-runs `_redisplay()` — a full diff of every tile —
@@ -368,7 +417,12 @@ has anything to say about media, and left connected they would occasionally
 re-diff a grid of thousands of tiles for no reason. `_pageIndicators` is the
 page-dot row, whose visibility is forced on with zero opacity for a one-page
 section so every section's grid lands on the same baseline (see the Design
-Rules note on page dots). `_addItem` is the private placement primitive
+Rules note on page dots); `_grid`, the `MediaGrid` `_createGrid()` returned,
+is followed for `pages-changed` so the dots are looked at once their count
+has settled. `_box` is the box the parent fills with its scroll view and page
+dots, which a subclass adds to itself, as `AppDisplay` does. `_adjustment` is
+the scroll view's adjustment, which `_shownPage()` reads for the page
+showing. `_addItem` is the private placement primitive
 `_redisplay()` itself calls — used directly because letting the parent's own
 `_redisplay()`/`_loadApps()`/`_compareItems()` diff-and-append pattern run
 would, for a library of thousands, cost seconds on every tab switch; instead
@@ -381,19 +435,62 @@ or to skip its own favourites/parental-controls machinery; there is no
 supported subclassing point for either.
 
 **If it changes.** `_parentalControlsManager`/`_appFavorites` gone or renamed:
-`disconnectObject(this)` on `undefined` throws in `_init`, the same
-single-point-of-failure as `BaseAppView` itself above. `_pageIndicators`,
-`_box`, `_adjustment` gone: the grid still functions (paging, focus, tiles),
-but the page dots stop tracking correctly and `_shownPage()`/`atTopRow()`
-answer wrongly, which can turn a page under the keyboard unexpectedly.
-`_addItem`/`_loadApps`/`_compareItems`/`_createGrid` gone or resignatured:
-tiles fail to place (thrown from `_fillTo`) or `_redisplay()` throws inside
-the parent the one time it is ever called (on construction, before this file's
-own override of `_loadApps` is in place — in practice never reached, since
-`_init` sets up the override before any redisplay is triggered).
+`disconnectObject(this)` on `undefined` throws in `MediaView`'s constructor,
+and no grid is built anywhere. The same goes for `_box`
+(`this.add_child(this._box)`), `_pageIndicators` (`dots.connect(...)`) and
+`_grid` (`this._grid.connect(...)`). `_adjustment` gone: `_shownPage()`
+throws, and with it `reveal()`, `focusFirst()` and `pageBy()` — the grid
+still draws and pages by swipe, scroll wheel and its arrows, but the
+staggered reveal, where the keyboard lands on a page and a remote's page turn
+all fail. `_addItem` gone or resignatured: tiles fail to place (thrown from
+`_fillTo`). `_createGrid` renamed: the parent builds its own stock `AppGrid`,
+whose layout puts the posters in square cells. `_loadApps`/`_compareItems`
+renamed: only `_redisplay()` calls them, and with the favourites and
+parental-controls hooks disconnected it runs only when a drag in the overview
+is cancelled while the grid is mapped (`BaseAppView`'s own
+`item-drag-cancelled` handler); that redisplay would then throw, or diff the
+grid against the wrong list.
 
 **Checked.** No. None of these is behind a feature check; the grid depends on
 every one of them keeping its current shape, name and calling convention.
+
+### `AppViewItem`'s `_id`, `_name` and positional `_init`
+
+`MediaItem._init()`:
+
+```js
+super._init({style_class: 'overview-tile'}, false, true);
+this._id = `${section.key}/${item.id}`;
+this._name = item.title;
+```
+
+**What for.** `AppViewItem._init(params, isDraggable, expandTitleOnHover)`
+takes its two flags positionally: `false` keeps a poster from being dragged
+like an app icon, `true` keeps the title unfolding to two lines on hover.
+`_id` and `_name` are the fields `AppViewItem`'s public `id` and `name`
+getters return, and that subclasses set for themselves; `BaseAppView._addItem`
+files each tile by `id`, and `_redisplay()` diffs by it.
+
+**If it changes.** `_id`/`_name` renamed: every tile reads the same
+`undefined` id, so the parent's item map and diff no longer tell tiles apart;
+the tiles still place and draw, since `_fillTo` puts each one by page and
+position. The signature changed: the two flags land on the wrong parameters,
+and a poster becomes draggable or its title stops unfolding on hover.
+
+**Checked.** No.
+
+### Restated `PAGE_PREVIEW_RATIO`
+
+```js
+const ARROWS_SHARE = 0.2;
+```
+
+The shell's `PAGE_PREVIEW_RATIO`, module-private in `appDisplay.js`: a tenth
+of the view's width each side of the grid, where the page arrows stand.
+`gridFor` takes it off the width before working out how many covers fit and
+how large. If the shell's own share changes, covers are sized for a margin
+that no longer matches where the arrows are, a little too large or too
+small; cosmetic, and nothing to check for at runtime.
 
 ### Private fields of `IconGrid.IconGridLayout` read in `PosterGridLayout.vfunc_allocate`
 
@@ -411,8 +508,11 @@ class VideoLibraryPosterGridLayout extends IconGrid.IconGridLayout {
 
 **What for.** `IconGridLayout` (exported) does the app grid's own paging and
 allocation; `_pages`, each with a `children`/`visibleChildren` list, `_pageWidth`
-and `_pageHeight` are its private page model, filled by the parent class's own
-`vfunc_allocate` before this override completely replaces it (no `super` call)
+and `_pageHeight` are its private page model: `_pages` is kept by the
+layout's own item bookkeeping as the grid adds tiles (`addItem`), and
+`_pageWidth`/`_pageHeight` are set by its `adaptToSize()`, which
+`IconGrid.vfunc_allocate` calls just before allocating its children. This
+override replaces the parent's `vfunc_allocate` completely (no `super` call)
 for one reason: the shell's layout takes the larger of an item's width and
 height as one square cell side, which a poster is not. `columnSpacing`,
 `rowSpacing`, `columnsPerPage`, `rowsPerPage` and `pagePadding` are, by
@@ -433,17 +533,20 @@ every tile to (0, 0) — tiles stacked on top of one another, indistinguishable
 from a hang.
 
 **Checked.** No, beyond the early return on `!this._pageWidth ||
-!this._pageHeight` (which guards against allocating before the parent has
-ever run, not against the fields being gone).
+!this._pageHeight` (which guards against an allocation before `adaptToSize()`
+has ever been called, where the parent's own `vfunc_allocate` throws, not
+against the fields being gone).
 
-A comment in `mediaGrid.js` also notes that `PosterGridLayout`'s own
-`GObject`-constructed instance is deliberately left unreferenced after being
-handed to `layout_manager =`: `IconGrid`'s own `destroy` handler
-(`iconGrid.js`, the constructor of the `IconGrid` class, not
-`IconGridLayout`) closes over the layout it built itself and disconnects its
-`pages-changed` signal on destroy, so the same happens for a layout supplied
-from outside — nothing here needs to hold a second reference. Confirmed
-present, in that shape, at 50.5.
+A comment in `mediaGrid.js` also notes that the layout the shell's grid makes
+for itself, which `MediaGrid` replaces with a `PosterGridLayout`
+(`this.layout_manager = layout`), is deliberately left unreferenced: the
+`IconGrid` class's own constructor (`iconGrid.js`, not `IconGridLayout`'s)
+closes over the layout it built and disconnects its `pages-changed` from it
+on destroy, so nothing here needs to hold it. That connection is to the
+replaced layout only, so `MediaGrid` re-emits the `PosterGridLayout`'s
+`pages-changed` as the grid's own by hand (`layout.connect('pages-changed',
+() => this.emit('pages-changed'))`), which is what `BaseAppView` and the
+page-dot code above follow. Confirmed present, in that shape, at 50.5.
 
 ## The folder's panel, borrowed (panel.js, detailDialog.js, libraryWindow.js)
 
@@ -496,9 +599,9 @@ on a desktop that has neither.
 
 **Checked.** Every link is optional-chained to `?? []`/`null`; `folderLook()`
 itself is only ever called from `_easeBackdrop(true)`, which handles a `null`
-return as "use the shade" without a warning — deliberately not logged, per
-the comment in `panel.js`, since a folder-less desktop hits this path on every
-single open and a warning there would be noise, not a symptom.
+return as "use the shade" without a warning: a folder-less desktop takes this
+path on every single open, and a warning there would be noise, not a
+symptom.
 
 ### Restated `DIALOG_SHADE_NORMAL`
 
@@ -524,6 +627,14 @@ if (ws._keepAliveId) { GLib.source_remove(ws._keepAliveId); ws._keepAliveId = 0;
 if (!ws || ws._keepAliveId) continue;   // set by someone else — the shell's own, mid drag-and-drop
 ws._keepAliveId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, GLib.MAXUINT32, () => GLib.SOURCE_CONTINUE);
 GLib.Source.set_name_by_id(ws._keepAliveId, '[video-library] keep workspace');
+```
+
+`_claimWorkspace()` reads it too, to pass over a workspace that is already
+held — by this extension, or by the shell mid drag-and-drop — when looking
+for a free one:
+
+```js
+const free = ws => ws && !taken.has(ws) && !ws._keepAliveId && ...;
 ```
 
 **What for.** GNOME's dynamic workspaces fold away any empty workspace that is
@@ -553,7 +664,8 @@ on it.
 GNOME's own dynamic-workspace code folds an empty workspace the library or the
 pane is on the moment focus moves off it, which — since the surface itself is
 what is drawn there — would look like the library or the pane vanishing, or
-the desktop losing a workspace out from under an open pane.
+the desktop losing a workspace out from under an open pane. `_claimWorkspace()`
+would also no longer see a workspace the shell is holding for a drag.
 
 **Checked.** No. Setting an unrecognised field on a `Meta.Workspace` does not
 throw either way, so there is nothing to catch; the failure mode above is
@@ -578,6 +690,19 @@ own next check, rather than immediately — cosmetic, not a correctness issue
 (the workspace is still correctly *not* held, `_keepAliveId` is still `0`).
 
 **Checked.** Yes, both the field and the method are optional-chained.
+
+### Restated `WINDOW_ANIMATION_TIME`
+
+```js
+// workspaceAnimation.js WINDOW_ANIMATION_TIME — exported only from 50, so restated.
+const WORKSPACE_SLIDE_TIME = 250;
+```
+
+The length of the shell's workspace slide, module-private at 48 and 49.
+`_releaseWorkspaces()` waits that long (through `adjustAnimationTime`, plus
+50 ms) before letting a workspace being slid away from go. If the shell's own
+duration changes, the release lands a little before or after the slide
+actually ends; cosmetic, not a hang, and nothing to check for at runtime.
 
 ## The overview previews and the workspace slide (overviewPreview.js)
 
@@ -627,7 +752,14 @@ plain `Meta.BackgroundGroup` and adds it as its first (and, at the point the
 slide clone is inserted, only) child — so `group._background.get_first_child()`
 is that `Meta.BackgroundGroup`, and `insert_child_above(clone, that)` lands the
 clone above the wallpaper and below any desktop-window clones the slide adds
-afterwards, on every checked version. `InjectionManager` (imported from the
+afterwards. At `48.0`, `group._background` is itself a plain
+`Meta.BackgroundGroup`, whose first child is the wallpaper actor, so the same
+call lands the clone in the same place (`compatibility.md`). The override
+reads the animation's own `this._switchData` before and after calling
+through: empty before and set after is a fresh slide, handed on to be joined;
+set before is a slide already under way, which the shell's method returns
+from early. If `_switchData` is renamed, no slide is ever joined, and the
+slide shows no clones. `InjectionManager` (imported from the
 shell's own `resource:///.../extensions/extension.js`) is public extension API
 — it is what makes the `_prepareWorkspaceSwitch` override chain-safely with
 whatever else has already wrapped it. The wrap is installed once per enable

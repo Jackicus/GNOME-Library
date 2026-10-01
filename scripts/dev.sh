@@ -16,6 +16,9 @@
 #                                  stalls, processes stuck in the kernel and
 #                                  automount triggers, with timestamps
 #   ./scripts/dev.sh clean      remove compiled schemas and dist/
+#   ./scripts/dev.sh check      what make check runs after ESLint, needing no
+#                               shell: the schema, the scanner's imports, the
+#                               Python scripts
 #
 set -euo pipefail
 
@@ -260,6 +263,28 @@ cmd_clean() {
     ok "Cleaned compiled schemas and dist/."
 }
 
+# Everything make check runs besides ESLint, with no shell, display or network:
+# the schema as an install compiles it, the scanner's whole import graph (its
+# --help exits before it reads a setting or touches the cache), and the Python
+# scripts byte-compiled where nothing is written into the tree.
+cmd_check() {
+    require glib-compile-schemas
+    require gjs
+    require python3
+    info "Schema (glib-compile-schemas --strict)..."
+    glib-compile-schemas --strict --dry-run "$SRC_DIR/schemas"
+    info "Scanner imports (gjs -m src/backend/scanLibrary.js --help)..."
+    gjs -m "$SRC_DIR/backend/scanLibrary.js" --help >/dev/null
+    info "Python scripts..."
+    python3 - "$REPO_DIR"/scripts/*.py <<'PY'
+import sys
+for path in sys.argv[1:]:
+    with open(path, encoding='utf-8') as f:
+        compile(f.read(), path, 'exec')
+PY
+    ok "Schema, scanner imports and scripts check out."
+}
+
 # A freeze is over by the time anyone looks; this leaves a log of what stalled.
 cmd_stalls() {
     require python3
@@ -315,6 +340,7 @@ case "${1:-}" in
     status)     cmd_status ;;
     stalls)     shift; cmd_stalls "$@" ;;
     clean)      cmd_clean ;;
+    check)      cmd_check ;;
     ""|-h|--help|help) usage ;;
     *)          die "Unknown command '$1'. Run './scripts/dev.sh help'." ;;
 esac

@@ -1,0 +1,3 @@
+# Arch packages make check needs beyond the CI base (one per line).
+# The scanner imports Soup 3 (src/backend/metadata.js).
+libsoup3

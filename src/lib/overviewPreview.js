@@ -60,7 +60,7 @@ export function removeSlideHook() {
 // allocation back as a scale is the only way to follow that reliably: the
 // group re-allocates without always notifying its size.
 const PreviewHost = GObject.registerClass(
-class PreviewHost extends Clutter.Actor {
+class VideoLibraryPreviewHost extends Clutter.Actor {
     constructor(props, monitor) {
         super(props);
         this._monitor = monitor;
