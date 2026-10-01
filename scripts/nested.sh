@@ -44,15 +44,17 @@
 # ~/.local/state/gnome-extensions-nested/<slug>/ and reset by --clean, so the
 # real dconf database is never opened, by the shell, its preferences window or
 # 'run gsettings'. A new one starts with only this extension enabled and the real
-# session's look (colour scheme, accent, fonts) copied in.
+# session's look (colour scheme, accent, fonts) copied in; under --stand-in, the
+# stock look instead.
 #
 # --stand-in photographs a stand-in world, for pictures that go into a public
 # repository: HOME is a scratch directory under the run directory, holding a
-# copy of this checkout's src/ as the extension and whatever the repository's
-# nested_stand_in hook puts there (a demo library, stand-in logins); PATH is
-# the system's only; settings start fresh. Commands named in EXT_STAND_IN_BINS
-# are stand-ins overlaid on /usr/bin, in a user and mount namespace of the
-# session's own.
+# copy of this checkout's src/ as the extension (nested_stand_in_stage may
+# adjust it, at every stage) and whatever the repository's nested_stand_in hook
+# puts there once per start (a demo library, stand-in logins); PATH is the
+# system's only; settings start fresh, in GNOME's stock look. Commands named in
+# EXT_STAND_IN_BINS are stand-ins overlaid on /usr/bin, in a user and mount
+# namespace of the session's own.
 #
 # Nothing is left behind: a shell started from a Claude Code session stops
 # itself after NESTED_IDLE seconds (default 600, 0 = never) without a command
@@ -180,22 +182,27 @@ nested_env() {
 }
 
 # The settings a new nested session starts from: this extension alone enabled,
-# and the real session's look, read with gsettings and never written back.
+# and the real session's look, read with gsettings and never written back. With
+# "stock" (--stand-in), none of the session's look: GNOME's defaults, whoever
+# takes the pictures.
 seed_settings() {
-    local dir="$1/glib-2.0/settings" key value
+    local dir="$1/glib-2.0/settings" look="${2:-own}" key value
     mkdir -p "$dir"
     {
         echo "[org/gnome/shell]"
         echo "enabled-extensions=['$EXT_UUID']"
         echo "disable-user-extensions=false"
         echo "welcome-dialog-last-shown-version='999'"
-        echo
-        echo "[org/gnome/desktop/interface]"
-        for key in color-scheme accent-color gtk-theme icon-theme cursor-theme font-name \
-                   document-font-name monospace-font-name text-scaling-factor; do
-            value="$(gsettings get org.gnome.desktop.interface "$key" 2>/dev/null)" && echo "$key=$value"
-        done
+        if [[ "$look" != stock ]]; then
+            echo
+            echo "[org/gnome/desktop/interface]"
+            for key in color-scheme accent-color gtk-theme icon-theme cursor-theme font-name \
+                       document-font-name monospace-font-name text-scaling-factor; do
+                value="$(gsettings get org.gnome.desktop.interface "$key" 2>/dev/null)" && echo "$key=$value"
+            done
+        fi
     } > "$dir/keyfile"
+    [[ "$look" == stock ]] && return 0
     # Read-only copies of what the session's look and folders come from; copies,
     # so a write in the nested session stays there.
     local real="${XDG_CONFIG_HOME:-$HOME/.config}" entry
@@ -206,8 +213,10 @@ seed_settings() {
 }
 
 # Under --stand-in: a scratch home with this checkout's src/ as the extension,
-# entered through the development entry point so 'reload' picks up edits, and
-# the repository's stand-in data.
+# entered through the development entry point so 'reload' picks up edits. The
+# repository's nested_stand_in_stage hook (if any) adjusts that copy of src/
+# (a stand-in module in place of a real one); it runs on every stage, 'reload'
+# included.
 stage_stand_in() {
     rm -rf "$STAGE_DIR"
     mkdir -p "$STAGE_DIR" "$STAND_IN_HOME/.cache" "$STAND_IN_HOME/.local/state"
@@ -216,6 +225,14 @@ stage_stand_in() {
     cp "$REPO_DIR/scripts/dev-extension.js" "$STAGE_DIR/extension.js"
     "$REPO_DIR/scripts/dev.sh" dev-config > "$STAGE_DIR/dev-extension.json"
     glib-compile-schemas "$STAGE_DIR/schemas" || die "The schema does not compile."
+    if declare -F nested_stand_in_stage >/dev/null; then
+        nested_stand_in_stage "$STAGE_DIR" || die "The staged copy could not be adjusted (nested_stand_in_stage)."
+    fi
+}
+
+# The repository's stand-in data in the scratch home (a demo library, stand-in
+# logins): its nested_stand_in hook, once per start, not on every reload.
+make_stand_in_data() {
     if declare -F nested_stand_in >/dev/null; then
         nested_stand_in "$STAND_IN_HOME" "$STAGE_DIR" || die "The stand-in data could not be made (nested_stand_in)."
     fi
@@ -332,7 +349,8 @@ cmd_start() {
     if (( standin )); then
         echo stand-in > "$MODE_FILE"
         stage_stand_in
-        seed_settings "$STAND_IN_DIR/config"
+        make_stand_in_data
+        seed_settings "$STAND_IN_DIR/config" stock
     else
         echo own > "$MODE_FILE"
         (( clean )) && rm -rf "$KEPT_CONFIG"
@@ -750,21 +768,24 @@ help_of() {
 
 usage() {
     local file overridden
-    overridden="$(cat "$REPO_DIR"/scripts/nested.d/*.sh 2>/dev/null | sed -n 's/^cmd_\([a-z_]*\)().*/\1/p' | tr _ - | tr '\n' ' ')"
+    overridden="$( (cat "$REPO_DIR"/scripts/nested.d/*.sh 2>/dev/null || true) | sed -n 's/^cmd_\([a-z_]*\)().*/\1/p' | tr _ - | tr '\n' ' ')"
     # shellcheck disable=SC2086  # a list of words
     help_of "$SELF" $overridden
     for file in "$REPO_DIR"/scripts/nested.d/*.sh; do
-        [[ -f "$file" ]] && help_of "$file"
+        [[ -f "$file" ]] || continue
+        help_of "$file"
     done
     return 0
 }
 
-# This extension's own commands (cmd_NAME) and hooks: nested_stand_in HOME STAGE,
-# nested_started, nested_stopping, nested_status. A cmd_ defined there replaces
-# the one above of the same name.
+# This extension's own commands (cmd_NAME) and hooks: nested_stand_in HOME STAGE
+# (stand-in data, once per start), nested_stand_in_stage STAGE (the staged src/,
+# at every stage), nested_started, nested_stopping, nested_status. A cmd_
+# defined there replaces the one above of the same name.
 for extra in "$REPO_DIR"/scripts/nested.d/*.sh; do
+    [[ -f "$extra" ]] || continue
     # shellcheck source=/dev/null
-    [[ -f "$extra" ]] && source "$extra"
+    source "$extra"
 done
 
 cmd="${1:-}"

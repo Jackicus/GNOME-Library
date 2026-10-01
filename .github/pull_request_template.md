@@ -4,6 +4,6 @@ Fixes #
 
 **Verified**
 - [ ] `make check`
-- [ ] Seen in the nested shell, before and after (`--clean`), for anything visible
+- [ ] Seen in the nested shell (`./scripts/nested.sh start`; `--stand-in` for published shots), before and after, for anything visible
 - [ ] Nested `stop` + `start`, for the enable path, the schema or `metadata.json`
 - [ ] CLAUDE.md, `.claude/rules/`, skills and `docs/` still true

@@ -14,7 +14,10 @@ one (what it needs installed, its own make targets, how it is built) is in its
 You need a GNOME Shell session of a version `src/metadata.json` lists, and `make`,
 `glib-compile-schemas` (part of GLib), `gjs`, and Node.js with npm for the lint. Anything
 else the checks need is listed one package per line in `.github/ci-packages`, by its Arch
-Linux name.
+Linux name. The development tools some commands use (a demo library's Pillow, a virtual
+pad's evdev, VLC, glslang) are `EXT_TOOLS` in `scripts/ext.conf`; with the
+[kit](https://github.com/Jackicus/GNOME-EXTENSIONS) beside the repository,
+`../scripts/setup.sh --tools` lists what this machine lacks and the command to install it.
 
 ```bash
 # Arch Linux
