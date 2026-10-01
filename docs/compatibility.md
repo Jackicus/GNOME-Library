@@ -36,9 +36,10 @@ As with some sibling extensions, there is a separate development entry point:
 so `make reload` can pick up an edit without a shell restart. `make link`
 installs it in place of `src/extension.js`; `make install` and `make pack`
 ship the real `src/extension.js`, a plain, static `enable()`/`disable()` with
-no staging (see CLAUDE.md's "How it fits together", step 2). So testing
-through `make nested`/`make link` exercises the dev loader, not the exact path
-a real install takes — the packed zip is worth testing separately, per the
+no staging (see CLAUDE.md's "How it fits together", step 3). So testing
+through `make link`, and through `make nested` over that link (`make nested`
+runs whatever is installed, and runs `make link` only when nothing is),
+exercises the dev loader, not the exact path a real install takes — the packed zip is worth testing separately, per the
 checklist below.
 
 Nothing else has been tested:
@@ -70,8 +71,9 @@ Confirmed: `AdwShortcutLabel` carries "since: 1.8" throughout libadwaita's own
 1.8 API reference. GNOME 48 ships libadwaita 1.7, GNOME 49 ships 1.8 — so on
 48 this line reads `undefined ?? Gtk.ShortcutLabel` and takes the GTK widget
 (deprecated in GTK, but present); on 49 and 50 it takes libadwaita's own.
-Both widgets are used identically afterwards (`new ShortcutLabel({accelerator})`),
-so nothing downstream branches on which one was picked.
+Both widgets are used identically afterwards (`new ShortcutLabel({disabled_text, valign})`,
+then `label.accelerator` set from the setting), so nothing downstream branches
+on which one was picked.
 
 *Check first on 48:* open Controls → a key row's "Set Shortcut" button. The
 captured accelerator should render as a shortcut chip, from GTK's widget
@@ -80,7 +82,7 @@ rather than libadwaita's.
 ### `Adw.ToggleGroup` and `Adw.Toggle` (prefs.js)
 
 Used for "Library opens in" / "Items open in", the grid-align choice, and
-"Keep marks in" — three `Adw.ToggleGroup` instances. `AdwToggleGroup` carries
+"Keep marks in" — four `Adw.ToggleGroup` instances. `AdwToggleGroup` carries
 "since: 1.7" throughout libadwaita's 1.7 reference, which is exactly the
 floor GNOME 48 ships. This is the tightest margin in the preferences: nothing
 here works on libadwaita 1.6 or earlier, so claiming a GNOME version whose
@@ -88,8 +90,8 @@ libadwaita is below 1.7 would need a fallback (a `Gtk.ToggleButton` group, or
 `Adw.ComboRow`) that does not exist.
 
 *Check first on 48:* every `Adw.ToggleGroup` row (Library/Items/grid
-align/Watched) shows its three or four options as a segmented control, not a
-combo box or a crash.
+align/Watched) shows its two, three or four options as a segmented control,
+not a combo box or a crash.
 
 ### `Clutter.ClickGesture ?? Clutter.ClickAction` (panel.js)
 
@@ -163,7 +165,7 @@ way — `group._background.get_first_child()` — which is the wallpaper actor
 directly on 48/49's shape and the inner `Meta.BackgroundGroup` on 50/51's, and
 in both cases `insert_child_above(clone, wallpaper)` lands the clone above the
 background and below any desktop-window clones added after. Wallpaper
-Engine's own `compatibility.md` documents the same two shapes (and has
+FX's own `compatibility.md` documents the same two shapes (and has
 independently checked `49.0`, which was not re-checked here) — see that
 document for the fuller version table.
 
@@ -193,12 +195,12 @@ workspace of its own, in the thumbnail strip too.
 ### `St.BoxLayout({orientation})` and `-st-accent-color`
 
 Both are floor requirements rather than branches — there is no fallback for
-either, and both are why the floor is 48 and not lower (CLAUDE.md's own
-Gotcha, "The 48 floor is the theme's, not the architecture's"). Confirmed by
-grep: `St.BoxLayout({orientation: ...})` is constructed at ten call sites
-across `app.js`, `panel.js`, `widgets.js` (×3), `libraryButton.js`,
-`libraryView.js`, `detailView.js` (×3); `-st-accent-color`/`-st-accent-fg-color`
-appear sixteen times in `stylesheet.css`. Both are GNOME 48+ / libadwaita-era
+either, and both are why the floor is 48 and not lower (CLAUDE.md's "Traps
+of its own", "The 48 floor is the theme's"). Confirmed by grep:
+`St.BoxLayout({orientation: ...})` is constructed at twelve call sites across
+`app.js`, `panel.js`, `widgets.js` (×4), `libraryButton.js`, `libraryView.js`,
+`detailView.js` (×4); `-st-accent-color`/`-st-accent-fg-color` appear fifteen
+times in `stylesheet.css`'s rules (and twice more in its header comment). Both are GNOME 48+ / libadwaita-era
 shell CSS features (`orientation` as a constructor property on `St.BoxLayout`
 is 48+; the accent palette is 47+), so nothing here needs guarding for the
 claimed range, but either would need a second code path (named orientation
@@ -218,7 +220,7 @@ not because the public method is missing on any claimed version.
 try {
     ({default: Manette} = await import('gi://Manette'));
 } catch {
-    console.log('[Video Library] libmanette is not installed; game controllers are not read.');
+    note('libmanette is not installed; game controllers are not read.');
     return;
 }
 ```
@@ -230,10 +232,12 @@ the shell. The dynamic `import()` and its catch are what let the extension —
 and the preferences' own equivalent loader, `prefs.js`'s `loadManette()` —
 run identically whether or not it is installed; nothing about game controller
 support is claimed to require any particular GNOME version, only that
-libmanette's GObject Introspection typelib be on the system.
+libmanette's GObject Introspection typelib be on the system. The `note()` in
+the catch logs only under the development entry point (`lib/log.js`), so the
+shipped extension says nothing when libmanette is missing.
 
 *Check first, on any version:* toggle "Use game controllers" in Controls with
-libmanette absent (e.g. `MANETTE_TYPELIB_PATH` pointed somewhere empty) and
+libmanette absent (not installed, so `gi://Manette` fails to import) and
 confirm the row explains itself ("libmanette is not installed...") rather
 than throwing.
 
@@ -260,8 +264,8 @@ implementation itself is a function or an `async function`
 `await` trivially.
 
 *Check first on 48:* open every page (General, Controls, and each enabled
-section's own), confirm no page throws building itself, use the folder
-Browse… button, capture a keyboard shortcut and a controller input, and Import
+section's own), confirm no page throws building itself, use a section's
+"Add a folder" button, capture a keyboard shortcut and a controller input, and Import
 a key from `~/Documents/keys/<SERVICE>/`.
 
 ### `enable()`/`disable()` synchronity
@@ -300,7 +304,7 @@ is not here, since neither entry point's `disable()` is async.
    registered, later iteration on a version-gated code path can go back to
    `make link`, since `lib/`, `prefs.js`, `stylesheet.css` and the schema are
    shared between the two paths either way.
-5. `make logs '10 min ago'` should show no `TypeError`, no "No button beside
+5. `./scripts/dev.sh logs '10 min ago'` should show no `TypeError`, no "No button beside
    Show Apps", no "not laid out as expected", and no libmutter CRITICAL from
    `Meta.Workspace.index()`.
 6. Go through all four `library-opens-in` places and all four

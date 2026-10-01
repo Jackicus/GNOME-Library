@@ -9,7 +9,10 @@ import js from '@eslint/js';
 
 export default [
     {
-        ignores: ['dist/', 'node_modules/', '**/*.mjs'],
+        // .claude/ holds throwaway agent worktrees -- whole copies of this
+        // repo, mid-edit. Linting those makes `make check` on this tree fail
+        // for code that is not in it.
+        ignores: ['dist/', 'node_modules/', '.claude/', '**/*.mjs'],
     },
     js.configs.recommended,
     {
