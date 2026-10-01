@@ -39,9 +39,9 @@ it has never seen. A change to `extension.js` or `metadata.json` still needs one
 
 Try changes in the nested shell (`make nested`) rather than your own session: it has its
 own session bus, so a throw or a freeze there cannot take down the desktop you are working
-in. Settings are another matter: in some of these extensions a plain nested start reads and
-writes your real settings, and `./scripts/nested.sh start --clean` gives it a database of
-its own. CLAUDE.md says which applies here.
+in. Its settings are its own too, kept between starts and never your real ones;
+`./scripts/nested.sh start --clean` resets them, and `./scripts/nested.sh help` lists the
+rest.
 
 ## Conventions
 

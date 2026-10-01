@@ -6,10 +6,10 @@ allowed-tools: Bash(make scan), Bash(./scripts/dev.sh scan), Bash(./scripts/dev.
 
 Re-index the user's own media library. This is real, not a test: it writes
 `~/.cache/video-library/`, which the user's own shell (and a nested shell without
-`--demo`) rebuilds from, and every section whose `<prefix>-online` switch is on
+`--stand-in`) rebuilds from, and every section whose `<prefix>-online` switch is on
 goes to the network with the user's own keys. Run it only because the user asked
 (typing this command is that); a change is tried against
-`./scripts/nested.sh start --clean --demo`, which needs no scan.
+`./scripts/nested.sh start --stand-in`, which needs no scan.
 
 1. Run `make scan`. It reads each enabled section's folders from GSettings (TV
    Shows, Films; neither has a default, so "not set" means the section is off
@@ -26,8 +26,8 @@ goes to the network with the user's own keys. Run it only because the user asked
    titles or the user's folders into a commit or a public place.
 3. Nothing else is needed: a running Video Library watches `library.json` and
    rebuilds itself when the file lands (the user's own shell, if they have it
-   enabled; a nested shell under `--demo` reads its own made-up cache and does
-   not change).
+   enabled; a nested shell under `--stand-in` reads its own made-up cache and
+   does not change).
 
 A section reported as "is not a folder" means its path is unreachable — check the
 drive is mounted, or ask the user to fix the folder in Settings, rather than treating it as empty.

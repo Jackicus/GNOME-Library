@@ -12,10 +12,10 @@ parts.
   normal between tasks.
 - **extension**: `ACTIVE` is healthy; `ERROR` means `enable()` threw (`/logs`);
   anything else after a `reload`, see `/logs` too.
-- **settings**: `its own (--clean)` is what tests use; `shared with the real
-  session` means a plain `start`, whose setting changes and reloads write the
-  user's real dconf.
-- **library**: `the made-up one (--demo)`, or the user's own cache.
+- **settings**: always its own, never the user's dconf: `kept between starts`
+  (`start --clean` resets them), or `fresh for this run` under `--stand-in`.
+- **data**: `stand-in` is the made-up library (`start --stand-in`); `your own` is
+  the user's real cache and watched marks.
 - **mirror**: open on the desktop, or closed (`./scripts/nested.sh mirror on`).
 
 **Real session (read-only)**, from `./scripts/dev.sh status`, which only reads:
@@ -34,6 +34,6 @@ parts.
   `backdrops/`, `metadata/`.
 - **library**: the item count per section in the user's own scan, or `not
   scanned yet` (`/scan`, at the user's request; a test uses
-  `start --clean --demo`).
+  `start --stand-in`).
 
 If anything is off, say which command fixes it.
