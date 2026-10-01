@@ -138,9 +138,6 @@ controllers are the keyboard too: `.claude/rules/keyboard.md`.
   `_keepAliveId` (`app.js` `_holdWorkspaces`/`_keepOnly`); an empty overview preview
   or a bare-wallpaper slide, at `overviewPreview.js`'s paths; a missing button, at
   Dash to Panel's `panels` and `_updateGroupedElements`.
-- **"Is the app grid up?" is `dash.showAppsButton.checked`, never
-  `appDisplay.visible`**: the shell holds the app display visible for the whole slide
-  down to the window picker and does not update it once the transition is dropped.
 - **The 48 floor is the theme's.** No shell class or private field reached is known to
   differ from 48 to 50 (`docs/compatibility.md` says what was confirmed where);
   `-st-accent-color` (47+) and `St.BoxLayout({orientation})` (48+, twelve sites) are
