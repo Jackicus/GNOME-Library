@@ -304,11 +304,12 @@ help_of() {
 
 usage() {
     local file overridden
-    overridden="$(cat "$REPO_DIR"/scripts/dev.d/*.sh 2>/dev/null | sed -n 's/^cmd_\([a-z_]*\)().*/\1/p' | tr _ - | tr '\n' ' ')"
+    overridden="$( (cat "$REPO_DIR"/scripts/dev.d/*.sh 2>/dev/null || true) | sed -n 's/^cmd_\([a-z_]*\)().*/\1/p' | tr _ - | tr '\n' ' ')"
     # shellcheck disable=SC2086  # a list of words
     help_of "$SELF" $overridden
     for file in "$REPO_DIR"/scripts/dev.d/*.sh; do
-        [[ -f "$file" ]] && help_of "$file"
+        [[ -f "$file" ]] || continue
+        help_of "$file"
     done
     return 0
 }
@@ -316,8 +317,9 @@ usage() {
 # This extension's own commands (cmd_NAME, run as 'dev.sh NAME') and the
 # dev_status hook. A cmd_ defined there replaces the one above of the same name.
 for extra in "$REPO_DIR"/scripts/dev.d/*.sh; do
+    [[ -f "$extra" ]] || continue
     # shellcheck source=/dev/null
-    [[ -f "$extra" ]] && source "$extra"
+    source "$extra"
 done
 
 cmd="${1:-}"

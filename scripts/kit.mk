@@ -50,3 +50,9 @@ help:
 	@echo
 	@echo "make check     ESLint, then './scripts/dev.sh check': what CI runs"
 	@echo "make logs SINCE='5 min ago'   the journal since then, instead of following it"
+	@awk -v name='$(notdir $(CURDIR))' ' \
+	    /^#/ { sub(/^# ?/, ""); note = note (note == "" ? "" : " ") $$0; next } \
+	    /^[a-z][a-z0-9_-]*:/ && !/:=/ { t = $$1; sub(/:.*/, "", t); \
+	        if (!seen++) print "\n" name "'"'"'s own targets:"; \
+	        printf "make %-12s %s\n", t, note } \
+	    { note = "" }' $(firstword $(MAKEFILE_LIST))
