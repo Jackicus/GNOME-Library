@@ -1,63 +1,37 @@
 # Video Library
 
-Your own TV shows and films as a library in GNOME: posters, synopses, seasons
-and episodes, opened from one button beside Show Apps. It doesn't play
-anything itself. Pick an episode and it opens in VLC, mpv or whatever you use.
+Your own TV shows and films as a library, opened from a button beside Show Apps:
+posters, synopses, seasons and episodes, in the overview, a pop-up panel, on the
+desktop or on a workspace of its own. It plays nothing itself: a pick opens in VLC,
+mpv or whichever player you choose, and it remembers what you have watched.
 
 ![The library in the overview: TV Shows and Films tabs over a grid of posters, opened from the television button in the dash](docs/screenshots/menu.jpg)
 
-- **One button, two tabs.** TV Shows and Films, switched at the top. Turn a
-  section off and its tab goes.
-- **Finds the artwork.** Each title is looked up on TVmaze, TMDB and Wikipedia
-  for its poster, backdrop, rating and synopsis, and cached so browsing stays
-  instant.
-- **Remembers what you've watched.** Tick an episode, or just play it, and
-  Continue picks up where you left off.
-- **Looks like GNOME.** The grid is the shell's own app grid, in your accent
-  colour, with the same paging, swiping and keyboard.
-- **Remote or controller.** Map a TV remote's keys or a game controller's
-  buttons, and browse from the sofa.
-- **Four places to open.** In the overview, in a pop-up panel, right on the
-  desktop, or on a workspace of its own.
+## What it does
 
-## Install
-
-Needs GNOME Shell 50, and nothing else.
-
-```bash
-git clone https://github.com/Jackicus/GNOME-Video-Library.git
-cd GNOME-Video-Library
-make install
-```
-
-Log out and back in. GNOME only picks up a new extension when you log in.
-
-Then open the preferences (`gnome-extensions prefs video-library@jackicus`).
-On the **TV Shows** and **Films** pages, add your folders and press
-**Rescan**:
-
-- **TV Shows:** one folder per show. Seasons can be subfolders (`Season 2`)
-  or `S02E05` in the file names.
-- **Films:** one folder or file per film, named `Title (Year)`.
-
-TVmaze and Wikipedia work straight away. A free
-[TMDB key](https://www.themoviedb.org/settings/api) adds backdrops, ratings
-and taglines. It's stored in dconf in plain text, like any other setting.
-
-This product uses the TMDB API but is not endorsed or certified by TMDB.
-Show data comes from [TVmaze](https://www.tvmaze.com/) and synopses from
-[Wikipedia](https://www.wikipedia.org/), both under CC BY-SA.
+- **One button, two tabs.** TV Shows and Films, switched at the top. Turn a section
+  off and its tab goes.
+- **Finds the artwork.** Each title is looked up on TVmaze, TMDB and Wikipedia for its
+  poster, backdrop, rating and synopsis, and kept in a local cache.
+- **Remembers what you have watched.** Tick an episode, or just play it, and Continue
+  picks up where you left off.
+- **Looks like GNOME.** The grid is the shell's own app grid, in your accent colour,
+  with the same paging, swiping and keyboard.
+- **Remote or controller.** Map a TV remote's keys or a game controller's buttons, and
+  browse from the sofa.
+- **Four places to open.** In the overview, in a pop-up panel, on the desktop, or on a
+  workspace of its own.
 
 ## Where it opens
 
-The **General** page chooses where the library opens and where a picked item
-opens. The two settings are separate, so you can mix them.
+The **General** page of the preferences chooses where the library opens and where a
+picked item opens. The two settings are separate, so you can mix them.
 
 | | The library | A picked item |
 |---|---|---|
-| **Menu** | In the overview, beside your apps | Pops up the way an app folder does |
-| **Modal** | In a panel over the desktop | In a panel over everything |
-| **Desktop** | On the wallpaper of the workspace you're on | In place of the grid |
+| **Menu** (the default) | In the overview, where the app grid goes | Pops up out of its poster, the way an app folder opens |
+| **Modal** | In a panel over the desktop | In a panel over the desktop, until Escape or a click outside |
+| **Desktop** | On the wallpaper of the workspace you are on | On the wallpaper, in place of the grid when the library is there too |
 | **Workspaces** | On a workspace of its own | On a workspace of its own |
 
 <table>
@@ -79,47 +53,158 @@ opens. The two settings are separate, so you can mix them.
   </tr>
 </table>
 
+## Requirements
+
+- GNOME Shell 50.
+- A video player. The default command is VLC's; any other command works, and left
+  empty a file opens in your default video app. Watched marks and Continue need a
+  player that shows up in GNOME's media controls (MPRIS): VLC, Showtime, Celluloid, or
+  mpv with mpv-mpris.
+- For game controllers, libmanette, which most desktops already have with WebKitGTK.
+  Without it the extension works and controllers are ignored.
+
+The scanner that reads your folders runs on GJS, libsoup 3 and GdkPixbuf, which GNOME
+Shell itself depends on.
+
+## Privacy and network
+
+The extension itself never goes online. Only the scanner does, when you press
+**Rescan** in the preferences (or run `make scan` in a clone), and only for a section
+whose **Fetch artwork and descriptions online** switch is on (on by default).
+
+- **What is sent:** each show's or film's title, taken from its folder or file name,
+  and its year where known. TVmaze (`api.tvmaze.com`) gets the title; TMDB
+  (`api.themoviedb.org`) gets the title, the year and your API key; English Wikipedia
+  (`en.wikipedia.org`) gets the title, the year and "film" or "TV series". Posters and
+  backdrops are then downloaded from the address the source gives (TMDB's
+  `image.tmdb.org`, TVmaze's image server, Wikimedia). Nothing about your files beyond
+  the title and year is sent.
+- **Keys are yours.** TVmaze and Wikipedia need none. TMDB is skipped until you give it
+  a free key of your own from your [TMDB account](https://www.themoviedb.org/settings/api).
+  It is stored in your GNOME settings (dconf) in **plain text**, like any other
+  setting, and goes only to TMDB. If a file `keys/TMDB/API KEY.txt` exists in your
+  Documents folder, the key row offers **Import**, which reads it when pressed.
+- **What is stored:** the library index, artwork and fetched descriptions in
+  `~/.cache/video-library/`; watched marks and where playback stopped in
+  `~/.local/share/video-library/watched.json`. With **Keep marks in** set to
+  **Folders** (the default), each library folder also gets a
+  `.video-library-watched.json` with its own marks, so another computer reading the
+  same folder sees them; **Local** removes those copies, **Off** stops tracking.
+- **What is read:** your library folders, and the media players on your session (over
+  MPRIS) to see which of your files is playing and how far. That stays on your
+  computer.
+
+This product uses the TMDB API but is not endorsed or certified by TMDB. Show data
+comes from [TVmaze](https://www.tvmaze.com/) and synopses from
+[Wikipedia](https://www.wikipedia.org/), both under CC BY-SA; images keep the licences
+their sources give them. The artwork is cached for your own library and never
+published by the extension.
+
+## Install
+
+Not on extensions.gnome.org yet. From source, which needs `make` and
+`glib-compile-schemas` (part of GLib):
+
+```bash
+git clone https://github.com/Jackicus/GNOME-Video-Library.git
+cd GNOME-Video-Library
+make install
+```
+
+Log out and back in (a Wayland session cannot load an extension it has never seen),
+then `gnome-extensions enable video-library@jackicus`.
+
+The library is empty until it has folders. Open the preferences
+(`gnome-extensions prefs video-library@jackicus`), and on the **TV Shows** and **Films**
+pages add your folders and press **Rescan**:
+
+- **TV Shows:** one folder per show. Seasons can be subfolders (`Season 2`) or
+  `S02E05` in the file names.
+- **Films:** one folder or file per film, named `Title (Year)`. The largest video in a
+  folder is the film.
+
+A cover image beside the files (`cover.jpg`, `folder.jpg`, `poster.jpg` and the like)
+is used as the poster.
+
+To update, `git pull && make install`, then log out and back in. To remove,
+`make uninstall`; your cache, watched marks and settings are left as they were.
+
 ## Preferences
+
+`gnome-extensions prefs video-library@jackicus`, or the Settings button beside the
+library on the desktop.
 
 <table>
   <tr>
     <td width="33%"><img src="docs/screenshots/prefs-general.png" alt="The General page: where the library and a picked item open, playing on a new workspace, the keyboard shortcut, and the rows, columns and other appearance settings"></td>
-    <td width="33%"><img src="docs/screenshots/prefs-tv-shows.png" alt="The TV Shows page: the switch for the TV Shows tab, its folders, and the information sources tried in order — TVmaze, TMDB and Wikipedia"></td>
+    <td width="33%"><img src="docs/screenshots/prefs-tv-shows.png" alt="The TV Shows page: the switch for the TV Shows tab, no folder yet, and the information sources tried in order: TVmaze, TMDB and Wikipedia"></td>
     <td width="33%"><img src="docs/screenshots/prefs-controls.png" alt="The Controls page: the keys a remote sends for Up, Down, Left, Right, Select, Back, Home and a page each way"></td>
   </tr>
   <tr>
-    <td valign="top"><b>General</b>: where things open, the keyboard shortcut,
-    and the grid's size and shape.</td>
-    <td valign="top"><b>TV Shows</b> and <b>Films</b>: folders, where the
-    artwork comes from, and which player to use.</td>
-    <td valign="top"><b>Controls</b>: keys and controller buttons for browsing
+    <td valign="top"><b>General</b>: where things open, the keyboard shortcut (none
+    to begin with), the grid's size and shape, watched marks, and Rescan everything.</td>
+    <td valign="top"><b>TV Shows</b> and <b>Films</b>: folders, the information
+    sources and their keys, and the player command.</td>
+    <td valign="top"><b>Controls</b>: remote keys and controller buttons for browsing
     from the sofa.</td>
   </tr>
 </table>
 
 ## Troubleshooting
 
-If the library doesn't show up, or a scan finds nothing, `make logs` shows
-what went wrong.
+The extension logs to the journal under `[Video Library]`:
+
+```bash
+journalctl -f -o cat /usr/bin/gnome-shell | grep -i 'video library'
+```
+
+The preferences, and the scans they start, log in their own process:
+
+```bash
+journalctl -f -o cat SYSLOG_IDENTIFIER=org.gnome.Shell.Extensions
+```
+
+From a clone, `make status` says whether it is installed and running, and `make logs`
+follows the first of those.
+
+- **A tab says "No films yet" or "No tv shows yet".** The section has no folder, or
+  has not been scanned: its Open Settings button opens the preferences, where you add
+  a folder on its page and press Rescan.
+- **Rescan says "Failed — see logs".** The reason is in the preferences' journal above,
+  after `Scan failed`.
+- **No posters.** Check the section's online switch and its sources. TMDB is skipped
+  without a key, and a key TMDB rejects is skipped for the rest of the scan. A title no
+  source had artwork for is not looked up again for a week, unless you add a source.
+- **Nothing is marked as watched.** The player has to show up in GNOME's media controls
+  (mpv needs mpv-mpris), and the file has to be in one of the library's folders.
+- **A controller does nothing.** libmanette is not installed, or the library is not on
+  screen: controllers are read only while it is and no window has the keyboard, except
+  Home, which opens it.
+- **The preferences take seconds to open.** A library folder is on a network share that
+  is offline or has to wake up.
 
 ## Development
 
 ```bash
 make link      # install as a link to src/, for development
-make reload    # apply your edits to the running shell, no logout needed
-make nested    # start a throwaway nested GNOME Shell, mirrored in a window
+make reload    # load your edits into the running shell
 make check     # ESLint, the schema, the scanner's imports: what CI runs
 ```
 
-`CLAUDE.md` explains how it's built. [`docs/`](docs/) covers the shell
-internals it depends on, compatibility, and publishing.
+[CONTRIBUTING.md](CONTRIBUTING.md) has the setup and how changes land; try changes in
+the nested shell, `./scripts/nested.sh start --clean --demo`, rather than your own
+session. [`docs/`](docs/) covers the [shell internals it depends
+on](docs/private-api.md), [compatibility](docs/compatibility.md) and
+[publishing](docs/publishing.md).
 
 ## Licence
 
 GPL-2.0-or-later. See [LICENSE](LICENSE).
 
----
+## Credits
 
-<sub>The screenshots show a made-up library drawn by `scripts/demo_library.py`
-(`./scripts/nested.sh start --clean --demo`). None of the shows or films are
-real.</sub>
+The screenshots show a made-up library drawn by `scripts/demo_library.py`. None of the
+shows or films are real, and nothing in them was fetched online. Metadata and artwork in
+your own library come from [TVmaze](https://www.tvmaze.com/),
+[TMDB](https://www.themoviedb.org/) with your own key, and
+[Wikipedia](https://www.wikipedia.org/). VLC is a trademark of VideoLAN.

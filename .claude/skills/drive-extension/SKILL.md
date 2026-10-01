@@ -98,3 +98,8 @@ after opening or closing an item.
 `docs/screenshots/` are taken under `start --clean --demo`, never of the user's
 library. Full-screen shots go in as JPEG; windows (`window FILE`, the preferences) as
 PNG.
+
+Full-screen shots lose the top 32 px, the top bar with the screencast indicator and the
+clock: `jpegtran -crop 1600x868+0+32 -copy none -perfect` on the JPEG, lossless because
+32 is a whole number of JPEG blocks. They are 1600×868. PNGs go through
+`oxipng --opt 4 --strip safe`, which drops the `tEXt` chunks the screenshot carries.
