@@ -5,8 +5,9 @@ Shared rules for every extension come from the GNOME-EXTENSIONS kit: `../CLAUDE.
 A GNOME Shell extension (UUID `video-library@jackicus`) that shows a video library,
 TV shows and films, opened from one button beside Show Apps: in the overview, in a
 pop-up panel, on the wallpaper or on a workspace of its own, as a setting says.
-`metadata.json` claims GNOME Shell 50 only; the code is also audited (not booted)
-against 48 and 49's sources (`docs/compatibility.md`). The name is the same
+`metadata.json` claims GNOME Shell 50 only. The code is written for 48 to 50; 48
+and 49 are read against the shell's sources but never booted, and 51 breaks it
+(`docs/compatibility.md`). The name is the same
 throughout: `metadata.json`'s `name`, the UUID, the schema
 `org.gnome.shell.extensions.video-library`, the cache and data folders, the
 `[Video Library]` log prefix and the `VideoLibrary*` GObject class names.
@@ -96,8 +97,9 @@ controllers are the keyboard too: `.claude/rules/keyboard.md`.
 
 - **What the shell has, Video Library uses**: the app grid, `AppViewItem` and
   `overview-tile`, `icon-button` and `button`, `global.focus_manager`, the dash's
-  `DashItemContainer`, `AppFolderDialog` for both pop-ups. Ours is only the tab bar,
-  the detail pane and its rows.
+  `DashItemContainer`, and for both pop-ups `AppFolderDialog`'s shape and
+  `app-folder-dialog` style (`panel.js` `MediaPanel` is a copy, not a subclass). Ours
+  is only the tab bar, the detail pane and its rows.
 - **Motion** is `anim.js` alone: 120 ms (hover, leaving), 200 ms ease-out-quad (the
   rest), and 260 ms for the hero flight, the one duration past the kit's 250. A
   workspace change is the shell's slide, with no reveal of ours behind it.
@@ -107,12 +109,13 @@ controllers are the keyboard too: `.claude/rules/keyboard.md`.
   `9999px`. The exception is `paneInner`, the pop-up pane inside the folder's frame:
   the outer radius less `PANE_INSET`, so the curves are concentric.
 - **One set of style settings for every view**: `columns` (4–10), `rows` (1–3),
-  `corner-radius`, `detail-size` (80–120 %, read only by `panel.js` `_budget()`),
-  `grid-align`. No view keeps a copy, and a change rebuilds what is built.
+  `corner-radius`, `detail-size` (80–120 %, the pop-up pane's share of the work
+  area, applied in `panel.js` `_budget()`), `grid-align`. No view keeps a copy, and
+  a change rebuilds what is built.
   `.claude/rules/layout.md` has how the grid and the pane size themselves.
 - **The neutrals are the dark palette's** (`#222226`, `#fafafb`) on purpose: the
-  surface sits on the wallpaper. A light variant would be one class synced from
-  `Main.getStyleVariant()` and about 17 rules; not worth doing until asked.
+  surface sits on the wallpaper. A light variant would be a class synced from
+  `Main.getStyleVariant()`; not worth doing until asked.
 - **Placeholders are drawn**, an accent-tinted tile in `widgets.js`, so nothing stale
   is cached and an accent change shows at once.
 - **Nothing builds an actor per thing owned** (`lazyList.js` fills the detail lists
@@ -123,27 +126,19 @@ controllers are the keyboard too: `.claude/rules/keyboard.md`.
 
 ## Traps of its own
 
-- **The shares idle out, and one can be offline.** `/media/LENOVO` and `/media/HP-AIO`
-  are systemd automounts with a 60 s idle timeout; an offline one blocks every toucher
-  for the connect timeout (11 s, measured). In `prefs.js` that is how long the window
-  takes to open; in `lib/` the whole desktop stands still. Only the cache folder, which
-  is local, is read synchronously. A stale `~/.local/share/recently-used.xbel` entry on
-  an offline share stalls every Recent listing (`gvfsd-recent` stats each).
+- **A library folder can be a share that has idled out or is offline.** On the main
+  desktop the library is on systemd-automounted network shares (60 s idle timeout); an
+  offline one blocks whatever touches it for the connect timeout (11 s, measured
+  there). In `prefs.js` that is how long the window takes to open; in `lib/` the whole
+  desktop stands still. Only the cache folder, which is local, is read synchronously. A
+  stale `~/.local/share/recently-used.xbel` entry on an offline share stalls every
+  Recent listing (`gvfsd-recent` stats each).
 - **`backend/scanLibrary.js` takes its folder from `import.meta.url`**, the one
   exception to the kit's rule: it is never staged, running straight from the
   extension directory in a process of its own.
 - **Private shell API** is listed in `docs/private-api.md`, with what breaks when each
-  piece moves; a new reach goes there in the same pull request. If rendering breaks
-  after an upgrade, look at `_backgroundGroup`; a held workspace collapsing, at
-  `_keepAliveId` (`app.js` `_holdWorkspaces`/`_keepOnly`); an empty overview preview
-  or a bare-wallpaper slide, at `overviewPreview.js`'s paths; a missing button, at
-  Dash to Panel's `panels` and `_updateGroupedElements`.
-- **The 48 floor is the theme's.** No shell class or private field reached is known to
-  differ from 48 to 50 (`docs/compatibility.md` says what was confirmed where);
-  `-st-accent-color` (47+) and `St.BoxLayout({orientation})` (48+, twelve sites) are
-  what stop it going lower. Not worth lowering.
-- **`St.Icon.icon_size` is logical**, so `widgets.js` `createArtwork` divides a size
-  worked out in physical px by the scale factor.
+  piece moves (a symptom after an upgrade is looked up in its table); a new reach goes
+  there in the same pull request.
 - **Measuring something just built**: `anim.js` `allocateNow()` lays out an actor
   shown this frame (a clone flight measures NaN otherwise) and `ensureStyleDeep()`
   styles a whole subtree; nothing is measured before them.
@@ -157,11 +152,10 @@ src/backend/scanLibrary.js --help`) and a byte-compile of `scripts/*.py`. The
 scanner needs Soup 3, which `.github/ci-packages` adds to CI.
 
 Seeing a change is the nested shell: the `gnome-ext:nested-shell` skill, then this
-repository's `drive-extension` skill (where things are, what is never pressed, the
-`--demo` library the screenshots are taken of). **Never press Play, Continue or an
-episode** (it launches the user's player on their real media, and the tracker
-writes their real watched marks) **or Rescan** (an online scan with the user's real
-keys) in a nested shell, and never run `make scan` to test, unless the task asks.
+repository's `drive-extension` skill (where things are, the `--demo` library the
+screenshots are taken of). Unless the task asks, **never press Play, Continue, an
+episode or film row, a watched disc or Rescan, and never run `make scan`**: they reach
+the user's real player and media, watched marks and API keys (the skill says how).
 
 ## Coexisting with Games Library
 
@@ -169,14 +163,12 @@ The two run enabled at once and subclass the same shell classes, so nothing here
 assume it is the only extension reaching into the shell:
 
 - every registered GObject class is `VideoLibrary*`, never the bare shell name;
-  stylesheet classes are `ml-`; the folder look's class is `video-library-panel-blur`
-  (`panel.js` `BLUR`), Games Library's `games-library-panel-blur`;
-- both wrap Dash to Panel's `_updateGroupedElements` (`libraryButton.js`
-  `_attachToPanel`) and the overview layout's `_getAppDisplayBoxForState`
-  (`mediaMenu.js` `_foldWorkspaces`) chain-safely, as the kit's rule has it. A wrap
-  left in the other's chain goes inert, and the slot the menu measures for its next
-  view is asked of the shell's own method (the prototype's), not the wrap beneath,
-  which the other may have grown for a view of its own;
+  stylesheet classes are `ml-`; the pop-up's blur effect is named
+  `video-library-panel-blur` (`panel.js` `BLUR`), Games Library's
+  `games-library-panel-blur`;
+- both wrap Dash to Panel's `_updateGroupedElements` and the overview layout's
+  `_getAppDisplayBoxForState`, chain-safely (`docs/private-api.md`, "Chain-safe
+  wraps");
 - in the `menu` library, our button pressed while Games Library's view fills the
   app-grid slot closes the overview and reopens it onto ours rather than drawing over
   it, and Games Library does the same in reverse (`mediaMenu.js` `open()`, `_next`),

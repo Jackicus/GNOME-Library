@@ -11,17 +11,17 @@ Library's.
 
 ## Never press
 
-- **Play, Continue, or an episode or film row** in the detail pane. It runs the
-  section's open command (VLC by default) on the user's machine, on their real media,
-  and the tracker then writes their real watched marks and positions.
-- **Rescan** in the preferences, or `make scan`: an online scan with the user's real
-  keys, writing `~/.cache/video-library/` (unless under `--demo`).
-- **A watched disc**, or Mark watched from a key or the pad, outside `--demo`: it writes
+CLAUDE.md's list, and why, unless the task asks for exactly that:
+
+- **Play, Continue, or an episode or film row** runs the section's open command (VLC
+  by default) on the user's real media, and the tracker then writes their real
+  watched marks and positions.
+- **Rescan**, or `make scan`, is an online scan with the user's real keys, writing
+  `~/.cache/video-library/` (unless under `--demo`).
+- **A watched disc**, or Mark watched from a key or the pad, outside `--demo`, writes
   the real `~/.local/share/video-library/watched.json` and, with `tracking` `source`,
   a `.video-library-watched.json` into the library folder itself. If a test needs it,
   put both back.
-
-Unless the task asks for exactly that.
 
 ## Its own commands and fixtures
 

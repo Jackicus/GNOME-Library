@@ -6,8 +6,8 @@ allowed-tools: Bash(make status), Bash(./scripts/dev.sh status)
 Run `make status` and report the four lines it prints:
 
 - **install** — `link` means dev mode (edits in `src/` are live, entry point
-  `scripts/dev-extension.js`); `old-style symlink` means a stale whole-directory
-  symlink from before the dev install changed shape — run `make link` again;
+  `scripts/dev-extension.js`); `old-style symlink` means the whole directory is one
+  symlink, an older kind of dev install — run `make link` again;
   `copy` means a real install (the shipped `extension.js`) that won't pick up
   edits until `make install` is re-run.
 - **state** — `ACTIVE` is healthy. `unknown to the running shell` means the UUID was

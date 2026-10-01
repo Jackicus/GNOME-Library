@@ -1,337 +1,119 @@
 # Compatibility
 
-The code is built for GNOME Shell 48 to 50, but `metadata.json`'s
-`shell-version` currently claims only `["50"]`, the one version that's
-actually been run — 48 and 49 are audited against the shell's sources (below),
-not booted, so they're not claimed yet; the checklist at the end covers what
-adding one takes. This page lists every code path that depends on the
-version and says what to check first on each. Below, "claimed version"/
-"claimed floor" means this 48–50 design range, not literally what
-`metadata.json` lists today.
+`metadata.json` claims GNOME Shell 50 only: the one version the extension has
+been run on. The code is written for 48 to 50, and 48 and 49 have been read
+against the shell's sources but never booted, so they are not claimed. GNOME 51
+breaks it ([below](#gnome-51)). This page lists what was run where, every code
+path that depends on the version, and what claiming a version takes.
 
-## What has been tested
+## What has been run, and where
 
-- **GNOME Shell 50.5** on CachyOS (Arch-based), Wayland, with an NVIDIA
-  GeForce GTX 1080 on the proprietary driver 580.178.04. The rest of the
-  stack on that machine: mutter 50.5, GJS 1.88.1, GLib 2.88.3, GTK 4.22.5,
-  libadwaita 1.9.4, libmanette 0.2.13, libsoup 3.6.6, gdk-pixbuf 2.44.7.
-- **The same shell headless and nested** (`make nested`, `scripts/nested.sh`,
-  which runs `gnome-shell --wayland --headless --virtual-monitor ...` on its
-  own session bus), both with and without Dash to Panel enabled, and both
-  with and without Blur my Shell enabled — the four combinations `panel.js`'s
-  `folderLook()` and `libraryButton.js`'s Dash to Panel branch exist for.
-- **All four `library-opens-in` places** (`desktop`, `workspaces`, `menu`,
-  `modal`), **the pop-up detail pane**, **the library's keyboard shortcut**,
-  and **the preferences' General page**, Rescan included, were exercised in
-  the nested shell.
-- **The scanner** on a real library of 17 shows and 7 films on a local
-  drive, online against TMDB, TVmaze and Wikipedia, and on a made-up library
-  of the awkward cases: names in other scripts, seasons and extras,
-  dot-files, links, covers with and without alpha, one section's folder
-  inside the other's, the same film on two drives.
+- **The main desktop** (NVIDIA GeForce GTX 1080, proprietary driver 580.178.04;
+  CachyOS, Wayland): GNOME Shell 50.5, mutter 50.5, GJS 1.88.1, GLib 2.88.3,
+  GTK 4.22.5, libadwaita 1.9.4, libmanette 0.2.13, libsoup 3.6.6,
+  gdk-pixbuf 2.44.7. In the nested shell (`./scripts/nested.sh`) with and
+  without Dash to Panel and Blur my Shell, the four combinations `panel.js`
+  `folderLook()` and `libraryButton.js`'s Dash to Panel branch exist for: all
+  four `library-opens-in` places, the pop-up detail pane, `library-shortcut`
+  and the preferences' General page. The scanner ran there on a real library
+  on a local drive, online against TMDB, TVmaze and Wikipedia, and on a
+  made-up library of the awkward cases (other scripts, seasons and extras,
+  dot-files, links, covers with and without alpha, one section's folder inside
+  the other's, the same film on two drives).
+- **The HP all-in-one** (Intel UHD, Mesa; CachyOS, Wayland): GNOME Shell 50.4.
+  The extension has been enabled there from `make link`, with no library
+  scanned; nothing more is recorded.
 
-As with some sibling extensions, there is a separate development entry point:
-`scripts/dev-extension.js`, which never ships, stages `lib/` into
-`$XDG_RUNTIME_DIR/video-library/lib-<checksum>/` and imports it dynamically,
-so `make reload` can pick up an edit without a shell restart. `make link`
-installs it in place of `src/extension.js`; `make install` and `make pack`
-ship the real `src/extension.js`, a plain, static `enable()`/`disable()` with
-no staging (see CLAUDE.md's "How it fits together", step 3). So testing
-through `make link`, and through `make nested` over that link (`make nested`
-runs whatever is installed, and runs `make link` only when nothing is),
-exercises the dev loader, not the exact path a real install takes — the packed zip is worth testing separately, per the
-checklist below.
+Not run anywhere: GNOME 48 or 49, a virtual machine, X11 (gone in mutter 50),
+a second monitor (the overview previews draw on the primary monitor only, by
+design: [private-api.md](private-api.md#the-overview-previews-and-the-workspace-slide-overviewpreviewjs)).
 
-Nothing else has been tested:
+Most of that went through `make link`, whose entry point is
+`./scripts/dev-extension.js`, not the shipped `src/extension.js`; the packed
+zip is tested on its own (checklist below).
 
-- **GNOME 48 and 49 are not yet claimed in `metadata.json`, and have never
-  been run.** Every entry below marked "confirmed at 48.0/49.0" was checked by
-  reading the actual `GNOME/gnome-shell` source at those git tags on
-  gitlab.gnome.org, not by booting either version. Entries with no such mark
-  were checked only against the local 50.5 extraction and are assumed, not
-  confirmed, to hold at 48 and 49.
-- **GNOME 51 or later** is not built for and has not been read at all here.
-- **No Mesa GPU** (AMD, Intel), no virtual machine, no X11 session (removed
-  in mutter 50; 48 and 49 still have one).
-- **Multi-monitor.** The overview-preview code (`overviewPreview.js`) only
-  ever draws on the primary monitor by design (see `private-api.md`), so a
-  second monitor was not part of this pass the way it was for Wallpaper
-  FX's.
+## Read against the shell's sources
 
-## Version-sensitive code paths
+Every reach in [private-api.md](private-api.md) was read in `js/ui/` at the
+`48.0`, `49.0`, `50.0` and `51.0` tags of `GNOME/gnome-shell`, and is there in
+the same shape at all four, except as noted below. Two shapes differ by
+version, and the code handles both:
 
-### `Adw.ShortcutLabel ?? Gtk.ShortcutLabel` (prefs.js)
+- **`AppFolderDialog`'s click-away** is a `Clutter.ClickAction` at `48.0` and a
+  `Clutter.ClickGesture` from `49.0`. `panel.js` `_addClickAway()` takes
+  `ClickGesture` when it exists, so it follows the shell on each.
+- **`group._background`** in `workspaceAnimation.js` is a plain
+  `Meta.BackgroundGroup` at `48.0` and `49.0`, and a `WorkspaceBackground`
+  holding one from `50.0`. `overviewPreview.js` inserts its clone above
+  `group._background.get_first_child()`, which lands above the wallpaper
+  either way.
 
-```js
-// Libadwaita's from 1.8 (GNOME 49); GTK's, deprecated since, before that.
-const ShortcutLabel = Adw.ShortcutLabel ?? Gtk.ShortcutLabel;
-```
+Also read, and the same at all four tags: `WINDOW_ANIMATION_TIME` is 250
+(module-private at 48 and 49, exported from 50, hence `app.js`'s restated
+`WORKSPACE_SLIDE_TIME`); `_getAppDisplayBoxForState` takes six arguments;
+`Main.wm.keepWorkspaceAlive` exists; `DIALOG_SHADE_NORMAL`,
+`PAGE_PREVIEW_RATIO`, `DASH_MAX_HEIGHT_RATIO` and `VERTICAL_SPACING_RATIO` are
+module-private with the values restated.
 
-Confirmed: `AdwShortcutLabel` carries "since: 1.8" throughout libadwaita's own
-1.8 API reference. GNOME 48 ships libadwaita 1.7, GNOME 49 ships 1.8 — so on
-48 this line reads `undefined ?? Gtk.ShortcutLabel` and takes the GTK widget
-(deprecated in GTK, but present); on 49 and 50 it takes libadwaita's own.
-Both widgets are used identically afterwards (`new ShortcutLabel({disabled_text, valign})`,
-then `label.accelerator` set from the setting), so nothing downstream branches
-on which one was picked.
+## Version-sensitive code
 
-*Check first on 48:* open Controls → a key row's "Set Shortcut" button. The
-captured accelerator should render as a shortcut chip, from GTK's widget
-rather than libadwaita's.
+- **`Adw.ShortcutLabel ?? Gtk.ShortcutLabel`** (`prefs.js`): libadwaita's is
+  1.8 (GNOME 49); 48 (libadwaita 1.7) takes GTK's, used the same way.
+  *Check first on 48:* a Controls key row's captured shortcut shows as a chip.
+- **`Adw.ToggleGroup`** (`prefs.js`, the "opens in", grid-align and "Keep marks
+  in" rows) is libadwaita 1.7, exactly GNOME 48's. It sets the preferences'
+  floor; every other widget used needs less. *Check first on 48:* those rows
+  are segmented controls.
+- **`St.BoxLayout({orientation})`** (48+) and **`-st-accent-color`** (47+) have
+  no fallback; they are why the floor is 48.
+- **libmanette** is optional on every version: `controls.js` and `prefs.js`
+  `loadManette()` import `gi://Manette` dynamically and go on without it.
+- **`enable()`/`disable()`**: the shipped entry point's are synchronous;
+  `./scripts/dev-extension.js` has an `async enable()` (the shell awaits it)
+  and a synchronous `disable()`.
 
-### `Adw.ToggleGroup` and `Adw.Toggle` (prefs.js)
+## GNOME 51
 
-Used for "Library opens in" / "Items open in", the grid-align choice, and
-"Keep marks in" — four `Adw.ToggleGroup` instances. `AdwToggleGroup` carries
-"since: 1.7" throughout libadwaita's 1.7 reference, which is exactly the
-floor GNOME 48 ships. This is the tightest margin in the preferences: nothing
-here works on libadwaita 1.6 or earlier, so claiming a GNOME version whose
-libadwaita is below 1.7 would need a fallback (a `Gtk.ToggleButton` group, or
-`Adw.ComboRow`) that does not exist.
+Not claimed, and as written it fails to enable:
 
-*Check first on 48:* every `Adw.ToggleGroup` row (Library/Items/grid
-align/Watched) shows its two, three or four options as a segmented control,
-not a combo box or a crash.
+1. `Clutter.get_default_backend()` is gone (gjs.guide, "Port Extensions to
+   GNOME Shell 51"; absent from mutter's `clutter-backend.h` at `51.0`).
+   `controls.js` `Controls.enable()` calls it, so `VideoLibraryApp.enable()`
+   throws. The replacement, `global.stage.context.get_backend()`, works on 48
+   to 50.
+2. `st_focus_manager_navigate_from_event()` is gone (`st-focus-manager.h` at
+   `51.0`). `panel.js` `vfunc_key_press_event()` calls it, so a key in either
+   pop-up panel throws.
 
-### `Clutter.ClickGesture ?? Clutter.ClickAction` (panel.js)
-
-```js
-// Clutter.ClickGesture is 49 and later; on 48 this is the shell's own
-// AppFolderDialog's click-away action, js/ui/appDisplay.js.
-_addClickAway() {
-    if (Clutter.ClickGesture) { ... this.add_action(clickGesture); return; }
-    const clickAction = new Clutter.ClickAction();
-    ...
-    this.add_action(clickAction);
-}
-```
-
-Confirmed both ways: the shell's own `AppFolderDialog` (`appDisplay.js`) uses
-`Clutter.ClickAction` for its click-away at the `48.0` tag, and
-`Clutter.ClickGesture` at 50.5 — so this branch follows the same class the
-shell's own folder panel follows on each version, which is exactly the
-intent (`MediaPanel` is a hand-built copy of `AppFolderDialog`'s shape; see
-`private-api.md`). Not checked directly against `49.0`, but `Clutter.ClickGesture`
-existing is what gates the branch, so the two are automatically in step on
-whichever version actually introduced it.
-
-*Check first on 48:* click on the shade around a pop-up detail panel, or the
-modal library's panel. It should close. A `TypeError` in the log instead
-means the branch picked the wrong action for that version.
-
-### The six-argument `_getAppDisplayBoxForState` (mediaMenu.js)
-
-```js
-// Six arguments since GNOME 47; five before.
-const folded = function (state, box, searchHeight, dashHeight, workspacesBox, spacing) { ... };
-```
-
-Confirmed six arguments, in this order, at `48.0` and at 50.5. Since the
-claimed floor is 48, this method's arity is not actually a live branch
-anywhere in the code — the comment records the history for whoever reads it,
-but every claimed version takes six. Nothing would need to change here even
-if 47 were added, since the signature only *grew* a sixth argument at 47 and
-has not changed shape since.
-
-### `WORKSPACE_SLIDE_TIME`, restated (app.js)
-
-```js
-// workspaceAnimation.js WINDOW_ANIMATION_TIME — exported only from 50, so restated.
-const WORKSPACE_SLIDE_TIME = 250;
-```
-
-Confirmed at all three claimed versions: `WINDOW_ANIMATION_TIME` is declared
-`const` (module-private) at `48.0` and `49.0`, both times with value `250`,
-and `export const` at 50.5, also `250`. So the restated value is correct on
-every claimed version regardless of whether the shell's own export exists —
-this is purely a "cannot import it on 48/49" workaround, not a value that
-needs to track anything. If a future GNOME changes the shell's own duration,
-this restated copy would silently drift out of step with the actual slide
-(the timer that releases a claimed workspace after the slide, `_releaseWorkspaces`,
-would then fire slightly before or after the real animation finishes) —
-cosmetic, not a hang, since `_holdWorkspaces` still runs, just on a timer
-close to but not exactly matching the shell's own.
-
-### `group._background`'s shape across versions (overviewPreview.js)
-
-Not called out in this extension's own comments, but confirmed by reading
-the source directly: in `workspaceAnimation.js` at the `48.0` tag,
-`WorkspaceGroup._background` is a plain `Meta.BackgroundGroup`, built inline
-(`this._background = new Meta.BackgroundGroup(); this.add_child(this._background);`)
-with no wrapper class. At 50.5 it is a `WorkspaceBackground` instance whose
-own `_createBackground()` builds a `Meta.BackgroundGroup` as *its* first
-child. `overviewPreview.js`'s `_joinSlide()` reaches it the same way either
-way — `group._background.get_first_child()` — which is the wallpaper actor
-directly on 48/49's shape and the inner `Meta.BackgroundGroup` on 50/51's, and
-in both cases `insert_child_above(clone, wallpaper)` lands the clone above the
-background and below any desktop-window clones added after. Wallpaper
-FX's own `compatibility.md` documents the same two shapes (and has
-independently checked `49.0`, which was not re-checked here) — see that
-document for the fuller version table.
-
-*Check first on 48 and 49:* switch workspaces with Super+Page Down and with a
-touchpad swipe, on both a `workspaces`-mode library and a `workspaces`-mode
-detail pane claimed on a different workspace. Each should travel with its
-workspace during the slide rather than the surface blinking back to bare
-wallpaper and reappearing once the slide lands.
-
-### The overview and its previews (overviewPreview.js)
-
-The paths into the workspace previews and the thumbnail strip
-(`Main.overview._overview.controls._workspacesDisplay._workspacesViews`,
-`workspace._background`/`_backgroundGroup`/`_monitorIndex`,
-`controls._thumbnailsBox._thumbnails`/`_contents`) are the same private shape
-Wallpaper FX's `compatibility.md` reports unchanged from `45.0` to `51.0`.
-Only 50.5 was checked directly here, with one monitor; see `private-api.md`
-for why the `SecondaryMonitorDisplay`/`ExtraWorkspaceView` wrapper Wallpaper
-FX has to unwrap does not need handling in this extension (it only draws
-on the primary monitor).
-
-*Check first:* open the overview with a section's library set to `menu`, or
-with any surface place's library up on the active workspace. The posters
-should be in the workspace preview and, if the surface place claims a
-workspace of its own, in the thumbnail strip too.
-
-### `St.BoxLayout({orientation})` and `-st-accent-color`
-
-Both are floor requirements rather than branches — there is no fallback for
-either, and both are why the floor is 48 and not lower (CLAUDE.md's "Traps
-of its own", "The 48 floor is the theme's"). Confirmed by grep:
-`St.BoxLayout({orientation: ...})` is constructed at twelve call sites across
-`app.js`, `panel.js`, `widgets.js` (×4), `libraryButton.js`, `libraryView.js`,
-`detailView.js` (×4); `-st-accent-color`/`-st-accent-fg-color` appear fifteen
-times in `stylesheet.css`'s rules (and twice more in its header comment). Both are GNOME 48+ / libadwaita-era
-shell CSS features (`orientation` as a constructor property on `St.BoxLayout`
-is 48+; the accent palette is 47+), so nothing here needs guarding for the
-claimed range, but either would need a second code path (named orientation
-constants + manual layout, and a hardcoded accent) to go below 48.
-
-### `Main.wm.keepWorkspaceAlive` vs. `workspace._keepAliveId` directly
-
-Covered in full in `private-api.md`. The public method (`Main.wm.keepWorkspaceAlive(workspace, duration)`)
-is confirmed present, with the same forwarding shape, at `48.0` and 50.5, so
-it is not a version gap — the extension sets the private field directly
-because the public method is duration-bound and this extension's hold is not,
-not because the public method is missing on any claimed version.
-
-### libmanette (controls.js, an optional native dependency, not a GNOME version)
-
-```js
-try {
-    ({default: Manette} = await import('gi://Manette'));
-} catch {
-    note('libmanette is not installed; game controllers are not read.');
-    return;
-}
-```
-
-Not GNOME-version-sensitive — libmanette is a separate GObject-introspected
-library (present on the test machine as `libmanette 0.2.13`, installed
-alongside WebKitGTK on most desktops but not guaranteed) rather than part of
-the shell. The dynamic `import()` and its catch are what let the extension —
-and the preferences' own equivalent loader, `prefs.js`'s `loadManette()` —
-run identically whether or not it is installed; nothing about game controller
-support is claimed to require any particular GNOME version, only that
-libmanette's GObject Introspection typelib be on the system. The `note()` in
-the catch logs only under the development entry point (`lib/log.js`), so the
-shipped extension says nothing when libmanette is missing.
-
-*Check first, on any version:* toggle "Use game controllers" in Controls with
-libmanette absent (not installed, so `gi://Manette` fails to import) and
-confirm the row explains itself ("libmanette is not installed...") rather
-than throwing.
-
-### The preferences (prefs.js)
-
-libadwaita's floor across the whole file is **1.7**, set by `Adw.ToggleGroup`/
-`Adw.Toggle` above — every other widget used needs less:
-
-| Widget or call | Needs | At GNOME 48's floor (libadwaita 1.7) |
-|---|---|---|
-| `Adw.PreferencesPage`, `Adw.PreferencesGroup`, `Adw.ActionRow`, `Adw.HeaderBar`, `Adw.ButtonContent` | libadwaita 1.0 | yes |
-| `Adw.ExpanderRow`, `.add_row()` | libadwaita 1.0 | yes |
-| `Adw.EntryRow`, `Adw.PasswordEntryRow` | libadwaita 1.2 | yes |
-| `Adw.SwitchRow`, `Adw.ExpanderRow.add_suffix()` | libadwaita 1.4 | yes |
-| `Adw.Dialog`, `Adw.ToolbarView`, `Adw.StatusPage` | libadwaita 1.5 | yes |
-| `Adw.ToggleGroup`, `Adw.Toggle` | libadwaita 1.7 | yes, exactly the floor |
-| `Adw.ShortcutLabel` (with the `Gtk.ShortcutLabel` fallback above) | libadwaita 1.8 | no — falls back to GTK's |
-| `Gtk.FileDialog` (`select_folder()`/`select_folder_finish()`) | GTK 4.10 | yes (GNOME 48 ships GTK 4.14+) |
-
-`fillPreferencesWindow(window)` is synchronous, which is fine on every
-claimed version — the shell has awaited it since 47 regardless of whether the
-implementation itself is a function or an `async function`
-(`extensionPrefs.js`/`extensionSystem.js`), and a synchronous one satisfies an
-`await` trivially.
-
-*Check first on 48:* open every page (General, Controls, and each enabled
-section's own), confirm no page throws building itself, use a section's
-"Add a folder" button, capture a keyboard shortcut and a controller input, and Import
-a key from `~/Documents/keys/<SERVICE>/`.
-
-### `enable()`/`disable()` synchronity
-
-The shipped `src/extension.js` has a synchronous `enable()`/`disable()`
-(a plain, static `import` of `lib/app.js`), so there's nothing to check here.
-`scripts/dev-extension.js`, the dev-only entry point `make link` installs, has
-an `async enable()` because it awaits the dynamic `import()` of the staged
-`lib/app.js`; its `disable()` is synchronous. The shell has awaited `enable()`
-since GNOME 45 (`extensionSystem.js`, `await extension.stateObj.enable()`), so
-neither shape is a version gap on any claimed version; it would only matter if
-GNOME 51's stricter rule (an async `disable()` throws) were relevant, which it
-is not here, since neither entry point's `disable()` is async.
+Everything else in [private-api.md](private-api.md) is there at `51.0`
+(`AppDisplay` is now exported and still extends the unexported `BaseAppView`).
+No `disable()` is async, which 51 now rejects.
 
 ## Checklist for a new GNOME version
 
-1. Read gjs.guide's "Port Extensions to GNOME Shell N" page and search it for
-   `AppFolderDialog`, `ClickGesture`, `ShowAppsIcon`, `IconGrid`, `BaseAppView`,
-   `workspaceAnimation`, `overviewControls`, `_getAppDisplayBoxForState`,
-   `keepWorkspaceAlive`, `St.Settings` and `Adw`/libadwaita version bumps.
-2. Diff the shell between the last confirmed tag and the new one, over the
-   files `private-api.md` reaches into:
-   `js/ui/{appDisplay,dash,iconGrid,layout,overviewControls,workspace,
-   workspaceAnimation,workspaceThumbnail,workspacesView,windowManager}.js`.
-   Search for every expression in that document's "At a glance" table.
-3. Check what libadwaita version the new GNOME ships and confirm it is still
-   ≥ 1.7 (the `Adw.ToggleGroup` floor); if it is exactly 1.8 or later, the
-   `Adw.ShortcutLabel ?? Gtk.ShortcutLabel` fallback can drop its GTK half if
-   the floor version is also being raised, but only then.
-4. Install the zip rather than the development link: `make uninstall`, then
-   `make pack`, then install the built `dist/video-library@jackicus.shell-extension.zip`
-   with `gnome-extensions install`, then log out and in (a new UUID needs this
-   the first time regardless). The dev link's entry point
-   (`scripts/dev-extension.js`) and the shipped one (`src/extension.js`)
-   differ, so this first pass should go through the real zip; once the UUID is
-   registered, later iteration on a version-gated code path can go back to
-   `make link`, since `lib/`, `prefs.js`, `stylesheet.css` and the schema are
-   shared between the two paths either way.
-5. `./scripts/dev.sh logs '10 min ago'` should show no `TypeError`, no "No button beside
-   Show Apps", no "not laid out as expected", and no libmutter CRITICAL from
-   `Meta.Workspace.index()`.
-6. Go through all four `library-opens-in` places and all four
-   `detail-opens-in` places (sixteen combinations is more than is practical
-   to do exhaustively; at minimum, every place alone with the other held at
-   `desktop`, plus `desktop`+`desktop`, `workspaces`+`workspaces`,
-   `menu`+`menu`, `modal`+`modal`).
-7. Switch workspaces with the keyboard and with a touchpad swipe while a
-   `workspaces`-mode library or pane is claimed, and confirm it travels with
-   its workspace both in the live slide and in the overview's thumbnail
-   strip.
-8. Lock and unlock the screen with the library open. Testing via `make link`,
-   confirm the staged `lib/` directory is reused (`make logs` should show no
-   new "Enabled from" line with a different checksum) rather than rebuilt.
-   Testing the packed zip, there is no stage to check — `src/extension.js` has
-   none — so just confirm the library survives the unlock.
-9. With Dash to Panel installed and enabled, and again with it disabled,
-   confirm the button appears beside Show Apps in both places, and toggle
-   Blur my Shell to confirm the pop-up panel's shade and translucency follow
-   a folder's own look in both states.
-10. Testing via `make link`, disable and enable the extension ten times in a
-    row and watch `make logs` and the shell's CPU while idle, watching in
-    particular for the staged `lib-<checksum>` directories under
-    `$XDG_RUNTIME_DIR/video-library/` not accumulating (the sweep in
-    `scripts/dev-extension.js`'s `_sweepStages` should leave only the current
-    one).
-11. If Games Library is also installed and enabled, repeat steps 6–9 with both
-    extensions enabled together, and confirm disabling either one leaves the
-    other's button, folded workspace row and app-grid slot view intact.
-12. Only then add the version to `shell-version` in `metadata.json`.
+1. Read gjs.guide's "Port Extensions to GNOME Shell N" for anything
+   [private-api.md](private-api.md) names, and the libadwaita version it ships
+   (at least 1.7).
+2. Diff `js/ui/{appDisplay,dash,iconGrid,layout,overviewControls,workspace,
+   workspaceAnimation,workspaceThumbnail,workspacesView,windowManager}.js`
+   between the last tag read and the new one, for every expression in
+   private-api.md's table.
+3. Install the zip, not the link: `make uninstall`, `make pack`,
+   `gnome-extensions install dist/video-library@jackicus.shell-extension.zip`,
+   log in again.
+4. `./scripts/dev.sh logs '10 min ago'`: no `TypeError`, no "No button beside
+   Show Apps", no "not laid out as expected".
+5. Each `library-opens-in` place with `detail-opens-in` `desktop`, each
+   `detail-opens-in` place with the library on `desktop`, and each place with
+   itself.
+6. Switch workspaces by keyboard and by touchpad with a `workspaces` library or
+   pane claimed: it travels with its workspace in the slide and in the
+   overview's thumbnails.
+7. Lock and unlock with the library open.
+8. With Dash to Panel on and off: the button beside Show Apps in both; with
+   Blur my Shell on and off: the pop-up's shade follows a folder's.
+9. Under `make link`, disable and enable ten times: no errors, and one
+   `lib-<checksum>` directory left under `$XDG_RUNTIME_DIR/video-library/`.
+10. With Games Library enabled too, repeat 5 to 8, and disable each in turn:
+    the other's button, folded workspace row and app-grid view stay.
+11. Then add the version to `shell-version`.
