@@ -37,9 +37,8 @@ settings and credentials come from.
 - **`metadata/index.json`** holds every cached record; the per-item files the first
   release wrote are read once (`_record`) and folded in.
 - **A credential is one slotted value.** `credential()` returns one string per slot
-  (`tmdb@1`, `tmdb@2`, …); TMDB is the only source that needs one. Under
-  `--from-settings` they come from the `credentials` setting; a standalone run
-  falls back to `$VIDEO_LIBRARY_TMDB_KEY` for slot 1. Never print one.
+  (`tmdb@1`, `tmdb@2`, …); TMDB is the only source that needs one. Where they come
+  from is the root `CLAUDE.md`'s. Never print one.
 
 ## Gotchas
 

@@ -12,10 +12,6 @@ paths:
 
 # Where the library and the pane open
 
-`library-opens-in` and `detail-opens-in` each name one of `desktop`, `workspaces`,
-`menu`, `modal`, read independently. `app.js` `_detailInPlace()` is the one thing the
-pair decides together.
-
 ## The surface (`desktop`, `workspaces`)
 
 - Built when either setting is a surface place, attached to
@@ -70,10 +66,11 @@ pair decides together.
 
 ## The pop-up pane (`detail-opens-in` `menu`, `modal`)
 
-- `detailDialog.js` is the shell's `AppFolderDialog` (through `panel.js`, which the
-  modal library's panel also subclasses) with three changes: sized around a poster
-  rather than a 720px square, holding a `DetailView` (with a `bare` frame) where the
-  folder holds its grid, and no name to edit. It is styled `app-folder-dialog`.
+- `detailDialog.js` subclasses `panel.js` `MediaPanel` (as the modal library's
+  `libraryWindow.js` does), a copy of the shell's `AppFolderDialog` with the folder's
+  grid and name entry taken out, styled `app-folder-dialog`. Its panel is sized
+  around a poster rather than a 720px square and holds a `DetailView` (with a `bare`
+  frame) where the folder holds its grid.
 - The pane sits inside the panel by `shape.js` `PANE_INSET`, taken out of the pane's
   own padding: `detailView.js` `PADDING.bare` and the stylesheet's
   `.ml-pane-bare .ml-pane-content` are the two halves and must agree, or the pane
@@ -85,8 +82,7 @@ pair decides together.
 - It opens in two moves: the panel zooms out of the tile as the artwork and buttons
   alone, poster-shaped, then widens onto the title, facts and list, built on an idle
   meanwhile. Closing mirrors it. The pane is laid out once at the open width inside a
-  clip that is the panel, and the panel's height is asked of the side column
-  (`get_preferred_height`, after `ensureStyleDeep`).
+  clip that is the panel, whose height is the side column's (`layout.md`).
 - `menu`: hosted where the pick was made (`overviewGroup` with the overview up,
   `uiGroup` otherwise), and gone the moment its tile unmaps. `modal`: hosted in
   `uiGroup` always, so a pick in the overview hides the overview first (and the panel
