@@ -16,8 +16,9 @@ CLAUDE.md's list, and why, unless the task asks for exactly that:
 - **Play, Continue, or an episode or film row** runs the section's open command (VLC
   by default) on the user's real media, and the tracker then writes their real
   watched marks and positions.
-- **Rescan**, or `make scan`, is an online scan with the user's real keys, writing
-  `~/.cache/video-library/` (unless under `--demo`).
+- **Rescan**, or `make scan` (`/scan`, which runs only when the user types it), is an
+  online scan with the user's real keys, writing `~/.cache/video-library/` (unless
+  under `--demo`).
 - **A watched disc**, or Mark watched from a key or the pad, outside `--demo`, writes
   the real `~/.local/share/video-library/watched.json` and, with `tracking` `source`,
   a `.video-library-watched.json` into the library folder itself. If a test needs it,
@@ -27,7 +28,9 @@ CLAUDE.md's list, and why, unless the task asks for exactly that:
 
 - **`start --clean --demo`**: the made-up library `scripts/demo_library.py` draws, in a
   cache of its own pointed at through `XDG_CACHE_HOME`. Use it for anything that shows
-  library content, and always for `docs/screenshots/`.
+  library content, and always for `docs/screenshots/`. A shell already running is
+  reused as it is, so `stop` first; `status` says which it is (`settings:` its own or
+  shared, `library:` made-up or yours).
 - **The idle stop** is `VIDEO_LIBRARY_NESTED_IDLE=<seconds>` at `start` (default 600,
   `0` never). The nested Wayland display is `video-library-dev`; the prefs process to
   kill before reopening is the one whose environment names it.

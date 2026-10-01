@@ -156,6 +156,9 @@ repository's `drive-extension` skill (where things are, the `--demo` library the
 screenshots are taken of). Unless the task asks, **never press Play, Continue, an
 episode or film row, a watched disc or Rescan, and never run `make scan`**: they reach
 the user's real player and media, watched marks and API keys (the skill says how).
+`/reload`, `/logs`, `/status` and `/preview` use the nested shell, the real session only
+read and labelled so; `make reload` is the user's own session, theirs to run, and `/scan`
+is the real scan, run only when the user types it.
 
 ## Coexisting with Games Library
 
