@@ -1,17 +1,31 @@
 ---
-description: Show recent Video Library output from the GNOME Shell journal
-argument-hint: "[systemd time spec, e.g. '5 min ago' — defaults to 10 min]"
-allowed-tools: Bash(./scripts/dev.sh logs:*)
+description: Show what Video Library logged in the nested shell (or, read-only, the real session's journal)
+argument-hint: "[N lines of the nested shell's log, default 80; or a systemd time spec such as '5 min ago' for the real session's journal]"
+allowed-tools: Bash(./scripts/nested.sh status), Bash(./scripts/nested.sh logs:*), Bash(./scripts/dev.sh logs:*)
 ---
 
 Show what the extension has logged recently.
 
-Time window requested: $ARGUMENTS
+Requested: $ARGUMENTS
 
-Run `./scripts/dev.sh logs "<window>"`, using the window above — or `10 min ago` if
-it's empty. Anything systemd accepts works (`5 min ago`, `today`, `09:00`).
+**The nested shell** is where changes are tried, so its log is the one to read.
+If the request above is empty or a number, run `./scripts/nested.sh status`; if a
+nested shell is running, `./scripts/nested.sh logs <N>` (80 when none was given;
+add `--all` for the D-Bus and portal chatter the default filters out). If none is
+running, say so: its log goes with it at `stop`, and a fresh one starts at
+`start`.
 
-Summarise what happened rather than dumping every line: errors and warnings, with any
-stack trace in full, and which file it points at. The shipped extension logs failures
-only; under the dev entry point (`make link`) it also logs `Enabled from …` on each
-enable and `Rebuilt` when a rescan or a setting rebuilds what is built.
+**The real session's journal**, read-only, only when the request is a time spec
+(`5 min ago`, `today`, `09:00`) or asks for the user's own desktop:
+`./scripts/dev.sh logs "<window>"`. Head the answer "real session (read-only)":
+it is what Video Library did on the user's desktop, not in the nested shell.
+
+Summarise rather than dump: errors and warnings, with any stack trace in full and
+the file it points at. The shipped extension logs failures only; under the dev
+entry point (`make link`, which the nested shell reads too) it also logs
+`Enabled from …` on each enable and `Rebuilt` when a rescan or a setting rebuilds
+what is built. Only `[Video Library]` lines are this extension's; other
+extensions' errors at a plain `start` are not. Exceptions inside a GNOME
+extension only ever surface in these logs, never in a terminal, so this is the
+place to look when something silently does nothing (no button beside Show Apps,
+a grid that never fills).

@@ -499,6 +499,8 @@ cmd_status() {
         echo "nested:    running (pid $(cat "$PID_FILE")), $(geometry)$idle"
         echo "mirror:    $(mirror_running && echo "open on the desktop" || echo "closed -- 'mirror on' to watch")"
         echo "extension: ${state:-not registered in the nested shell}"
+        echo "settings:  $([[ -s "$PROFILE_FILE" ]] && echo "its own (--clean): only $UUID enabled" || echo "shared with the real session")"
+        echo "library:   $([[ -d "$DEMO_CACHE" ]] && echo "the made-up one (--demo)" || echo "yours, ~/.cache/video-library")"
         echo "log:       $LOG_FILE"
     else
         echo "nested:    not running"

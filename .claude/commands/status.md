@@ -1,18 +1,39 @@
 ---
-description: Report install mode, shell state, and library size
-allowed-tools: Bash(make status), Bash(./scripts/dev.sh status)
+description: Report the nested shell's state, then the install mode, the real session's state and the library size (read-only)
+allowed-tools: Bash(make status), Bash(./scripts/dev.sh status), Bash(./scripts/nested.sh status)
 ---
 
-Run `make status` and report the four lines it prints:
+Run `./scripts/nested.sh status` and `./scripts/dev.sh status`. Report in two
+parts.
 
-- **install** — `link` means dev mode (edits in `src/` are live, entry point
-  `scripts/dev-extension.js`); `old-style symlink` means the whole directory is one
-  symlink, an older kind of dev install — run `make link` again;
-  `copy` means a real install (the shipped `extension.js`) that won't pick up
-  edits until `make install` is re-run.
-- **state** — `ACTIVE` is healthy. `unknown to the running shell` means the UUID was
-  never registered, which needs a logout, not a reload.
-- **cache** — `~/.cache/video-library`, holding `library.json`, `posters/`, `backdrops/`, `metadata/`.
-- **library** — item count across sections, or `not scanned yet` (run `/scan`).
+**Nested shell** (where changes are tried):
+
+- **nested**: running or not, its pid, size and idle timeout. Not running is
+  normal between tasks.
+- **extension**: `ACTIVE` is healthy; `ERROR` means `enable()` threw (`/logs`);
+  anything else after a `reload`, see `/logs` too.
+- **settings**: `its own (--clean)` is what tests use; `shared with the real
+  session` means a plain `start`, whose setting changes and reloads write the
+  user's real dconf.
+- **library**: `the made-up one (--demo)`, or the user's own cache.
+- **mirror**: open on the desktop, or closed (`./scripts/nested.sh mirror on`).
+
+**Real session (read-only)**, from `./scripts/dev.sh status`, which only reads:
+
+- **install**: `link` means dev mode: the nested shell, and the real one at its
+  next login, run `src/` through `scripts/dev-extension.js`; `old-style
+  symlink` means the whole directory is one symlink, an older kind of dev
+  install, `make link` again; `copy` is a real install (the shipped
+  `extension.js`) that won't pick up edits until `make install` is re-run. The
+  nested shell reads the same install.
+- **state**: the extension's state in the user's own shell. It says nothing about
+  the edits in progress, and is never fixed by reloading or enabling there:
+  that is the user's to do. `unknown to the running shell` means the UUID was
+  never registered there, which needs the user's logout.
+- **cache**: `~/.cache/video-library`, holding `library.json`, `posters/`,
+  `backdrops/`, `metadata/`.
+- **library**: the item count per section in the user's own scan, or `not
+  scanned yet` (`/scan`, at the user's request; a test uses
+  `start --clean --demo`).
 
 If anything is off, say which command fixes it.
