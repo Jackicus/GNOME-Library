@@ -153,7 +153,9 @@ scanner needs Soup 3, which `.github/ci-packages` adds to CI.
 
 Seeing a change is the nested shell: the `gnome-ext:nested-shell` skill, then this
 repository's `drive-extension` skill (where things are, the `--demo` library the
-screenshots are taken of). Unless the task asks, **never press Play, Continue, an
+screenshots are taken of). A plain `start` (`make nested`) reads and writes the user's
+real settings; `./scripts/nested.sh start --clean` gives it a database of its own, and is
+the one to use. Unless the task asks, **never press Play, Continue, an
 episode or film row, a watched disc or Rescan, and never run `make scan`**: they reach
 the user's real player and media, watched marks and API keys (the skill says how).
 `/reload`, `/logs`, `/status` and `/preview` use the nested shell, the real session only

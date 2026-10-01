@@ -1,0 +1,91 @@
+# Copied from the GNOME-EXTENSIONS kit (template/.github/ISSUE_TEMPLATE/bug.yml) by its
+# scripts/sync.sh: change it there.
+name: Bug report
+description: Something in the extension does not work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this. Please search the existing issues first.
+
+        **Privacy:** this issue is public. Leave out your username and home folder paths,
+        account names and emails, tokens and keys, and anything from your own files or
+        library that you would not want published. Check screenshots and logs for them too.
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install it?
+      options:
+        - From extensions.gnome.org
+        - From source (make install)
+        - Other (say below)
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Extension version
+      description: >-
+        From extensions.gnome.org, the version it shows. From source, the commit:
+        `git log -1 --format=%h` in your clone.
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: GNOME Shell version and distribution
+      description: "`gnome-shell --version` prints the first; for example \"GNOME Shell 50.4, Arch Linux\"."
+    validations:
+      required: true
+  - type: textarea
+    id: others
+    attributes:
+      label: Other extensions enabled
+      description: "`gnome-extensions list --enabled`. Extensions that change the top bar, the dash or the overview can clash."
+      render: text
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the overview
+        2. Click the extension's button
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead
+      description: A screenshot helps for anything visual.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log
+      description: |
+        Run this, reproduce the problem, then paste what it printed (the README's
+        Troubleshooting section names the extension's prefix to filter on):
+
+        `journalctl -f -o cat /usr/bin/gnome-shell`
+
+        For a problem in the preferences window:
+        `journalctl -f -o cat SYSLOG_IDENTIFIER=org.gnome.Shell.Extensions`
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues.
+          required: true
+        - label: This report contains no personal data (paths with my username, accounts, tokens, keys).
+          required: true
