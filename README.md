@@ -192,7 +192,7 @@ make check     # ESLint, the schema, the scanner's imports: what CI runs
 ```
 
 [CONTRIBUTING.md](CONTRIBUTING.md) has the setup and how changes land; try changes in
-the nested shell, `./scripts/nested.sh start --clean --demo`, rather than your own
+the nested shell, `./scripts/nested.sh start --stand-in`, rather than your own
 session. [`docs/`](docs/) covers the [shell internals it depends
 on](docs/private-api.md), [compatibility](docs/compatibility.md) and
 [publishing](docs/publishing.md).

@@ -1,0 +1,224 @@
+# Publishes a GitHub release when a `v*` tag is pushed: checks the tag against the version
+# in src/metadata.json, runs `make check`, packs the extensions.gnome.org zip with
+# `./scripts/dev.sh pack`, and attaches it to a release whose notes list the pull requests
+# merged since the previous release. A tag with a suffix (v1.1-beta.1) is a prerelease of
+# version-name 1.1: extensions.gnome.org allows only letters, digits, dots and spaces there.
+#
+# Run it again for an existing tag from the Actions tab (workflow_dispatch): it rebuilds the
+# zip and replaces the release's notes and asset rather than failing.
+#
+# Copied from the GNOME-EXTENSIONS kit (template/.github/workflows/release.yml) by its
+# scripts/sync.sh: change it there. Packages beyond the base go in .github/ci-packages.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The existing tag to release again, e.g. v1.1
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: archlinux:latest
+    env:
+      LANG: C.UTF-8
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Name this week's package cache
+        id: week
+        run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the pacman package cache
+        uses: actions/cache@v6
+        with:
+          path: /var/cache/pacman/pkg
+          key: pacman-${{ runner.os }}-${{ steps.week.outputs.week }}
+          restore-keys: |
+            pacman-${{ runner.os }}-
+
+      - name: Install git, gh and Python
+        run: pacman -Syu --noconfirm --needed git github-cli python
+
+      - name: Check out the tag
+        uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          fetch-depth: 0
+
+      - name: Trust the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Check the tag against metadata.json and main
+        id: version
+        shell: bash
+        run: |
+          version_name=$(python3 -c 'import json; print(json.load(open("src/metadata.json")).get("version-name", ""))')
+          uuid=$(python3 -c 'import json; print(json.load(open("src/metadata.json"))["uuid"])')
+          name=$(python3 -c 'import json; print(json.load(open("src/metadata.json"))["name"])')
+          if ! [[ $version_name =~ ^[A-Za-z0-9.\ ]{1,16}$ ]] || [[ $version_name =~ ^[.\ ]+$ ]]; then
+            echo "::error::src/metadata.json's version-name '$version_name' is not one extensions.gnome.org accepts (letters, digits, dots, spaces; at most 16)"
+            exit 1
+          fi
+          if [ "$TAG" = "v$version_name" ]; then
+            prerelease=false
+          elif [[ $TAG == "v$version_name-"* ]]; then
+            prerelease=true
+          else
+            echo "::error::Tag $TAG does not match src/metadata.json's version-name $version_name: tag v$version_name (or v$version_name-<suffix> for a prerelease)"
+            exit 1
+          fi
+          if python3 -c 'import json, sys; sys.exit("version" not in json.load(open("src/metadata.json")))'; then
+            echo "::error::src/metadata.json sets \"version\": extensions.gnome.org assigns it; remove it"
+            exit 1
+          fi
+          git fetch --quiet origin main
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "::error::$TAG points at a commit that is not on main"
+            exit 1
+          fi
+          {
+            echo "version_name=$version_name"
+            echo "uuid=$uuid"
+            echo "name=$name"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Install build and test dependencies
+        shell: bash
+        run: |
+          extra=()
+          if [ -f .github/ci-packages ]; then
+            mapfile -t extra < <(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' .github/ci-packages)
+          fi
+          # gnome-shell provides gnome-extensions, which packs the zip.
+          pacman -S --noconfirm --needed \
+            make nodejs npm gjs glib2 gdk-pixbuf2 librsvg python unzip zip gnome-shell "${extra[@]}"
+          pacman -Sc --noconfirm
+          pacman -Q gjs glib2 gnome-shell
+
+      - name: Install ESLint
+        run: npm ci --no-audit --no-fund
+
+      - name: Run make check
+        run: make check
+
+      - name: Pack the zip
+        shell: bash
+        run: |
+          ./scripts/dev.sh pack
+          zip="dist/${{ steps.version.outputs.uuid }}.shell-extension.zip"
+          [ -f "$zip" ] || { echo "::error::./scripts/dev.sh pack did not write $zip"; exit 1; }
+          listing=$(unzip -Z1 "$zip")
+          echo "$listing"
+          grep -qx metadata.json <<< "$listing" || { echo "::error::$zip has no metadata.json"; exit 1; }
+          if bad=$(grep -E '(^|/)(node_modules|\.claude|\.git|dist)/|gschemas\.compiled$|dev-extension\.js$' <<< "$listing"); then
+            echo "::error::$zip holds files that must not ship: $bad"
+            exit 1
+          fi
+          packed=$(unzip -p "$zip" metadata.json | python3 -c 'import json, sys; print(json.load(sys.stdin).get("version-name", ""))')
+          [ "$packed" = "${{ steps.version.outputs.version_name }}" ] || { echo "::error::the zip's version-name is $packed"; exit 1; }
+          echo "ZIP=$zip" >> "$GITHUB_ENV"
+
+      - name: Write the release notes
+        shell: bash
+        run: |
+          python3 - > "$RUNNER_TEMP/notes.md" <<'EOF'
+          import json, os, re, subprocess
+
+          tag = os.environ['TAG']
+          prerelease = '-' in tag
+
+          def git(*args):
+              return subprocess.run(['git', *args], check=True, capture_output=True, text=True).stdout
+
+          def version_key(t):
+              return [int(p) if p.isdigit() else p for p in re.split(r'[.-]', t[1:])]
+
+          # The previous release: for a release, the last release before it; for a
+          # prerelease, the last tag of either kind.
+          earlier = [t for t in git('tag', '--merged', f'{tag}^', '--list', 'v*').split() if t != tag]
+          if not prerelease:
+              earlier = [t for t in earlier if '-' not in t]
+          previous = max(earlier, key=version_key) if earlier else None
+
+          span = f'{previous}..{tag}' if previous else tag
+          sections = {'Added': [], 'Fixed': [], 'Changed': [], 'Maintenance': []}
+          without_pr = 0
+          for line in git('log', '--reverse', '--format=%s', span).splitlines():
+              m = re.search(r'\(#(\d+)\)$', line)
+              if not m:
+                  without_pr += 1
+                  if previous:
+                      sections['Changed'].append(line)
+                  continue
+              pr = json.loads(subprocess.run(
+                  ['gh', 'pr', 'view', m.group(1), '--json', 'number,title,headRefName'],
+                  check=True, capture_output=True, text=True).stdout)
+              head = pr['headRefName']
+              if head.startswith('release/'):
+                  continue
+              entry = f"{pr['title']} (#{pr['number']})"
+              if head.startswith('feat/'):
+                  sections['Added'].append(entry)
+              elif head.startswith('fix/'):
+                  sections['Fixed'].append(entry)
+              elif head.startswith(('docs/', 'chore/')):
+                  sections['Maintenance'].append(entry)
+              else:
+                  sections['Changed'].append(entry)
+
+          if not previous:
+              print('First release.')
+              print()
+          # Maintenance is listed only beside the rest, never as all a release says it did.
+          shown = [s for s in ('Added', 'Fixed', 'Changed') if sections[s]] or ['Maintenance']
+          if any(sections[s] for s in ('Added', 'Fixed', 'Changed')) and sections['Maintenance']:
+              shown.append('Maintenance')
+          for section in shown:
+              if not sections[section]:
+                  continue
+              print(f'## {section}')
+              print()
+              for entry in sections[section]:
+                  print(f'- {entry}')
+              print()
+          if not previous and without_pr:
+              commits = 'commit' if without_pr == 1 else 'commits'
+              print(f'Also {without_pr} earlier {commits} from before changes went through pull requests.')
+              print()
+          if previous:
+              repo = os.environ['GH_REPO']
+              print(f'Compare: https://github.com/{repo}/compare/{previous}...{tag}')
+          EOF
+          cat "$RUNNER_TEMP/notes.md"
+
+      - name: Publish the release
+        shell: bash
+        run: |
+          title="${{ steps.version.outputs.name }} ${TAG#v}"
+          flags=()
+          [ "${{ steps.version.outputs.prerelease }}" = true ] && flags+=(--prerelease)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "$title" --notes-file "$RUNNER_TEMP/notes.md" "${flags[@]}"
+            gh release upload "$TAG" "$ZIP" --clobber
+          else
+            gh release create "$TAG" "$ZIP" --verify-tag --title "$title" \
+              --notes-file "$RUNNER_TEMP/notes.md" "${flags[@]}"
+          fi
+          gh release view "$TAG" --json url,assets --jq '.url, (.assets[] | "\(.name) \(.size)")'

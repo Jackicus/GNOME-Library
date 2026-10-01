@@ -25,7 +25,7 @@ the file it points at. The shipped extension logs failures only; under the dev
 entry point (`make link`, which the nested shell reads too) it also logs
 `Enabled from …` on each enable and `Rebuilt` when a rescan or a setting rebuilds
 what is built. Only `[Video Library]` lines are this extension's; other
-extensions' errors at a plain `start` are not. Exceptions inside a GNOME
+extensions' errors (when enabled in the nested settings) are not. Exceptions inside a GNOME
 extension only ever surface in these logs, never in a terminal, so this is the
 place to look when something silently does nothing (no button beside Show Apps,
 a grid that never fills).

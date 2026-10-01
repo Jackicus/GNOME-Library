@@ -113,7 +113,8 @@ No `disable()` is async, which 51 now rejects.
 8. With Dash to Panel on and off: the button beside Show Apps in both; with
    Blur my Shell on and off: the pop-up's shade follows a folder's.
 9. Under `make link`, disable and enable ten times: no errors, and one
-   `lib-<checksum>` directory left under `$XDG_RUNTIME_DIR/video-library/`.
+   `lib-<checksum>` directory left under
+   `$XDG_RUNTIME_DIR/video-library/shell-<pid>/`, the shell's own.
 10. With Games Library enabled too, repeat 5 to 8, and disable each in turn:
     the other's button, folded workspace row and app-grid view stay.
 11. Then add the version to `shell-version`.

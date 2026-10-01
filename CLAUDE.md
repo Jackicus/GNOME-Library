@@ -17,7 +17,8 @@ the same idea for games and runs alongside this one: see the last section.
 
 ## Layout
 
-- `src/` ships, with one exception: `make install` and `make pack` leave out the
+- `src/` ships as far as `./scripts/ext.conf`'s `EXT_SHIP` says: the entry points,
+  stylesheet and schema, `lib/` and `backend/`'s JS and `icons/`' SVG, never the
   `CLAUDE.md` notes under it (`src/backend/CLAUDE.md`, the scanner's).
 - `src/lib/library.js`: `SECTIONS` (TV Shows and Films, in that order) is a
   section's whole identity, its key, `<prefix>-` settings, title and icon. Nothing
@@ -29,14 +30,18 @@ the same idea for games and runs alongside this one: see the last section.
 - `docs/`: `private-api.md` (every reach into shell internals, with what breaks),
   `compatibility.md` (what was checked where), `publishing.md` (the
   extensions.gnome.org zip and the review guidelines), `screenshots/` (the README's).
-- `scripts/`: `dev.sh`, `nested.sh` and `nested_driver.py`; `dev-extension.js` (the
-  entry point `make link` installs); `demo_library.py` (the made-up library behind
-  `nested.sh start --clean --demo`); `stallwatch.py` (`make stalls`, logging to
+- `scripts/`: the kit's `dev.sh`, `nested.sh`, `nested_driver.py`, `kit.mk` and
+  `dev-extension.js` (the entry point `make link` installs, staging `lib/` under
+  `$XDG_RUNTIME_DIR/video-library/shell-<pid>/lib-<checksum>`), changed only in the
+  kit; this extension's own `ext.conf`, `dev.d/video-library.sh` (`scan`, `prune`,
+  `stalls`, the `scanner` check, the cache and library `status` lines) and
+  `nested.d/video-library.sh` (the made-up library under `start --stand-in`);
+  `demo_library.py` (that library); `stallwatch.py` (`make stalls`, logging to
   `dist/stalls.log`); `vpad.py` (a virtual game controller).
 
 Runtime data is `~/.cache/video-library/` (`GLib.get_user_cache_dir()` on both sides,
-which is how `--demo` points the extension and the scanner at a cache of its own):
-`library.json`, `posters/`, `backdrops/`, `metadata/index.json`. The shell side never
+which is how `start --stand-in` points the extension and the scanner at a cache of
+its own): `library.json`, `posters/`, `backdrops/`, `metadata/index.json`. The shell side never
 scrapes; it reads the `library.json` the scanner wrote, and a file monitor on it
 rebuilds what is built when a rescan lands. **Every artwork path in it is a file in
 that cache, already scaled down** (`metadata.js` `POSTER_BOX` 512×768, `BACKDROP_BOX`
@@ -147,17 +152,18 @@ controllers are the keyboard too: `.claude/rules/keyboard.md`.
 
 `make check` is everything that runs without a shell, and what CI runs: `make lint`
 (ESLint), then `./scripts/dev.sh check`: the schema under
-`glib-compile-schemas --strict --dry-run`, the scanner's imports (`gjs -m
-src/backend/scanLibrary.js --help`) and a byte-compile of `scripts/*.py`. The
-scanner needs Soup 3, which `.github/ci-packages` adds to CI.
+`glib-compile-schemas --strict --dry-run`, then `scanner` (`EXT_CHECKS`): the
+scanner's imports (`gjs -m src/backend/scanLibrary.js --help`, in a scratch home) and
+a byte-compile of `scripts/*.py`. The scanner needs Soup 3, which `.github/ci-packages`
+adds to CI.
 
 Seeing a change is the nested shell: the `gnome-ext:nested-shell` skill, then this
-repository's `drive-extension` skill (where things are, the `--demo` library the
-screenshots are taken of). A plain `start` (`make nested`) reads and writes the user's
-real settings; `./scripts/nested.sh start --clean` gives it a database of its own, and is
-the one to use. Unless the task asks, **never press Play, Continue, an
-episode or film row, a watched disc or Rescan, and never run `make scan`**: they reach
-the user's real player and media, watched marks and API keys (the skill says how).
+repository's `drive-extension` skill (where things are, the `--stand-in` library the
+screenshots are taken of). The nested shell's settings are always its own, but a start
+without `--stand-in` reads the user's real cache and watched marks. Unless the task
+asks, **never press Play, Continue, an episode or film row, a watched disc or Rescan,
+and never run `make scan`**: they reach the user's real player and media, watched marks
+and API keys (the skill says how).
 `/reload`, `/logs`, `/status` and `/preview` use the nested shell, the real session only
 read and labelled so; `make reload` is the user's own session, theirs to run, and `/scan`
 is the real scan, run only when the user types it.
