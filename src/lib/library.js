@@ -22,6 +22,17 @@ export const SECTIONS = [
         watched: true,
         emptyHint: 'Add a folder with one subfolder or file per film in Settings.',
     },
+    {
+        key: 'games',
+        prefix: 'games',
+        title: 'Games',
+        icon: 'applications-games-symbolic',
+        aspect: 1.5,
+        watched: false,
+        // Found through Steam's and PCSX2's own files, each with its own command line.
+        launchers: true,
+        emptyHint: 'Games installed with Steam, and PS2 discs in PCSX2\'s folders, show up after a rescan in Settings.',
+    },
 ];
 
 // The button's title and icon; -symbolic, so St recolours it.
@@ -35,7 +46,7 @@ export function sectionByKey(key) {
 }
 
 export function openCommandKey(section) {
-    return `${section.prefix}-open-command`;
+    return section.launchers ? null : `${section.prefix}-open-command`;
 }
 
 function cacheDir() {
@@ -136,6 +147,7 @@ function normalize(item, sectionKey, art) {
     switch (sectionKey) {
     case 'tv': return normalizeShow(item, base);
     case 'films': return normalizeFilm(item, base);
+    case 'games': return normalizeGame(item, base);
     default: return null;
     }
 }
@@ -237,6 +249,46 @@ function normalizeFilm(film, base) {
         groups: [{name: files.length > 1 ? 'Files' : 'File', entries}],
         groupLabel: null,
         playPath: film.main_path ?? files[0]?.path ?? null,
+        playLabel: 'Play',
+    };
+}
+
+const PLATFORMS = {steam: 'Steam', ps2: 'PlayStation 2'};
+
+// Steam counts minutes; past two hours, hours read better.
+function playtimeLabel(minutes) {
+    if (!minutes || minutes < 1)
+        return null;
+    return minutes < 120 ? `${plural(minutes, 'minute')} played` : `${plural(Math.round(minutes / 60), 'hour')} played`;
+}
+
+function normalizeGame(game, base) {
+    const ps2 = game.platform === 'ps2';
+    const played = playtimeLabel(game.playtime_minutes);
+    const entries = [];
+    if (base.folder) {
+        entries.push({
+            title: ps2 ? 'Disc image' : 'Install folder',
+            subtitle: ps2 ? game.disc_path ?? base.folder : base.folder,
+            path: base.folder,
+            icon: 'folder-symbolic',
+            badges: game.disc_format ? [game.disc_format.toUpperCase()] : [],
+            size: game.size_mb ? `${Math.round(game.size_mb)} MB` : null,
+        });
+    }
+    if (played)
+        entries.push({title: 'Playtime', subtitle: played, icon: 'preferences-system-time-symbolic'});
+    if (game.serial)
+        entries.push({title: 'Serial', subtitle: game.serial, icon: 'media-optical-symbolic'});
+    const launch = Array.isArray(game.launch) && game.launch.every(a => typeof a === 'string' && a)
+        ? game.launch : null;
+    return {
+        ...base,
+        subtitle: PLATFORMS[game.platform] ?? null,
+        countLabel: played,
+        groups: [{name: 'Details', entries: entries.map((e, i) => ({index: i + 1, badges: [], ...e}))}],
+        groupLabel: null,
+        playPath: launch,
         playLabel: 'Play',
     };
 }

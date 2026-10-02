@@ -15,7 +15,8 @@ goes to the network with the user's own keys. Run it only because the user asked
    Shows, Films; neither has a default, so "not set" means the section is off
    until pointed at a folder), walks them, looks items up online through each
    section's ordered source list (`<prefix>-sources`: TVmaze, TMDB and
-   Wikipedia for shows; TMDB and Wikipedia for films), trying them in turn
+   Wikipedia for shows; TMDB and Wikipedia for films; Steam for Steam games and
+   IGDB for PS2 discs, found through Steam's and PCSX2's own files), trying them in turn
    until one has the artwork, and writes `~/.cache/library@jackicus/library.json`.
    A section whose `<prefix>-online` switch is off reads the cache and stays
    off the network. API keys are credential slots in the `credentials`

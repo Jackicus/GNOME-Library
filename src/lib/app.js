@@ -36,9 +36,15 @@ const LIBRARY = 'library';
 const DETAIL = 'detail';
 
 // With the section's command, or the default app when its program is not installed.
+// An array is a game's own command line, run as it is.
 function openPath(path, command = '', beforeLaunch = null) {
     if (!path)
         return;
+    if (Array.isArray(path)) {
+        beforeLaunch?.();
+        Util.spawn(path);
+        return;
+    }
     const file = Gio.File.new_for_path(path);
     // Asynchronous: a share that has idled out would stall the compositor.
     file.query_info_async(
@@ -701,6 +707,11 @@ export class LibraryApp {
         openPath(path, key ? this._settings.get_string(key) : '', () => {
             if (Tracker.tracks(section))
                 this._playback.resumeNext(path);
+            // A pop-up's grab would hold a game's window off.
+            if (Array.isArray(path)) {
+                this._dismiss();
+                Main.overview.hide();
+            }
             this._toPlayingWorkspace();
         });
     }

@@ -212,6 +212,11 @@
     padding: 4px 12px;
 }
 
+.ml-fact-strong {
+    color: -st-accent-fg-color;
+    background-color: -st-accent-color;
+}
+
 .ml-fact-rating {
     color: st-lighten(-st-accent-color, 30%);
     background-color: st-transparentize(-st-accent-color, 0.8);

@@ -81,7 +81,8 @@ development install back.
   `gjs -m backend/scanLibrary.js` in its own process: in the compositor its
   folder walk and network waits would be dropped frames, and in the
   preferences closing the window would kill a scan. It asks
-  `api.tvmaze.com`, `api.themoviedb.org` and `en.wikipedia.org` over Soup 3
+  `api.tvmaze.com`, `api.themoviedb.org`, `en.wikipedia.org`, and for games
+  `store.steampowered.com`, Steam's CDN, `id.twitch.tv` and `api.igdb.com`, over Soup 3
   and writes `~/.cache/library@jackicus/`; the extension watches the file it
   writes. Only a Rescan button starts it (`prefs.js` `_scanButton`; it reads
   the keys from the settings, so no key is ever on a command line), and each source can

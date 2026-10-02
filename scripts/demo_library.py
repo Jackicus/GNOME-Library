@@ -3,14 +3,15 @@
 
 Writes CACHE_HOME/library@jackicus/ exactly as the scanner would —
 library.json, with posters and backdrops in its own posters/ and backdrops/
-folders at the cache's own caps — but for shows and films that do not
-exist, with artwork drawn here. The README's screenshots are of this rather
-than of anyone's real library: nobody's collection goes into a public repo,
-and nobody's artwork either.
+folders at the cache's own caps — but for shows, films and games that do
+not exist, with artwork drawn here. The README's screenshots are of this
+rather than of anyone's real library: nobody's collection goes into a public
+repo, and nobody's artwork either.
 
 `nested.sh start --demo` runs it and points the nested session's
 XDG_CACHE_HOME at the result, so the extension reads it and nothing else.
-The file paths inside are under /demo and are never opened.
+The file paths inside are under /demo and are never opened, and a game's
+Play runs `true`, so it launches nothing.
 """
 import json
 import math
@@ -98,6 +99,70 @@ EPISODE_WORDS = [
     "Open Water", "The Archive", "Last Orders", "Thaw", "Northern Lights",
 ]
 
+# (title, year, rating, genres, palette, motif, minutes played, size MB, summary)
+STEAM = [
+    ("Starfall Tactics", 2023, 8.6, ["Strategy", "Indie"], ("#0b1d3a", "#ffb703"), "rings", 6347, 5820,
+     "Command a patchwork fleet across a collapsing star cluster, one turn at a time. "
+     "Every ship you lose stays lost, and every captain remembers who sent them."),
+    ("Lantern Keep", 2021, 8.9, ["Action", "Adventure"], ("#1b1b2f", "#e94560"), "moon", 2210, 3140,
+     "Relight the beacons of a sunken castle before the dark climbs the stairs to the "
+     "village above. A hand-drawn action adventure about a very small knight."),
+    ("Tidebreaker", 2020, 7.8, ["Racing", "Sports"], ("#023e8a", "#90e0ef"), "stripes", 845, 12400,
+     "Race hydrofoils through storm-lashed archipelagos where the course changes with "
+     "the tide. Forty islands, six seasons of weather and a rival who never sleeps."),
+    ("Moss & Iron", 2022, 8.2, ["RPG", "Adventure"], ("#1b3022", "#b5c99a"), "peaks", 4120, 21800,
+     "A retired automaton tends the forest that grew over the war it was built for — "
+     "until the war comes looking for it."),
+    ("Neon Courier", 2024, 7.5, ["Action", "Indie"], ("#10002b", "#ff4d9d"), "grid", 312, 2260,
+     "Deliver anything, anywhere, across a city that rewires its own streets every "
+     "night. Learn the routes, then watch them change."),
+    ("Frostline", 2019, 8.0, ["Simulation", "Strategy"], ("#0d1b2a", "#e0fbfc"), "peaks", 1570, 7600,
+     "Keep a mountain railway running through the longest winter on record. Plough "
+     "the passes, feed the crews and decide which towns the last train reaches."),
+    ("Paper Kingdoms", 2021, 8.4, ["Strategy", "Casual"], ("#3d2c2e", "#f2cc8f"), "sun", 980, 1480,
+     "Fold, cut and crease your way to an empire on a kitchen table, one paper "
+     "province at a time. Mind the teacups."),
+    ("Deep Signal", 2023, 8.1, ["Adventure", "Indie"], ("#001219", "#0a9396"), "rings", 58, 4310,
+     "A lone diver follows a radio pulse to the bottom of an ocean trench, and "
+     "finds that something down there has been answering."),
+    ("Clockwork Harvest", 2018, 7.6, ["Simulation", "Casual"], ("#3a2e1f", "#e9c46a"), "sun", 2890, 960,
+     "Run a farm where the seasons are wound by hand and the crows keep the accounts. "
+     "Grow, trade and oil the sun before it runs down."),
+    ("Voidrunners", 2022, 7.9, ["Action", "Massively Multiplayer"], ("#14213d", "#fca311"), "hex", 7420, 38900,
+     "Four-player heists on derelict stations where the loot fights back. Plan the "
+     "job, crack the vault and argue about the split on the way home."),
+    ("Ember Valley", 2020, 8.7, ["RPG", "Indie"], ("#370617", "#f48c06"), "peaks", 3615, 6120,
+     "The volcano woke up, the dragons left, and someone has to run the inn. A cosy "
+     "role-playing game about rebuilding a valley one neighbour at a time."),
+    ("Glass Garden", 2025, 8.3, ["Casual", "Indie"], ("#073b3a", "#8ce99a"), "moon", None, 1210,
+     "Grow a garden of light inside a greenhouse built from old stained-glass windows. "
+     "No timers, no failure, just colour."),
+    ("Orbital Drift", 2017, 7.3, ["Racing", "Sports"], ("#1a1423", "#b8f2e6"), "rings", 125, 9340,
+     "Zero-gravity racing around the rings of a gas giant, where the fastest line is "
+     "the one that nearly kills you."),
+    ("The Quiet Archive", 2024, 8.8, ["Adventure"], ("#212529", "#ffd166"), "pixels", None, 3580,
+     "A librarian on the last night of a closing archive finds a book that writes "
+     "back. A narrative mystery told across one very long night."),
+]
+
+# (title, year, rating, genres, palette, motif, serial, disc format, size MB, summary)
+PS2 = [
+    ("Dragonglass Saga", 2002, 8.5, ["Role-playing (RPG)"], ("#2b2d42", "#ef8354"), "sun",
+     "SLUS-20513", "chd", 2310,
+     "Six heroes, one shattered dragon's eye and a world that remembers the last time it "
+     "broke. A sprawling role-playing epic across two continents."),
+    ("Gridiron Blitz 2004", 2003, 7.4, ["Sport"], ("#003049", "#eae2b7"), "grid",
+     "SLUS-20877", "iso", 3890,
+     "Arcade football with full-contact tackles, flaming passes and a season mode that "
+     "never ends."),
+    ("Shadow Temple Chronicles", 2005, 8.1, ["Platform", "Adventure"], ("#132a13", "#90a955"), "moon",
+     "SCES-51207", "chd", 1740,
+     "Leap, climb and swing through a jungle temple that rearranges itself after dark."),
+    ("Thunder Kart Grand Prix", 2003, 7.7, ["Racing"], ("#240046", "#ff9e00"), "stripes",
+     "SLUS-20941", "iso", 2980,
+     "Twenty karts, sixteen tracks and a weather machine. Split-screen for four."),
+]
+
 
 def rgb(hex_colour):
     h = hex_colour.lstrip("#")
@@ -172,6 +237,24 @@ def motif(img, kind, dark, light, seed):
                 dist = math.hypot(x - w * 0.5, y - h * 0.4) / w
                 s = max(2, gap * 0.45 * (1 - dist))
                 d.ellipse([x - s / 2, y - s / 2, x + s / 2, y + s / 2], fill=mix(dark, light, 1 - dist) + (255,))
+    elif kind == "hex":
+        r = w / 10
+        for row in range(-1, int(h / (r * 1.5)) + 2):
+            for col in range(-1, int(w / (r * 1.73)) + 2):
+                cx = col * r * 1.73 + (row % 2) * r * 0.87
+                cy = row * r * 1.5
+                dist = min(1, math.hypot(cx - w * 0.5, cy - h * 0.38) / (w * 0.75))
+                points = [(cx + r * 0.9 * math.cos(math.pi / 6 + k * math.pi / 3),
+                           cy + r * 0.9 * math.sin(math.pi / 6 + k * math.pi / 3)) for k in range(6)]
+                d.polygon(points, outline=mix(light, dark, dist) + (255,), width=max(2, w // 120))
+    elif kind == "pixels":
+        cell = w // 16
+        for gx in range(16):
+            for gy in range(int(h * 0.7) // cell):
+                if rnd.random() < 0.55 - gy * 0.03:
+                    colour = mix(dark, light, rnd.uniform(0.3, 1)) + (255,)
+                    d.rectangle([gx * cell + 2, gy * cell + 2, (gx + 1) * cell - 2, (gy + 1) * cell - 2],
+                                fill=colour)
     img.paste(layer, (0, 0), layer)
     return img
 
@@ -302,11 +385,42 @@ def main():
             "main_path": path, "scan_sig": "demo",
         })
 
+    steam = []
+    for n, (title, year, rating, genres, palette, kind, played, size, summary) in enumerate(STEAM):
+        appid = 3100000 + n * 1370
+        poster_path = os.path.join(posters, f"game_steam_{appid}.jpg")
+        backdrop_path = os.path.join(backdrops, f"game_steam_{appid}.jpg")
+        poster(poster_path, title, year, palette, kind, 200 + n)
+        backdrop(backdrop_path, palette, kind, 200 + n)
+        steam.append({
+            "id": f"steam_{appid}", "kind": "game", "title": title, "platform": "steam",
+            "year": year, "folder_path": f"/demo/SteamLibrary/steamapps/common/{title}",
+            "launch": ["true"], "poster_path": poster_path, "backdrop_path": backdrop_path,
+            "summary": summary, "genres": genres, "rating": rating,
+            "playtime_minutes": played, "last_played": None, "app_id": str(appid),
+            "steam_root": "/demo/Steam", "size_mb": size, "provider": "demo",
+        })
+    ps2 = []
+    for n, (title, year, rating, genres, palette, kind, serial, fmt, size, summary) in enumerate(PS2):
+        key = slug(title)
+        poster_path = os.path.join(posters, f"game_ps2_{key}.jpg")
+        poster(poster_path, title, "PlayStation 2", palette, kind, 300 + n)
+        ps2.append({
+            "id": f"ps2_{key}", "kind": "game", "title": title, "platform": "ps2",
+            "year": year, "folder_path": "/demo/PS2", "launch": ["true"],
+            "poster_path": poster_path, "backdrop_path": None,
+            "summary": summary, "genres": genres, "rating": rating,
+            "playtime_minutes": None, "serial": serial, "disc_path": f"/demo/PS2/{title} ({serial}).{fmt}",
+            "disc_format": fmt, "size_mb": size, "provider": "demo",
+        })
+    # Steam first, then PS2, each by title, as the scanner orders them.
+    games = sorted(steam, key=lambda g: g["title"].lower()) + sorted(ps2, key=lambda g: g["title"].lower())
+
     library = {"version": 2, "generated": time.time(),
-               "sections": {"tv": tv, "films": films}, "scanned": {}}
+               "sections": {"tv": tv, "films": films, "games": games}, "scanned": {}}
     with open(os.path.join(root, "library.json"), "w", encoding="utf-8") as f:
         json.dump(library, f, indent=1)
-    print(f"demo library: {len(tv)} shows, {len(films)} films in {root}")
+    print(f"demo library: {len(tv)} shows, {len(films)} films, {len(games)} games in {root}")
 
 
 if __name__ == "__main__":

@@ -1,16 +1,18 @@
 # Library
 
-Your own TV shows and films as a library, opened from a button beside Show Apps:
-posters, synopses, seasons and episodes, in the overview, a pop-up panel, on the
-desktop or on a workspace of its own. It plays nothing itself: a pick opens in VLC,
-mpv or whichever player you choose, and it remembers what you have watched.
+Your own TV shows, films and games as a library, opened from a button beside Show
+Apps: posters, synopses, seasons and episodes, in the overview, a pop-up panel, on
+the desktop or on a workspace of its own. It plays nothing itself: a show or film
+opens in VLC, mpv or whichever player you choose, and it remembers what you have
+watched; a game starts through Steam or PCSX2.
 
 ![The library in the overview: TV Shows and Films tabs over a grid of posters, opened from the television button in the dash](docs/screenshots/menu.jpg)
 
 ## What it does
 
-- **One button, two tabs.** TV Shows and Films, switched at the top. Turn a section
-  off and its tab goes.
+- **One button, three tabs.** TV Shows, Films and Games, switched at the top. Turn a
+  section off and its tab goes. Games are found in Steam's own library files and the
+  folders PCSX2 points at, with nothing to set up.
 - **Finds the artwork.** Each title is looked up on TVmaze, TMDB and Wikipedia for its
   poster, backdrop, rating and synopsis, and kept in a local cache.
 - **Remembers what you have watched.** Tick an episode, or just play it, and Continue
@@ -72,6 +74,11 @@ The extension itself never goes online. Only the scanner does, when you press
 **Rescan** in the preferences (or run `make scan` in a clone), and only for a section
 whose **Fetch artwork and descriptions online** switch is on (on by default).
 
+- **Games:** a Steam game's app id goes to Steam's store (`store.steampowered.com`),
+  keyless, for its description, and its artwork comes from Steam's CDN when the Steam
+  client has not cached it. A PS2 disc's title goes to IGDB (`api.igdb.com`, after a
+  token from `id.twitch.tv`) only once you give it a Twitch client id and secret of
+  your own; without them a PS2 game keeps PCSX2's cover or a drawn placeholder.
 - **What is sent:** each show's or film's title, taken from its folder or file name,
   and its year where known. TVmaze (`api.tvmaze.com`) gets the title; TMDB
   (`api.themoviedb.org`) gets the title, the year and your API key; English Wikipedia
@@ -90,14 +97,15 @@ whose **Fetch artwork and descriptions online** switch is on (on by default).
   **Folders** (the default), each library folder also gets a
   `.library-watched.json` with its own marks, so another computer reading the
   same folder sees them; **Local** removes those copies, **Off** stops tracking.
-- **What is read:** your library folders, and the media players on your session (over
+- **What is read:** your library folders, Steam's and PCSX2's own files (where games
+  are installed, playtime, PCSX2's game and cover folders), and the media players on your session (over
   MPRIS) to see which of your files is playing and how far. That stays on your
   computer.
 
 This product uses the TMDB API but is not endorsed or certified by TMDB. Show data
 comes from [TVmaze](https://www.tvmaze.com/) and synopses from
-[Wikipedia](https://www.wikipedia.org/), both under CC BY-SA; images keep the licences
-their sources give them. The artwork is cached for your own library and never
+[Wikipedia](https://www.wikipedia.org/), both under CC BY-SA; game data from Steam's store
+and [IGDB.com](https://www.igdb.com/); images keep the licences their sources give them. The artwork is cached for your own library and never
 published by the extension.
 
 ## Install
@@ -204,7 +212,10 @@ GPL-2.0-or-later. See [LICENSE](LICENSE).
 ## Credits
 
 The screenshots show a made-up library drawn by `scripts/demo_library.py`. None of the
-shows or films are real, and nothing in them was fetched online. Metadata and artwork in
+shows, films or games are real, and nothing in them was fetched online. Metadata and artwork in
 your own library come from [TVmaze](https://www.tvmaze.com/),
 [TMDB](https://www.themoviedb.org/) with your own key, and
-[Wikipedia](https://www.wikipedia.org/). VLC is a trademark of VideoLAN.
+[Wikipedia](https://www.wikipedia.org/); games' from Steam and
+[IGDB.com](https://www.igdb.com/) with your own Twitch key. VLC is a trademark of
+VideoLAN; Steam of Valve; PlayStation of Sony Interactive Entertainment. Library is not
+affiliated with any of them.

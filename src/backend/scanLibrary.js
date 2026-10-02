@@ -6,6 +6,7 @@ import GLib from 'gi://GLib';
 import System from 'system';
 
 import {SECTIONS, libraryPath} from '../lib/library.js';
+import {scanGames} from './gamesScanner.js';
 import {scanFilms, scanTv} from './mediaScanner.js';
 import {
     CACHE_DIR, ENRICH_WORKERS, MetadataService, localiseArt, pathKey, pruneArt,
@@ -21,13 +22,13 @@ const HERE = GLib.path_get_dirname(GLib.filename_from_uri(import.meta.url)[0]);
 const SCHEMA_DIR = join(GLib.path_get_dirname(HERE), 'schemas');
 const LIBRARY_PATH = libraryPath();
 
-const SECTION_KINDS = {tv: 'tv', films: 'film'};
+const SECTION_KINDS = {tv: 'tv', films: 'film', games: 'game'};
 const SCANNERS = {tv: scanTv, films: scanFilms};
 
 const USAGE = `usage: gjs -m scanLibrary.js [-h] [--only SECTION] [--force]
 
-Scan the folders the preferences list, cache their metadata and artwork, and
-write library.json.
+Scan the folders the preferences list and the games Steam and PCSX2 know of,
+cache their metadata and artwork, and write library.json.
 
 options:
   -h, --help          show this help message and exit
@@ -162,6 +163,22 @@ function within(folder, root) {
     return inner === outer || inner.startsWith(`${outer}/`);
 }
 
+// The launchers' own files list every game, so every scan reads them all again.
+async function scanLaunchers(key, settings, {sections, scanned, meta}) {
+    const t0 = GLib.get_monotonic_time();
+    const steam = expandUser(settings.get_string('games-steam-path'));
+    const items = await scanGames(steam, expandUser(settings.get_string('games-pcsx2-path')));
+    await enrichAll(meta, items);
+    sections[key] = items;
+    scanned[key] = {
+        path: steam || 'auto',
+        count: items.length,
+        steam: items.filter(g => g.platform === 'steam').length,
+        ps2: items.filter(g => g.platform === 'ps2').length,
+    };
+    print(`${key}: ${items.length} items (${((GLib.get_monotonic_time() - t0) / 1e6).toFixed(1)}s)`);
+}
+
 // A folder out of reach keeps what the last scan found in it, artwork and all.
 async function scanSection(key, paths, {sections, scanned, meta, exclude, force}) {
     const t0 = GLib.get_monotonic_time();
@@ -212,8 +229,8 @@ async function main(argv) {
     const folders = {};
     const sources = {};
     const offlineKinds = new Set();
-    for (const {key, prefix} of SECTIONS) {
-        folders[key] = settings.get_strv(`${prefix}-folders`).filter(Boolean).map(expandUser);
+    for (const {key, prefix, launchers} of SECTIONS) {
+        folders[key] = launchers ? [] : settings.get_strv(`${prefix}-folders`).filter(Boolean).map(expandUser);
         if (!only.has(key))
             continue;
         sources[SECTION_KINDS[key]] = settings.get_strv(`${prefix}-sources`);
@@ -222,7 +239,7 @@ async function main(argv) {
         if (!settings.get_boolean(`${prefix}-enabled`))
             continue;
         requested[key] = folders[key];
-        if (!folders[key].length)
+        if (!launchers && !folders[key].length)
             print(`${key}: no folder set, clearing it`);
     }
     if (!Object.keys(requested).length)
@@ -240,9 +257,11 @@ async function main(argv) {
         offlineKinds,
     });
     const run = {sections: loadExisting(LIBRARY_PATH), scanned: {}, meta, exclude, force: args.force};
-    for (const [key, paths] of Object.entries(requested))
+    for (const [key, paths] of Object.entries(requested)) {
+        const launchers = SECTIONS.find(s => s.key === key).launchers;
         // eslint-disable-next-line no-await-in-loop -- one section at a time
-        await scanSection(key, paths, run);
+        await (launchers ? scanLaunchers(key, settings, run) : scanSection(key, paths, run));
+    }
 
     meta.flush();
     const written = Object.fromEntries(SECTIONS.map(({key}) => [key, run.sections[key] ?? []]));

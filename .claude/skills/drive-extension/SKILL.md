@@ -15,7 +15,8 @@ CLAUDE.md's list, and why, unless the task asks for exactly that:
 
 - **Play, Continue, or an episode or film row** runs the section's open command (VLC
   by default) on the user's real media, and the tracker then writes their real
-  watched marks and positions.
+  watched marks and positions. A game's **Play** launches the real game through Steam
+  or PCSX2 (under `--stand-in` it runs `true`).
 - **Rescan**, or `make scan` (`/scan`, which runs only when the user types it), is an
   online scan with the user's real keys, writing `~/.cache/library@jackicus/` (unless
   under `--stand-in`).
@@ -69,7 +70,7 @@ tooltip "Library", and it is the only way in.
 - **The button** with Dash to Panel: Show Apps ≈ (30, 875), the library button
   ≈ (90, 875).
 - **`desktop` / `workspaces`**: the library on the wallpaper. Header strip y ≈ 83: tabs
-  centred (TV Shows ≈ x 765, Films ≈ x 846), Settings ≈ (1508, 83), Close ≈ (1553, 83).
+  centred (TV Shows ≈ x 721, Films ≈ x 809, Games ≈ x 887), Settings ≈ (1508, 83), Close ≈ (1553, 83).
   Grid rows from y ≈ 300, first poster ≈ (325, 300). Which mode: crop the workspace
   indicator, `shot F 0 0 140 30`. A mode change leaves the active workspace where it
   was, so after `workspaces` to `desktop` you may be on a workspace that is no longer
