@@ -17,11 +17,11 @@ which is the user's to do.
    - **Running:** go on. Its settings are its own whichever way it was started.
 2. `./scripts/nested.sh reload`. It waits for ACTIVE.
 3. `./scripts/nested.sh logs 40` and report whether it came up clean. A healthy
-   reload logs `[Library] Enabled from
+   reload logs `[Library Menu] Enabled from
    $XDG_RUNTIME_DIR/library/shell-<pid>/lib-<checksum>` (a new checksum when
-   `lib/` changed); `[Library] Rebuilt` follows a rescan or a setting's change.
+   `lib/` changed); `[Library Menu] Rebuilt` follows a rescan or a setting's change.
    Anything with `Failed to load`, `Error during disable`, or a JS stack trace
-   under a `[Library]` line is a real failure: quote it and say which file
+   under a `[Library Menu]` line is a real failure: quote it and say which file
    it points at.
 
 How to see it: the mirror window on the desktop shows the nested shell live

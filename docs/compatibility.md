@@ -92,7 +92,7 @@ No `disable()` is async, which 51 now rejects.
    between the last tag read and the new one, for every expression in
    private-api.md's table.
 3. Install the zip, not the link: `make uninstall`, `make pack`,
-   `gnome-extensions install dist/library@jackicus.shell-extension.zip`,
+   `gnome-extensions install dist/library-menu@jackicus.shell-extension.zip`,
    log in again.
 4. `./scripts/dev.sh logs '10 min ago'`: no `TypeError`, no "No button beside
    Show Apps", no "not laid out as expected".

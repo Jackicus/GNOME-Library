@@ -8,5 +8,5 @@ export function setVerbose(on) {
 
 export function note(message) {
     if (verbose)
-        console.log(`[Library] ${message}`);
+        console.log(`[Library Menu] ${message}`);
 }

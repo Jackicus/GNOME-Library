@@ -1,4 +1,4 @@
-# Library's own dev.sh commands, sourced by the kit's scripts/dev.sh.
+# Library Menu's own dev.sh commands, sourced by the kit's scripts/dev.sh.
 #
 #   ./scripts/dev.sh scan [ARGS]
 #                               scan every enabled section into the real cache, with
@@ -16,16 +16,16 @@
 #                               'check's
 #   ./scripts/dev.sh import-settings [--force]
 #                               carry Video Library's and Games Library's settings,
-#                               cache and watched marks into Library's (the owner's own
+#                               cache and watched marks into Library Menu's (the owner's own
 #                               session, once; scripts/import_settings.py says what)
 #
 # 'status' adds the cache and the library's size per section.
 
 # Append to this on each rename so 'prune' sweeps up every superseded build.
 LEGACY_UUIDS=("gnomeflix@jackt" "media-workspace-desktop@jackt" "media-libraries@jackt"
-    "video-library@jackicus" "games-library@jackicus")
+    "video-library@jackicus" "games-library@jackicus" "library@jackicus")
 # As GLib.get_user_cache_dir() resolves it in the extension.
-CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/library@jackicus"
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/library-menu@jackicus"
 
 # Scan every enabled section. The scanner reads the preferences itself, so
 # nothing here or in the preferences' Rescan buttons turns settings into flags.

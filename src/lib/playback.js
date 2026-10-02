@@ -111,7 +111,7 @@ export class PlaybackWatcher {
                     [names] = bus.call_finish(result).deep_unpack();
                 } catch (e) {
                     if (!isCancelled(e))
-                        console.warn(`[Library] Could not list media players: ${e.message}`);
+                        console.warn(`[Library Menu] Could not list media players: ${e.message}`);
                     return;
                 }
                 for (const name of names.filter(n => n.startsWith(`${MPRIS_NAMESPACE}.`)))
@@ -289,7 +289,7 @@ export class PlaybackWatcher {
                     bus.call_finish(result);
                 } catch (e) {
                     if (!isCancelled(e))
-                        console.warn(`[Library] Could not resume ${player.path}: ${e.message}`);
+                        console.warn(`[Library Menu] Could not resume ${player.path}: ${e.message}`);
                 }
             });
         player.read(target);

@@ -13,7 +13,7 @@ import {unescapeHtml} from './html.js';
 
 Gio._promisify(Soup.Session.prototype, 'send_and_read_async', 'send_and_read_finish');
 
-export const CACHE_DIR = join(GLib.get_user_cache_dir(), 'library@jackicus');
+export const CACHE_DIR = join(GLib.get_user_cache_dir(), 'library-menu@jackicus');
 const POSTER_CACHE_DIR = join(CACHE_DIR, 'posters');
 const BACKDROP_CACHE_DIR = join(CACHE_DIR, 'backdrops');
 const METADATA_CACHE_DIR = join(CACHE_DIR, 'metadata');
@@ -22,7 +22,7 @@ const METADATA_INDEX = join(METADATA_CACHE_DIR, 'index.json');
 const INDEX_FLUSH_EVERY = 25;
 const MISS_RETRY_SECONDS = 7 * 24 * 3600;
 const OFFLINE_AFTER_FAILURES = 6;
-const USER_AGENT = 'GNOME-Library/1.0 (https://github.com/Jackicus/GNOME-Library)';
+const USER_AGENT = 'GNOME-Library-Menu/1.0 (https://github.com/Jackicus/GNOME-Library-Menu)';
 export const ENRICH_WORKERS = 6;
 
 // Why these sizes: docs/notes.md.

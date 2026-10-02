@@ -16,7 +16,7 @@ import {join, readJson, writeJson} from './files.js';
 const LIBRARY_VERSION = 2;
 const DBUS_NAME_FLAG_DO_NOT_QUEUE = 4;
 const DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER = 1;
-const SCHEMA = 'org.gnome.shell.extensions.library';
+const SCHEMA = 'org.gnome.shell.extensions.library-menu';
 // Never run from the staged lib/, so import.meta.url is where it really is.
 const HERE = GLib.path_get_dirname(GLib.filename_from_uri(import.meta.url)[0]);
 const SCHEMA_DIR = join(GLib.path_get_dirname(HERE), 'schemas');

@@ -20,7 +20,7 @@ Private API is [private-api.md](private-api.md)'s; versions are
 4. `check_pack` diffs the zip against the files that should ship (those, plus
    every `lib/*.js`, `backend/*.js` and `icons/*.svg`) and fails on anything
    missing or extra;
-5. writes `dist/library@jackicus.shell-extension.zip`.
+5. writes `dist/library-menu@jackicus.shell-extension.zip`.
 
 The zip carries the schema XML only. GNOME Shell 44 and later compile it on
 install (gjs.guide, "Port Extensions to GNOME Shell 44"): `extensionDownloader.js`
@@ -34,7 +34,7 @@ in the compositor; `backend/`, the scanner, run as its own process (below);
 ### Testing the zip
 
 `make uninstall`, `make pack`,
-`gnome-extensions install dist/library@jackicus.shell-extension.zip`,
+`gnome-extensions install dist/library-menu@jackicus.shell-extension.zip`,
 then log out and in. Only the zip runs the shipped `src/extension.js` rather
 than `make link`'s `./scripts/dev-extension.js`. `make link` puts the
 development install back.
@@ -43,13 +43,13 @@ development install back.
 
 | Key | Value | Note |
 |---|---|---|
-| `uuid` | `library@jackicus` | Fixed after the first upload |
-| `name` | `Library` | |
+| `uuid` | `library-menu@jackicus` | Fixed after the first upload |
+| `name` | `Library Menu` | |
 | `description` | Several paragraphs | Says a Rescan is needed, where titles are looked up, that it plays nothing, and carries the TMDB notice |
-| `settings-schema` | `org.gnome.shell.extensions.library` | `getSettings()` takes no argument in `lib/app.js` and `prefs.js` |
+| `settings-schema` | `org.gnome.shell.extensions.library-menu` | `getSettings()` takes no argument in `lib/app.js` and `prefs.js` |
 | `shell-version` | `["50"]` | [compatibility.md](compatibility.md) |
 | `version-name` | `1.0` | |
-| `url` | `https://github.com/Jackicus/GNOME-Library` | |
+| `url` | `https://github.com/Jackicus/GNOME-Library-Menu` | |
 | `version`, `session-modes`, `donations`, `gettext-domain` | absent | EGO sets `version`; `user` mode only, so no `session-modes` |
 
 ## The review guidelines
@@ -83,7 +83,7 @@ development install back.
   preferences closing the window would kill a scan. It asks
   `api.tvmaze.com`, `api.themoviedb.org`, `en.wikipedia.org`, and for games
   `store.steampowered.com`, Steam's CDN, `id.twitch.tv` and `api.igdb.com`, over Soup 3
-  and writes `~/.cache/library@jackicus/`; the extension watches the file it
+  and writes `~/.cache/library-menu@jackicus/`; the extension watches the file it
   writes. Only a Rescan button (`prefs.js` `_scanButton`) or an empty Games tab's
   Find Games (`app.js` `_scan`) starts it, and it reads the keys from the settings,
   so no key is ever on a command line; each source can
@@ -121,7 +121,7 @@ development install back.
 ## Uploading
 
 At https://extensions.gnome.org/upload/, or
-`gnome-extensions upload --accept-tos dist/library@jackicus.shell-extension.zip`,
+`gnome-extensions upload --accept-tos dist/library-menu@jackicus.shell-extension.zip`,
 which asks for the EGO login (`--user`, `--password-file` exist; keep a
 password off command lines and logs). Each upload is reviewed before it is
 published, and EGO assigns `version`.

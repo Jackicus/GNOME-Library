@@ -283,7 +283,7 @@ export default class LibraryPreferences extends ExtensionPreferences {
             try {
                 Gio.Subprocess.new(['gnome-control-center', 'background'], Gio.SubprocessFlags.NONE);
             } catch (e) {
-                console.warn(`[Library] Could not open Settings: ${e.message}`);
+                console.warn(`[Library Menu] Could not open Settings: ${e.message}`);
             }
         });
         appearance.add(accent);
@@ -819,7 +819,7 @@ export default class LibraryPreferences extends ExtensionPreferences {
         try {
             return new TextDecoder().decode(GLib.file_get_contents(path)[1]).trim();
         } catch (e) {
-            console.warn(`[Library] Could not read ${path}: ${e.message}`);
+            console.warn(`[Library Menu] Could not read ${path}: ${e.message}`);
             return '';
         }
     }
@@ -968,7 +968,7 @@ export default class LibraryPreferences extends ExtensionPreferences {
             try {
                 proc = Gio.Subprocess.new(argv, Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_PIPE);
             } catch (e) {
-                console.error(`[Library] Could not launch scanner: ${e.message}`);
+                console.error(`[Library Menu] Could not launch scanner: ${e.message}`);
                 done(true);
                 return;
             }
@@ -976,10 +976,10 @@ export default class LibraryPreferences extends ExtensionPreferences {
                 try {
                     const [, , stderr] = p.communicate_utf8_finish(result);
                     if (!p.get_successful())
-                        console.error(`[Library] Scan failed: ${stderr}`);
+                        console.error(`[Library Menu] Scan failed: ${stderr}`);
                     done(!p.get_successful());
                 } catch (e) {
-                    console.error(`[Library] Scan failed: ${e.message}`);
+                    console.error(`[Library Menu] Scan failed: ${e.message}`);
                     done(true);
                 }
             });
