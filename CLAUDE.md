@@ -29,7 +29,8 @@ the same idea for games and runs alongside this one: see the last section.
 - `src/backend/`: the scanner (below, and `src/backend/CLAUDE.md`).
 - `docs/`: `private-api.md` (every reach into shell internals, with what breaks),
   `compatibility.md` (what was checked where), `publishing.md` (the
-  extensions.gnome.org zip and the review guidelines), `screenshots/` (the README's).
+  extensions.gnome.org zip and the review guidelines), `notes.md` (design reasoning
+  the code keeps to a line), `screenshots/` (the README's).
 - `scripts/`: the kit's `dev.sh`, `nested.sh`, `nested_driver.py`, `kit.mk` and
   `dev-extension.js` (the entry point `make link` installs, staging `lib/` under
   `$XDG_RUNTIME_DIR/video-library/shell-<pid>/lib-<checksum>`), changed only in the
