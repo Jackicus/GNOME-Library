@@ -35,7 +35,9 @@ const SOURCES = {
 
 const VIDEO_OPENER = {
     title: 'Video player command',
-    hint: 'The default plays in VLC full screen and closes it at the end. For example "mpv --fullscreen" instead; watched marks and resuming need a player that shows up in the media controls, which for mpv means mpv-mpris.',
+    hint: 'The default plays in VLC full screen and closes it at the end. For example ' +
+        '"mpv --fullscreen" instead; watched marks and resuming need a player that shows up ' +
+        'in the media controls, which for mpv means mpv-mpris.',
 };
 
 const PAGES = {
@@ -201,7 +203,9 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
 
         const workspaces = new Adw.ActionRow({
             title: 'Workspaces Video Library is using stay open',
-            subtitle: 'A workspace opened for the library or for a picked item is held until you close it or go back from it, so GNOME does not fold it away. With a fixed number of workspaces, set enough in Settings → Multitasking.',
+            subtitle: 'A workspace opened for the library or for a picked item is held until you close ' +
+                'it or go back from it, so GNOME does not fold it away. With a fixed number of ' +
+                'workspaces, set enough in Settings → Multitasking.',
             sensitive: false,
         });
         view.add(workspaces);
@@ -505,7 +509,9 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
 
         const keys = new Adw.PreferencesGroup({
             title: 'Remote and Keyboard',
-            description: 'The arrow keys, Enter and Escape always work. Add the keys a remote, a Pico or anything else that acts as a keyboard sends: they do these things while a library is on screen, and what they always did everywhere else.',
+            description: 'The arrow keys, Enter and Escape always work. Add the keys a remote, a Pico or ' +
+                'anything else that acts as a keyboard sends: they do these things while a ' +
+                'library is on screen, and what they always did everywhere else.',
         });
         page.add(keys);
         const pairs = action => settings.get_value(`keys-${action.key}`).deep_unpack();
@@ -521,7 +527,10 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
 
         const pads = new Adw.PreferencesGroup({
             title: 'Game Controller',
-            description: 'Read only while a library is on screen, so games are left alone — except Home, which also opens the library when no window has the keyboard. Xbox, PlayStation and most other pads are ready as they are; anything else, a Pico running as a gamepad included, is set up by pressing its buttons here.',
+            description: 'Read only while a library is on screen, so games are left alone — except Home, ' +
+                'which also opens the library when no window has the keyboard. Xbox, PlayStation ' +
+                'and most other pads are ready as they are; anything else, a Pico running as a ' +
+                'gamepad included, is set up by pressing its buttons here.',
         });
         page.add(pads);
         const use = new Adw.SwitchRow({title: 'Use game controllers'});
