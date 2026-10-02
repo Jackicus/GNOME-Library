@@ -10,8 +10,8 @@ paths:
 
 ## Marks (`lib/tracking.js`, setting `tracking`)
 
-- Two files of one format: `~/.local/share/video-library/watched.json`, every mark made
-  on this machine keyed by absolute path, and `<folder>/.video-library-watched.json` at
+- Two files of one format: `~/.local/share/library@jackicus/watched.json`, every mark made
+  on this machine keyed by absolute path, and `<folder>/.library-watched.json` at
   the top of each folder in `<prefix>-folders`, keyed by the path inside it so another
   machine mounting it elsewhere reads them.
 - `local` uses the first alone. `source` also folds each folder's file in (later `at`

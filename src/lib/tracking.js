@@ -8,11 +8,11 @@ import * as Signals from 'resource:///org/gnome/shell/misc/signals.js';
 
 import {SECTIONS} from './library.js';
 
-const FOLDER_FILE = '.video-library-watched.json';
+const FOLDER_FILE = '.library-watched.json';
 const VERSION = 1;
 
 function localPath() {
-    return GLib.build_filenamev([GLib.get_user_data_dir(), 'video-library', 'watched.json']);
+    return GLib.build_filenamev([GLib.get_user_data_dir(), 'library@jackicus', 'watched.json']);
 }
 
 function parse(bytes) {
@@ -215,7 +215,7 @@ export class Tracker extends Signals.EventEmitter {
                 this._entries = parse(bytes);
         } catch (e) {
             // Put aside, or the next mark would write an empty file over it.
-            console.warn(`[Video Library] Could not read ${path}, keeping it as ${path}.broken: ${e}`);
+            console.warn(`[Library] Could not read ${path}, keeping it as ${path}.broken: ${e}`);
             GLib.rename(path, `${path}.broken`);
         }
     }
@@ -238,7 +238,7 @@ export class Tracker extends Signals.EventEmitter {
                 try {
                     file.replace_contents_finish(result);
                 } catch (e) {
-                    console.error(`[Video Library] Could not write ${path}: ${e.message}`);
+                    console.error(`[Library] Could not write ${path}: ${e.message}`);
                 }
                 if (this._saveAgain) {
                     this._saveAgain = false;
@@ -259,7 +259,7 @@ export class Tracker extends Signals.EventEmitter {
                     return;
                 // Missing is usual and written below; unreadable is left alone.
                 if (!isNotFound(e)) {
-                    console.warn(`[Video Library] Could not read ${file.get_path()}: ${e.message}`);
+                    console.warn(`[Library] Could not read ${file.get_path()}: ${e.message}`);
                     return;
                 }
             }
@@ -318,7 +318,7 @@ export class Tracker extends Signals.EventEmitter {
                     file.replace_contents_finish(result);
                     this._written.set(folder, contents);
                 } catch (e) {
-                    console.warn(`[Video Library] Could not write ${file.get_path()}: ${e.message}`);
+                    console.warn(`[Library] Could not write ${file.get_path()}: ${e.message}`);
                 }
                 if (this._again.delete(folder) && this._mode === 'source')
                     this._writeFolder(folder);
@@ -333,7 +333,7 @@ export class Tracker extends Signals.EventEmitter {
                     file.delete_finish(result);
                 } catch (e) {
                     if (!isNotFound(e) && !e.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
-                        console.warn(`[Video Library] Could not remove ${file.get_path()}: ${e.message}`);
+                        console.warn(`[Library] Could not remove ${file.get_path()}: ${e.message}`);
                 }
             });
         }

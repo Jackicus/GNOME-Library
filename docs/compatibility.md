@@ -78,7 +78,7 @@ Not claimed, and as written it fails to enable:
 
 1. `Clutter.get_default_backend()` is gone (gjs.guide, "Port Extensions to
    GNOME Shell 51"; absent from mutter's `clutter-backend.h` at `51.0`).
-   `controls.js` `Controls.enable()` calls it, so `VideoLibraryApp.enable()`
+   `controls.js` `Controls.enable()` calls it, so `LibraryApp.enable()`
    throws. The replacement, `global.stage.context.get_backend()`, works on 48
    to 50.
 2. `st_focus_manager_navigate_from_event()` is gone (`st-focus-manager.h` at
@@ -99,7 +99,7 @@ No `disable()` is async, which 51 now rejects.
    between the last tag read and the new one, for every expression in
    private-api.md's table.
 3. Install the zip, not the link: `make uninstall`, `make pack`,
-   `gnome-extensions install dist/video-library@jackicus.shell-extension.zip`,
+   `gnome-extensions install dist/library@jackicus.shell-extension.zip`,
    log in again.
 4. `./scripts/dev.sh logs '10 min ago'`: no `TypeError`, no "No button beside
    Show Apps", no "not laid out as expected".
@@ -114,7 +114,7 @@ No `disable()` is async, which 51 now rejects.
    Blur my Shell on and off: the pop-up's shade follows a folder's.
 9. Under `make link`, disable and enable ten times: no errors, and one
    `lib-<checksum>` directory left under
-   `$XDG_RUNTIME_DIR/video-library/shell-<pid>/`, the shell's own.
+   `$XDG_RUNTIME_DIR/library/shell-<pid>/`, the shell's own.
 10. With Games Library enabled too, repeat 5 to 8, and disable each in turn:
     the other's button, folded workspace row and app-grid view stay.
 11. Then add the version to `shell-version`.

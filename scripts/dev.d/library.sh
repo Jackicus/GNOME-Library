@@ -1,4 +1,4 @@
-# Video Library's own dev.sh commands, sourced by the kit's scripts/dev.sh.
+# Library's own dev.sh commands, sourced by the kit's scripts/dev.sh.
 #
 #   ./scripts/dev.sh scan [ARGS]
 #                               scan every enabled section into the real cache, with
@@ -20,7 +20,7 @@
 # Append to this on each rename so 'prune' sweeps up every superseded build.
 LEGACY_UUIDS=("gnomeflix@jackt" "media-workspace-desktop@jackt" "media-libraries@jackt")
 # As GLib.get_user_cache_dir() resolves it in the extension.
-CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/video-library"
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/library@jackicus"
 
 # Scan every enabled section. The scanner reads the preferences itself, so
 # nothing here or in the preferences' Rescan buttons turns settings into flags.

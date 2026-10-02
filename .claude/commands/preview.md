@@ -1,10 +1,10 @@
 ---
-description: Show Video Library running in a nested shell, mirrored live on the desktop, and describe what it looks like
+description: Show Library running in a nested shell, mirrored live on the desktop, and describe what it looks like
 argument-hint: "[optional: what to click through first, e.g. 'open a show' or 'the Films tab']"
 allowed-tools: Bash(./scripts/nested.sh:*), Bash(make nested:*), Read
 ---
 
-Show what Video Library currently looks like, following the `gnome-ext:nested-shell`
+Show what Library currently looks like, following the `gnome-ext:nested-shell`
 skill and this repository's `drive-extension` skill (where things are, and what is
 never pressed). The user is watching the mirror window, so `say` before each step.
 
@@ -28,7 +28,7 @@ Never press, unless the user asked for exactly that:
   default) plays the user's real media, and the tracker writes their real watched
   marks and positions.
 - **Rescan**: an online scan with the user's real keys, writing
-  `~/.cache/video-library/`.
+  `~/.cache/library@jackicus/`.
 - **A watched disc**, or Mark watched from a key or the pad, outside `--stand-in`: it
   writes the real `watched.json` and, with `tracking` `source`, a file into the
   library folder itself.

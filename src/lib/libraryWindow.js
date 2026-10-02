@@ -7,7 +7,7 @@ import {LibraryView} from './libraryView.js';
 import {MediaPanel} from './panel.js';
 
 const LibraryPanel = GObject.registerClass(
-class VideoLibraryLibraryPanel extends MediaPanel {
+class LibraryWindowPanel extends MediaPanel {
     constructor({sections, itemsFor, columns, rows, onActivate, onSwitch, onOpenSettings}) {
         // Gone when the button unmaps, as a folder is: that closes it with the overview.
         super({dieWithSource: true});

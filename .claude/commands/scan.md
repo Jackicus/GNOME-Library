@@ -5,7 +5,7 @@ allowed-tools: Bash(make scan), Bash(./scripts/dev.sh scan), Bash(./scripts/dev.
 ---
 
 Re-index the user's own media library. This is real, not a test: it writes
-`~/.cache/video-library/`, which the user's own shell (and a nested shell without
+`~/.cache/library@jackicus/`, which the user's own shell (and a nested shell without
 `--stand-in`) rebuilds from, and every section whose `<prefix>-online` switch is on
 goes to the network with the user's own keys. Run it only because the user asked
 (typing this command is that); a change is tried against
@@ -16,7 +16,7 @@ goes to the network with the user's own keys. Run it only because the user asked
    until pointed at a folder), walks them, looks items up online through each
    section's ordered source list (`<prefix>-sources`: TVmaze, TMDB and
    Wikipedia for shows; TMDB and Wikipedia for films), trying them in turn
-   until one has the artwork, and writes `~/.cache/video-library/library.json`.
+   until one has the artwork, and writes `~/.cache/library@jackicus/library.json`.
    A section whose `<prefix>-online` switch is off reads the cache and stays
    off the network. API keys are credential slots in the `credentials`
    setting, which the scanner reads itself: never print them. "no credential
@@ -24,7 +24,7 @@ goes to the network with the user's own keys. Run it only because the user asked
    not an error.
 2. Report the per-section counts from the scanner's output; never paste the
    titles or the user's folders into a commit or a public place.
-3. Nothing else is needed: a running Video Library watches `library.json` and
+3. Nothing else is needed: a running Library watches `library.json` and
    rebuilds itself when the file lands (the user's own shell, if they have it
    enabled; a nested shell under `--stand-in` reads its own made-up cache and
    does not change).

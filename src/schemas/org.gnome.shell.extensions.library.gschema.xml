@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
-    <schema path="/org/gnome/shell/extensions/video-library/" id="org.gnome.shell.extensions.video-library">
+    <schema path="/org/gnome/shell/extensions/library/" id="org.gnome.shell.extensions.library">
 
         <!-- Media sections. Each looks in an ordered list of folders,
              <prefix>-folders. There is no default: the Videos folder cannot
@@ -252,7 +252,7 @@
             </choices>
             <default>"source"</default>
             <summary>Where watched marks are kept</summary>
-            <description>"local" keeps every mark in ~/.local/share/video-library/watched.json. "source" keeps that file and also copies each library folder's marks into a .video-library-watched.json at the top of that folder, so another machine reading the same folder sees them; switching back to "local" removes those copies. "none" turns tracking off and leaves both files as they are.</description>
+            <description>"local" keeps every mark in ~/.local/share/library@jackicus/watched.json. "source" keeps that file and also copies each library folder's marks into a .library-watched.json at the top of that folder, so another machine reading the same folder sees them; switching back to "local" removes those copies. "none" turns tracking off and leaves both files as they are.</description>
         </key>
         <!-- Playing is watched through MPRIS: lib/playback.js. -->
         <key name="watched-threshold" type="i">

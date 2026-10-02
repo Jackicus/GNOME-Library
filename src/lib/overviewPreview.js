@@ -44,7 +44,7 @@ export function removeSlideHook() {
 // The preview's group is re-allocated small and stretched as the overview
 // animates, without always notifying, so the scale is read back here.
 const PreviewHost = GObject.registerClass(
-class VideoLibraryPreviewHost extends Clutter.Actor {
+class LibraryPreviewHost extends Clutter.Actor {
     constructor(props, monitor) {
         super(props);
         this._monitor = monitor;
@@ -143,7 +143,7 @@ export class OverviewPreview {
                 continue;
 
             const host = new PreviewHost({
-                name: `VideoLibraryPreview:${place}`,
+                name: `LibraryPreview:${place}`,
                 x_align: Clutter.ActorAlign.FILL,
                 y_align: Clutter.ActorAlign.FILL,
                 x_expand: true,

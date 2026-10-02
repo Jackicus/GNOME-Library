@@ -1,5 +1,5 @@
 {
-  "name": "gnome-video-library",
+  "name": "gnome-library",
   "private": true,
   "description": "Development tooling only (ESLint); nothing here ships in the extension.",
   "license": "GPL-2.0-or-later",

@@ -1,10 +1,10 @@
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import {VideoLibraryApp} from './lib/app.js';
+import {LibraryApp} from './lib/app.js';
 
-export default class VideoLibraryExtension extends Extension {
+export default class LibraryExtension extends Extension {
     enable() {
-        this._app = new VideoLibraryApp(this);
+        this._app = new LibraryApp(this);
         this._app.enable();
     }
 

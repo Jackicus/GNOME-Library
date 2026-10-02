@@ -8,5 +8,5 @@ export function setVerbose(on) {
 
 export function note(message) {
     if (verbose)
-        console.log(`[Video Library] ${message}`);
+        console.log(`[Library] ${message}`);
 }
