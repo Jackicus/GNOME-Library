@@ -70,7 +70,8 @@ lists the two artwork folders once per load rather than stat a poster each.
    the same key; IGDB's client id and secret are tab-separated in one slot (`igdb@1`).
    An empty slot makes its source skip itself. The scanner reads them
    out of GSettings, falling back to `$LIBRARY_TMDB_KEY` for an
-   empty slot 1. Each key row's Import button reads `~/Documents/keys/<SERVICE>/`, the
+   empty slot 1 (never under `start --stand-in`, whose `EXT_STAND_IN_UNSET` drops it).
+   Each key row's Import button reads `~/Documents/keys/<SERVICE>/`, the
    user's key drop shared with other projects.
 3. `extension.js` builds a `LibraryApp` (`lib/app.js`) and enables it. The app
    reads `library.json` and builds whichever places the two "opens in" settings name.
