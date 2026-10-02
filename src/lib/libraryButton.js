@@ -142,12 +142,8 @@ export class LibraryButton {
             () => container.icon.setIconSize(dash.iconSize), this);
         this._buttonHost = {
             release: () => {
-                try {
-                    dash.disconnectObject(this);
-                    container.destroy();
-                } catch {
-                    // The dash is on its way out.
-                }
+                dash.disconnectObject(this);
+                container.destroy();
             },
         };
     }
