@@ -31,7 +31,7 @@ export const SECTIONS = [
         watched: false,
         // Found through Steam's and PCSX2's own files, each with its own command line.
         launchers: true,
-        emptyHint: 'Games installed with Steam, and PS2 discs in PCSX2\'s folders, show up after a rescan in Settings.',
+        emptyHint: 'Games installed with Steam, and PS2 discs in the folders PCSX2 uses, are found by a scan.',
     },
 ];
 

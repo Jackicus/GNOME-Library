@@ -8,7 +8,7 @@ import {MediaPanel} from './panel.js';
 
 export const LibraryWindow = GObject.registerClass(
 class LibraryWindow extends MediaPanel {
-    constructor({sections, itemsFor, columns, rows, onActivate, button, onSwitch, onOpenSettings}) {
+    constructor({sections, itemsFor, columns, rows, onActivate, button, onSwitch, onEmpty}) {
         // Gone when the button unmaps, as a folder is: that closes it with the overview.
         super({dieWithSource: true});
         this._sections = sections;
@@ -18,7 +18,7 @@ class LibraryWindow extends MediaPanel {
         this._onActivate = onActivate;
         this._button = button;
         this._onSwitch = onSwitch;
-        this._onOpenSettings = onOpenSettings;
+        this._onEmpty = onEmpty;
         this._key = sections[0].key;
         this._library = null;
         // Not _budget, which is the host's method.
@@ -111,7 +111,7 @@ class LibraryWindow extends MediaPanel {
                     this._key = tab;
                     this._onSwitch(tab);
                 },
-                onOpenSettings: this._onOpenSettings,
+                onEmpty: this._onEmpty,
             });
             this._panel.add_child(this._library.actor);
         }

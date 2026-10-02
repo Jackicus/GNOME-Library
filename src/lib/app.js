@@ -136,6 +136,7 @@ export class LibraryApp {
         this._builtBounds = null;
         this._rebuildTimer = 0;
         this._closeTimer = 0;
+        this._scanCancel = null;
         this._keptAlive = [];
         this._libraryWorkspace = null;
         this._detailWorkspace = null;
@@ -238,6 +239,8 @@ export class LibraryApp {
                 GLib.source_remove(id);
         }
         this._rebuildTimer = this._closeTimer = 0;
+        this._scanCancel?.cancel();
+        this._scanCancel = null;
         this._leaving.clear();
         this._teardown();
         settle('slide hook', () => removeSlideHook());
@@ -577,6 +580,53 @@ export class LibraryApp {
         this._extension.openPreferences();
     }
 
+    // The video sections need a folder first; games are found with none.
+    _onEmpty(section, button) {
+        if (!section.launchers) {
+            this._openSettings();
+            return;
+        }
+        // Put back by the rebuild the scan's write brings, or a failure's.
+        button.setLabel('Looking…');
+        button.reactive = false;
+        this._scan(section.key);
+    }
+
+    // In a process of its own, as the preferences' Rescan runs it (backend/CLAUDE.md).
+    _scan(key) {
+        if (this._scanCancel)
+            return;
+        const cancel = new Gio.Cancellable();
+        this._scanCancel = cancel;
+        const scanner = GLib.build_filenamev([this._extension.path, 'backend', 'scanLibrary.js']);
+        let proc;
+        try {
+            proc = Gio.Subprocess.new(['gjs', '-m', scanner, '--only', key],
+                Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_PIPE);
+        } catch (e) {
+            this._scanCancel = null;
+            this._scanFailed(e.message);
+            return;
+        }
+        proc.communicate_utf8_async(null, cancel, (_proc, result) => {
+            if (cancel.is_cancelled())
+                return;
+            this._scanCancel = null;
+            try {
+                const [, , stderr] = proc.communicate_utf8_finish(result);
+                if (!proc.get_successful())
+                    this._scanFailed(stderr);
+            } catch (e) {
+                this._scanFailed(e.message);
+            }
+        });
+    }
+
+    _scanFailed(why) {
+        console.error(`[Library] Scan failed: ${why}`);
+        this._scheduleRebuild();
+    }
+
     _onWorkspaceRemoved() {
         this._holdWorkspaces();
         this._previews?.invalidate();
@@ -768,7 +818,7 @@ export class LibraryApp {
                 rows: this._settings.get_int('rows'),
                 button: this._button,
                 onSwitch: key => (this._sectionKey = key),
-                onOpenSettings: () => this._openSettings(),
+                onEmpty: (section, button) => this._onEmpty(section, button),
             });
             this._browser.enable();
         }
@@ -850,7 +900,7 @@ export class LibraryApp {
             onSwitch: key => (this._sectionKey = key),
             onBack: () => this._goBack(),
             end: [settings, close],
-            onOpenSettings: () => this._openSettings(),
+            onEmpty: (section, button) => this._onEmpty(section, button),
         });
         // Sized outright: the overview's clones lay a hidden source out at its own size.
         this._library.actor.set_size(width, height);

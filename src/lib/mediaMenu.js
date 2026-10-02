@@ -15,7 +15,7 @@ const DASH_MAX_SHARE = 0.16;
 const VERTICAL_SPACING_SHARE = 0.02;
 
 export class MediaMenu {
-    constructor({sections, itemsFor, onActivate, columns, rows, button, onSwitch, onOpenSettings}) {
+    constructor({sections, itemsFor, onActivate, columns, rows, button, onSwitch, onEmpty}) {
         this._sections = sections;
         this._itemsFor = itemsFor;
         this._onActivate = onActivate;
@@ -23,7 +23,7 @@ export class MediaMenu {
         this._rows = rows;
         this._button = button;
         this._onSwitch = onSwitch;
-        this._onOpenSettings = onOpenSettings;
+        this._onEmpty = onEmpty;
         this._library = null;
         this._showing = false;
         this._key = sections[0]?.key ?? null;
@@ -296,7 +296,7 @@ export class MediaMenu {
                 this._key = key;
                 this._onSwitch(key);
             },
-            onOpenSettings: this._onOpenSettings,
+            onEmpty: this._onEmpty,
         });
         this._library.actor.visible = false;
         this._appDisplay.add_child(this._library.actor);
