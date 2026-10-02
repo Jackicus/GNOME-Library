@@ -24,7 +24,7 @@ const MAX_HEIGHT = 760;
 // The shade behind the panel: the shell's DIALOG_SHADE_NORMAL, not exported.
 const SHADE = new Cogl.Color({red: 0, green: 0, blue: 0, alpha: 204});
 const CLEAR = new Cogl.Color({red: 0, green: 0, blue: 0, alpha: 0});
-const BLUR = 'video-library-panel-blur';
+const BLUR = 'library-panel-blur';
 
 // The blur and classes a folder's dialog carries (Blur my Shell sets both), to
 // match; private, see docs/private-api.md.
@@ -51,7 +51,7 @@ export const MediaPanel = GObject.registerClass({
     Signals: {
         'open-state-changed': {param_types: [GObject.TYPE_BOOLEAN]},
     },
-}, class VideoLibraryPanel extends St.Bin {
+}, class LibraryMediaPanel extends St.Bin {
     constructor({host = null, dieWithSource = true, size = 1, inset = 0} = {}) {
         super({
             visible: false,

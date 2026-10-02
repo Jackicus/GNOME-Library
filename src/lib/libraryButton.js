@@ -12,7 +12,7 @@ import * as Dash from 'resource:///org/gnome/shell/ui/dash.js';
 import {LIBRARY} from './library.js';
 
 const LibraryIcon = GObject.registerClass(
-class VideoLibraryLibraryIcon extends Dash.ShowAppsIcon {
+class LibraryButtonIcon extends Dash.ShowAppsIcon {
     _init(gicon) {
         // Read by _createIcon, which BaseIcon's _init calls before the chain-up returns.
         this._gicon = gicon;
@@ -112,7 +112,7 @@ export class LibraryButton {
             else if (Main.overview.dash?._dashContainer)
                 this._attachToDash(Main.overview.dash);
         } catch (e) {
-            console.warn(`[Video Library] No button beside Show Apps: ${e}`);
+            console.warn(`[Library] No button beside Show Apps: ${e}`);
             this._detach();
         }
         this.sync(this._checked);

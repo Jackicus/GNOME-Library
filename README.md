@@ -1,4 +1,4 @@
-# Video Library
+# Library
 
 Your own TV shows and films as a library, opened from a button beside Show Apps:
 posters, synopses, seasons and episodes, in the overview, a pop-up panel, on the
@@ -85,10 +85,10 @@ whose **Fetch artwork and descriptions online** switch is on (on by default).
   setting, and goes only to TMDB. If a file `keys/TMDB/API KEY.txt` exists in your
   Documents folder, the key row offers **Import**, which reads it when pressed.
 - **What is stored:** the library index, artwork and fetched descriptions in
-  `~/.cache/video-library/`; watched marks and where playback stopped in
-  `~/.local/share/video-library/watched.json`. With **Keep marks in** set to
+  `~/.cache/library@jackicus/`; watched marks and where playback stopped in
+  `~/.local/share/library@jackicus/watched.json`. With **Keep marks in** set to
   **Folders** (the default), each library folder also gets a
-  `.video-library-watched.json` with its own marks, so another computer reading the
+  `.library-watched.json` with its own marks, so another computer reading the
   same folder sees them; **Local** removes those copies, **Off** stops tracking.
 - **What is read:** your library folders, and the media players on your session (over
   MPRIS) to see which of your files is playing and how far. That stays on your
@@ -106,16 +106,16 @@ Not on extensions.gnome.org yet. From source, which needs `make` and
 `glib-compile-schemas` (part of GLib):
 
 ```bash
-git clone https://github.com/Jackicus/GNOME-Video-Library.git
-cd GNOME-Video-Library
+git clone https://github.com/Jackicus/GNOME-Library.git
+cd GNOME-Library
 make install
 ```
 
 Log out and back in (a Wayland session cannot load an extension it has never seen),
-then `gnome-extensions enable video-library@jackicus`.
+then `gnome-extensions enable library@jackicus`.
 
 The library is empty until it has folders. Open the preferences
-(`gnome-extensions prefs video-library@jackicus`), and on the **TV Shows** and **Films**
+(`gnome-extensions prefs library@jackicus`), and on the **TV Shows** and **Films**
 pages add your folders and press **Rescan**:
 
 - **TV Shows:** one folder per show. Seasons can be subfolders (`Season 2`) or
@@ -131,7 +131,7 @@ To update, `git pull && make install`, then log out and back in. To remove,
 
 ## Preferences
 
-`gnome-extensions prefs video-library@jackicus`, or the Settings button beside the
+`gnome-extensions prefs library@jackicus`, or the Settings button beside the
 library on the desktop.
 
 <table>
@@ -152,10 +152,10 @@ library on the desktop.
 
 ## Troubleshooting
 
-The extension logs to the journal under `[Video Library]`:
+The extension logs to the journal under `[Library]`:
 
 ```bash
-journalctl -f -o cat /usr/bin/gnome-shell | grep -i 'video library'
+journalctl -f -o cat /usr/bin/gnome-shell | grep -F '[Library]'
 ```
 
 The preferences, and the scans they start, log in their own process:

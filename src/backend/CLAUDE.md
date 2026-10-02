@@ -73,7 +73,7 @@ settings and credentials come from.
   first scan, measured. `get_file_info_async`, `new_from_stream_*_async` and
   `save_to_streamv_async` run on a worker thread.
 - **The lock is a session-bus name**, one per cache folder
-  (`org.gnome.shell.extensions.VideoLibrary.Scan.c<hash>`): asking for it is
+  (`io.github.jackicus.Library.Scan.c<hash>`): asking for it is
   refused while another scan holds it, and the bus frees it the moment that
   scan's process ends, however it ends, so there is no lock file to go
   stale; a sandboxed app cannot take a name outside its own. A second scan

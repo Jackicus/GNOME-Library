@@ -96,11 +96,11 @@ function settle(what, step) {
     try {
         step();
     } catch (e) {
-        console.error(`[Video Library] Could not release the ${what}: ${e}`);
+        console.error(`[Library] Could not release the ${what}: ${e}`);
     }
 }
 
-export class VideoLibraryApp {
+export class LibraryApp {
     constructor(extension) {
         this._extension = extension;
         this._settings = extension.getSettings();
@@ -388,7 +388,7 @@ export class VideoLibraryApp {
             if (!ws || ws._keepAliveId)
                 continue;
             ws._keepAliveId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, GLib.MAXUINT32, () => GLib.SOURCE_CONTINUE);
-            GLib.Source.set_name_by_id(ws._keepAliveId, '[video-library] keep workspace');
+            GLib.Source.set_name_by_id(ws._keepAliveId, '[library] keep workspace');
             this._keptAlive.push(ws);
         }
         if (released)
@@ -416,7 +416,7 @@ export class VideoLibraryApp {
     _takeWorkspace(what) {
         const workspace = this._claimWorkspace();
         if (!workspace) {
-            console.warn(`[Video Library] No free workspace to open ${what} on ` +
+            console.warn(`[Library] No free workspace to open ${what} on ` +
                 '(Settings → Multitasking, or open it on the desktop instead).');
             return null;
         }
@@ -711,7 +711,7 @@ export class VideoLibraryApp {
             return;
         const workspace = this._claimWorkspace();
         if (!workspace) {
-            console.warn('[Video Library] No empty workspace to play on (Settings → Multitasking).');
+            console.warn('[Library] No empty workspace to play on (Settings → Multitasking).');
             return;
         }
         this._dismiss();
@@ -767,7 +767,7 @@ export class VideoLibraryApp {
             return;
 
         this._container = new St.Widget({
-            name: 'VideoLibraryContainer',
+            name: 'LibraryContainer',
             layout_manager: new Clutter.BinLayout(),
             reactive: true,
             can_focus: true,

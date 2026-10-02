@@ -1,16 +1,16 @@
-# Video Library
+# Library
 
 Shared rules for every extension come from the GNOME-EXTENSIONS kit: `../CLAUDE.md` and `../.claude/rules/` (loaded with this file), and the `gnome-ext:*` skills. `.claude/kit.sh` pulls the kit at session start, or, with no kit beside this repository, fetches it and prints its rules into the session.
 
-A GNOME Shell extension (UUID `video-library@jackicus`) that shows a video library,
+A GNOME Shell extension (UUID `library@jackicus`) that shows a video library,
 TV shows and films, opened from one button beside Show Apps: in the overview, in a
 pop-up panel, on the wallpaper or on a workspace of its own, as a setting says.
 `metadata.json` claims GNOME Shell 50 only. The code is written for 48 to 50; 48
 and 49 are read against the shell's sources but never booted, and 51 breaks it
 (`docs/compatibility.md`). The name is the same
 throughout: `metadata.json`'s `name`, the UUID, the schema
-`org.gnome.shell.extensions.video-library`, the cache and data folders, the
-`[Video Library]` log prefix and the `VideoLibrary*` GObject class names.
+`org.gnome.shell.extensions.library`, the cache and data folders, the
+`[Library]` log prefix and the `Library*` GObject class names.
 
 A sibling, **Games Library** (`games-library@jackicus`, `GNOME-Games-Library`), is
 the same idea for games and runs alongside this one: see the last section.
@@ -33,14 +33,14 @@ the same idea for games and runs alongside this one: see the last section.
   the code keeps to a line), `screenshots/` (the README's).
 - `scripts/`: the kit's `dev.sh`, `nested.sh`, `nested_driver.py`, `kit.mk` and
   `dev-extension.js` (the entry point `make link` installs, staging `lib/` under
-  `$XDG_RUNTIME_DIR/video-library/shell-<pid>/lib-<checksum>`), changed only in the
-  kit; this extension's own `ext.conf`, `dev.d/video-library.sh` (`scan`, `prune`,
+  `$XDG_RUNTIME_DIR/library@jackicus/shell-<pid>/lib-<checksum>`), changed only in the
+  kit; this extension's own `ext.conf`, `dev.d/library.sh` (`scan`, `prune`,
   `stalls`, the `scanner` check, the cache and library `status` lines) and
-  `nested.d/video-library.sh` (the made-up library under `start --stand-in`);
+  `nested.d/library.sh` (the made-up library under `start --stand-in`);
   `demo_library.py` (that library); `stallwatch.py` (`make stalls`, logging to
   `dist/stalls.log`); `vpad.py` (a virtual game controller).
 
-Runtime data is `~/.cache/video-library/` (`GLib.get_user_cache_dir()` on both sides,
+Runtime data is `~/.cache/library@jackicus/` (`GLib.get_user_cache_dir()` on both sides,
 which is how `start --stand-in` points the extension and the scanner at a cache of
 its own): `library.json`, `posters/`, `backdrops/`, `metadata/index.json`. The shell side never
 scrapes; it reads the `library.json` the scanner wrote, and a file monitor on it
@@ -66,10 +66,10 @@ lists the two artwork folders once per load rather than stat a poster each.
 2. **Credentials** are slots in one `credentials` setting (`a{ss}`): a source entry
    `tmdb@2` is a second TMDB key to fall back on, and the slot TV and films name is
    the same key. An empty slot makes its source skip itself. The scanner reads them
-   out of GSettings, falling back to `$VIDEO_LIBRARY_TMDB_KEY` for an
+   out of GSettings, falling back to `$LIBRARY_TMDB_KEY` for an
    empty slot 1. Each key row's Import button reads `~/Documents/keys/<SERVICE>/`, the
    user's key drop shared with other projects.
-3. `extension.js` builds a `VideoLibraryApp` (`lib/app.js`) and enables it. The app
+3. `extension.js` builds a `LibraryApp` (`lib/app.js`) and enables it. The app
    reads `library.json` and builds whichever places the two "opens in" settings name.
 4. **Watched marks and playback** (`lib/tracking.js`, `lib/playback.js`): the
    extension plays nothing. A pick runs the section's `<prefix>-open-command` (VLC by
@@ -101,7 +101,7 @@ controllers are the keyboard too: `.claude/rules/keyboard.md`.
 
 ## Design rules
 
-- **What the shell has, Video Library uses**: the app grid, `AppViewItem` and
+- **What the shell has, Library uses**: the app grid, `AppViewItem` and
   `overview-tile`, `icon-button` and `button`, `global.focus_manager`, the dash's
   `DashItemContainer`, and for both pop-ups `AppFolderDialog`'s shape and
   `app-folder-dialog` style (`panel.js` `MediaPanel` is a copy, not a subclass). Ours
@@ -175,9 +175,9 @@ is the real scan, run only when the user types it.
 The two run enabled at once and subclass the same shell classes, so nothing here may
 assume it is the only extension reaching into the shell:
 
-- every registered GObject class is `VideoLibrary*`, never the bare shell name;
+- every registered GObject class is `Library*`, never the bare shell name;
   stylesheet classes are `ml-`; the pop-up's blur effect is named
-  `video-library-panel-blur` (`panel.js` `BLUR`), Games Library's
+  `library-panel-blur` (`panel.js` `BLUR`), Games Library's
   `games-library-panel-blur`;
 - both wrap Dash to Panel's `_updateGroupedElements` and the overview layout's
   `_getAppDisplayBoxForState`, chain-safely (`docs/private-api.md`, "Chain-safe

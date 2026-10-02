@@ -64,7 +64,7 @@ function gridFor(width, height, aspect, wantColumns, wantRows) {
 
 // The shell's layout makes every cell a square; posters are not.
 const PosterGridLayout = GObject.registerClass(
-class VideoLibraryPosterGridLayout extends IconGrid.IconGridLayout {
+class LibraryPosterGridLayout extends IconGrid.IconGridLayout {
     vfunc_allocate() {
         if (!this._pageWidth || !this._pageHeight)
             return;
@@ -117,7 +117,7 @@ class VideoLibraryPosterGridLayout extends IconGrid.IconGridLayout {
 });
 
 const MediaGrid = GObject.registerClass(
-class VideoLibraryMediaGrid extends AppDisplay.AppGrid {
+class LibraryMediaGrid extends AppDisplay.AppGrid {
     constructor({rows, columns, iconSize}) {
         super({
             allow_incomplete_pages: true,
@@ -141,7 +141,7 @@ class VideoLibraryMediaGrid extends AppDisplay.AppGrid {
 
 // A BaseIcon asks for a square; this one asks for its child's shape.
 const PosterIcon = GObject.registerClass(
-class VideoLibraryPosterIcon extends IconGrid.BaseIcon {
+class LibraryPosterIcon extends IconGrid.BaseIcon {
     vfunc_get_preferred_width(forHeight) {
         const node = this.get_theme_node();
         const [min, nat] = this.child.get_preferred_width(node.adjust_for_height(forHeight));
@@ -156,7 +156,7 @@ class VideoLibraryPosterIcon extends IconGrid.BaseIcon {
 });
 
 const MediaItem = GObject.registerClass(
-class VideoLibraryMediaItem extends AppDisplay.AppViewItem {
+class LibraryMediaItem extends AppDisplay.AppViewItem {
     _init({item, section, order, onActivate}) {
         super._init({style_class: 'overview-tile'}, false, true);
         this._id = `${section.key}/${item.id}`;
@@ -187,7 +187,7 @@ class VideoLibraryMediaItem extends AppDisplay.AppViewItem {
 let pendingGrid = null;
 
 const MediaView = GObject.registerClass(
-class VideoLibraryMediaView extends BaseAppView {
+class LibraryMediaView extends BaseAppView {
     constructor({section, items, onActivate}) {
         super({
             layout_manager: new Clutter.BinLayout(),

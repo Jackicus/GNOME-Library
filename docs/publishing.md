@@ -20,7 +20,7 @@ Private API is [private-api.md](private-api.md)'s; versions are
 4. `check_pack` diffs the zip against the files that should ship (those, plus
    every `lib/*.js`, `backend/*.js` and `icons/*.svg`) and fails on anything
    missing or extra;
-5. writes `dist/video-library@jackicus.shell-extension.zip`.
+5. writes `dist/library@jackicus.shell-extension.zip`.
 
 The zip carries the schema XML only. GNOME Shell 44 and later compile it on
 install (gjs.guide, "Port Extensions to GNOME Shell 44"): `extensionDownloader.js`
@@ -34,7 +34,7 @@ in the compositor; `backend/`, the scanner, run as its own process (below);
 ### Testing the zip
 
 `make uninstall`, `make pack`,
-`gnome-extensions install dist/video-library@jackicus.shell-extension.zip`,
+`gnome-extensions install dist/library@jackicus.shell-extension.zip`,
 then log out and in. Only the zip runs the shipped `src/extension.js` rather
 than `make link`'s `./scripts/dev-extension.js`. `make link` puts the
 development install back.
@@ -43,13 +43,13 @@ development install back.
 
 | Key | Value | Note |
 |---|---|---|
-| `uuid` | `video-library@jackicus` | Fixed after the first upload |
-| `name` | `Video Library` | |
+| `uuid` | `library@jackicus` | Fixed after the first upload |
+| `name` | `Library` | |
 | `description` | Several paragraphs | Says a Rescan is needed, where titles are looked up, that it plays nothing, and carries the TMDB notice |
-| `settings-schema` | `org.gnome.shell.extensions.video-library` | `getSettings()` takes no argument in `lib/app.js` and `prefs.js` |
+| `settings-schema` | `org.gnome.shell.extensions.library` | `getSettings()` takes no argument in `lib/app.js` and `prefs.js` |
 | `shell-version` | `["50"]` | [compatibility.md](compatibility.md) |
 | `version-name` | `1.0` | |
-| `url` | `https://github.com/Jackicus/GNOME-Video-Library` | |
+| `url` | `https://github.com/Jackicus/GNOME-Library` | |
 | `version`, `session-modes`, `donations`, `gettext-domain` | absent | EGO sets `version`; `user` mode only, so no `session-modes` |
 
 ## The review guidelines
@@ -60,7 +60,7 @@ development install back.
   a `Set` in `controls.js`, two `Cogl.Color`s in `panel.js` and
   `shape.js`'s `setCornerRadius(DEFAULT_RADIUS)`, which fills a table of
   strings. No GObject instance, signal or source exists before `enable()`.
-- **`disable()` undoes `enable()`.** `VideoLibraryApp.disable()` removes the
+- **`disable()` undoes `enable()`.** `LibraryApp.disable()` removes the
   keybinding, every `connectObject` owner, the file monitor and its timers,
   calls `_teardown()` (previews, browser, pane, pop-up, focus group,
   container), removes the slide hook, detaches the button, releases the
@@ -82,7 +82,7 @@ development install back.
   folder walk and network waits would be dropped frames, and in the
   preferences closing the window would kill a scan. It asks
   `api.tvmaze.com`, `api.themoviedb.org` and `en.wikipedia.org` over Soup 3
-  and writes `~/.cache/video-library/`; the extension watches the file it
+  and writes `~/.cache/library@jackicus/`; the extension watches the file it
   writes. Only a Rescan button starts it (`prefs.js` `_scanButton`; it reads
   the keys from the settings, so no key is ever on a command line), and each source can
   be switched off per section (`<prefix>-online`). The preferences also start
@@ -119,7 +119,7 @@ development install back.
 ## Uploading
 
 At https://extensions.gnome.org/upload/, or
-`gnome-extensions upload --accept-tos dist/video-library@jackicus.shell-extension.zip`,
+`gnome-extensions upload --accept-tos dist/library@jackicus.shell-extension.zip`,
 which asks for the EGO login (`--user`, `--password-file` exist; keep a
 password off command lines and logs). Each upload is reviewed before it is
 published, and EGO assigns `version`.

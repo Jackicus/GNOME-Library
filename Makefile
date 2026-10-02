@@ -1,5 +1,5 @@
 # The kit's targets (scripts/kit.mk: link, install, reload, logs, pack, check,
-# the nested shell, ...), then Video Library's own. 'make' alone prints help.
+# the nested shell, ...), then Library's own. 'make' alone prints help.
 include scripts/kit.mk
 
 .PHONY: scan prune stalls

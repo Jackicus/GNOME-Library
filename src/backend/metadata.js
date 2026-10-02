@@ -13,7 +13,7 @@ import {unescapeHtml} from './html.js';
 
 Gio._promisify(Soup.Session.prototype, 'send_and_read_async', 'send_and_read_finish');
 
-export const CACHE_DIR = join(GLib.get_user_cache_dir(), 'video-library');
+export const CACHE_DIR = join(GLib.get_user_cache_dir(), 'library@jackicus');
 const POSTER_CACHE_DIR = join(CACHE_DIR, 'posters');
 const BACKDROP_CACHE_DIR = join(CACHE_DIR, 'backdrops');
 const METADATA_CACHE_DIR = join(CACHE_DIR, 'metadata');
@@ -22,7 +22,7 @@ const METADATA_INDEX = join(METADATA_CACHE_DIR, 'index.json');
 const INDEX_FLUSH_EVERY = 25;
 const MISS_RETRY_SECONDS = 7 * 24 * 3600;
 const OFFLINE_AFTER_FAILURES = 6;
-const USER_AGENT = 'VideoLibrary/2.0';
+const USER_AGENT = 'GNOME-Library/1.0 (https://github.com/Jackicus/GNOME-Library)';
 export const ENRICH_WORKERS = 6;
 
 // Why these sizes: docs/notes.md.
@@ -355,7 +355,7 @@ export class MetadataService {
         }
         this._credentials = {...credentials};
         // For an empty slot 1.
-        this._envCredentials = {tmdb: (GLib.getenv('VIDEO_LIBRARY_TMDB_KEY') ?? '').trim()};
+        this._envCredentials = {tmdb: (GLib.getenv('LIBRARY_TMDB_KEY') ?? '').trim()};
         this._warned = new Set();
         this._refused = new Set();
         this._unflushed = 0;

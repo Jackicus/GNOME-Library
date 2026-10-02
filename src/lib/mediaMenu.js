@@ -44,7 +44,7 @@ export class MediaMenu {
         this._appsBox = this._appDisplay?._box ?? null;
         if (!this._appDisplay || !this._appsBox || !this._sections.length) {
             if (this._sections.length)
-                console.warn('[Video Library] The overview is not laid out as expected; no media menu.');
+                console.warn('[Library] The overview is not laid out as expected; no media menu.');
             this._appsBox = null;
             return;
         }

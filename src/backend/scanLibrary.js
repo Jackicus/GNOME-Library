@@ -15,7 +15,7 @@ import {join, readJson, writeJson} from './files.js';
 const LIBRARY_VERSION = 2;
 const DBUS_NAME_FLAG_DO_NOT_QUEUE = 4;
 const DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER = 1;
-const SCHEMA = 'org.gnome.shell.extensions.video-library';
+const SCHEMA = 'org.gnome.shell.extensions.library';
 // Never run from the staged lib/, so import.meta.url is where it really is.
 const HERE = GLib.path_get_dirname(GLib.filename_from_uri(import.meta.url)[0]);
 const SCHEMA_DIR = join(GLib.path_get_dirname(HERE), 'schemas');
@@ -77,7 +77,7 @@ async function holdLock() {
         print(`No session bus (${e.message}); scanning without a lock.`);
         return;
     }
-    const name = `org.gnome.shell.extensions.VideoLibrary.Scan.c${pathKey(CACHE_DIR)}`;
+    const name = `io.github.jackicus.Library.Scan.c${pathKey(CACHE_DIR)}`;
     for (let waiting = false; ; waiting = true) {
         const [reply] = bus.call_sync(
             'org.freedesktop.DBus', '/org/freedesktop/DBus', 'org.freedesktop.DBus', 'RequestName',
@@ -204,7 +204,7 @@ async function main(argv) {
     const args = parseArgs(argv);
     const settings = openSettings();
     if (!settings)
-        throw new UsageError(`could not read the Video Library settings. Compile the schemas (${SCHEMA_DIR}).`);
+        throw new UsageError(`could not read the Library settings. Compile the schemas (${SCHEMA_DIR}).`);
 
     // null leaves a section as it is, [] clears it.
     const only = new Set(args.only ?? SECTIONS.map(s => s.key));

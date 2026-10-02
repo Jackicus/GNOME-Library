@@ -1,9 +1,9 @@
 ---
-description: Apply src/ edits to Video Library in the nested shell and check for errors
+description: Apply src/ edits to Library in the nested shell and check for errors
 allowed-tools: Bash(./scripts/nested.sh status), Bash(./scripts/nested.sh start:*), Bash(./scripts/nested.sh reload), Bash(./scripts/nested.sh logs:*), Bash(./scripts/nested.sh mirror:*), Bash(./scripts/nested.sh stop)
 ---
 
-Apply the current `src/` edits to Video Library in this repository's **nested
+Apply the current `src/` edits to Library in this repository's **nested
 shell**, then confirm they took. Never the user's own session: `make reload` and
 `./scripts/dev.sh reload` disable and enable the extension on the real desktop,
 which is the user's to do.
@@ -12,16 +12,16 @@ which is the user's to do.
    - **Not running:** `./scripts/nested.sh start` (add `--stand-in` for a library
      to look at: the made-up one, since a plain start reads the user's own cache,
      and an empty section shows only its placeholder). A fresh start loads the
-     current `src/`, so Video Library is ACTIVE with the edits when it returns;
+     current `src/`, so Library is ACTIVE with the edits when it returns;
      skip step 2.
    - **Running:** go on. Its settings are its own whichever way it was started.
 2. `./scripts/nested.sh reload`. It waits for ACTIVE.
 3. `./scripts/nested.sh logs 40` and report whether it came up clean. A healthy
-   reload logs `[Video Library] Enabled from
-   $XDG_RUNTIME_DIR/video-library/shell-<pid>/lib-<checksum>` (a new checksum when
-   `lib/` changed); `[Video Library] Rebuilt` follows a rescan or a setting's change.
+   reload logs `[Library] Enabled from
+   $XDG_RUNTIME_DIR/library@jackicus/shell-<pid>/lib-<checksum>` (a new checksum when
+   `lib/` changed); `[Library] Rebuilt` follows a rescan or a setting's change.
    Anything with `Failed to load`, `Error during disable`, or a JS stack trace
-   under a `[Video Library]` line is a real failure: quote it and say which file
+   under a `[Library]` line is a real failure: quote it and say which file
    it points at.
 
 How to see it: the mirror window on the desktop shows the nested shell live

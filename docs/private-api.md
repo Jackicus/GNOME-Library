@@ -1,6 +1,6 @@
 # Private and deep GNOME Shell API
 
-Video Library puts its button beside Show Apps, borrows the app grid for its
+Library puts its button beside Show Apps, borrows the app grid for its
 posters and the folder dialog's shape for its pop-up pane, and puts its pages
 into the overview and the workspace slide, which would otherwise show bare
 wallpaper. None of that has a public API. This is everything it reaches into,
@@ -48,7 +48,7 @@ an `if`, and then the only sign is the symptom, with nothing logged.
 
 ## The button beside Show Apps (libraryButton.js)
 
-`VideoLibraryLibraryIcon` subclasses `Dash.ShowAppsIcon` for the hover, focus
+`LibraryButtonIcon` subclasses `Dash.ShowAppsIcon` for the hover, focus
 ring, label and sizing every dash icon has. `BaseIcon._init` calls
 `_createIcon` before the subclass's `_init` returns, so `_gicon` is set before
 the chain-up; `_canRemoveApp()` returns false so the button is no unpin target.
@@ -165,7 +165,7 @@ Games Library keeps the same protocol cannot be checked from here.
 
 The slide wrap (`overviewPreview.js`) keeps it beside Wallpaper FX, which wraps
 `_prepareWorkspaceSwitch` on the same prototype through `InjectionManager`.
-Disabling Video Library leaves Wallpaper FX's wrap in place in either order.
+Disabling Library leaves Wallpaper FX's wrap in place in either order.
 `InjectionManager.restoreMethod` puts back what it saved whatever is there now,
 so disabling Wallpaper FX while ours sits over its wrap drops ours until the
 next enable: that half is Wallpaper FX's to change.

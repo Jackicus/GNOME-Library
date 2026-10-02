@@ -30,7 +30,7 @@ parts.
   the edits in progress, and is never fixed by reloading or enabling there:
   that is the user's to do. `unknown to the running shell` means the UUID was
   never registered there, which needs the user's logout.
-- **cache**: `~/.cache/video-library`, holding `library.json`, `posters/`,
+- **cache**: `~/.cache/library@jackicus`, holding `library.json`, `posters/`,
   `backdrops/`, `metadata/`.
 - **library**: the item count per section in the user's own scan, or `not
   scanned yet` (`/scan`, at the user's request; a test uses
