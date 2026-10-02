@@ -21,3 +21,18 @@ Design reasoning that the code keeps to one line or none.
   writing the setting is all the preferences do.
 - Rescan runs `backend/scanLibrary.js --from-settings`, which reads folders, sources,
   keys and the online switches itself; two scans at once queue on its lock.
+
+## Input, playback and motion
+
+- The shell reads no game controller itself, so without `controls.js` a pad does
+  nothing on the desktop; libmanette's mapping gives a known pad the kernel's
+  gamepad codes, and an unmapped one (a Pico running as a gamepad) its own.
+- The watcher follows players over MPRIS because every player worth naming speaks
+  it (VLC, mpv with mpv-mpris, Showtime, Celluloid), so a file counts however it
+  was opened.
+- `anim.js` `flyClone` flies by translation and scale rather than width and
+  height: a clone already paints its source scaled into its box, so the frames
+  look the same and nothing is re-allocated for 260 ms.
+- The section tabs take the shape of the shell's screenshot/screencast switch
+  (`.screenshot-ui-shot-cast-container`), and the primary action is the theme's
+  `button.default`, so hover, focus and pressed states are the theme's.

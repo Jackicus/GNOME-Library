@@ -1,35 +1,5 @@
-// What has been watched. Two files, one format:
-//
-//   local   ~/.local/share/video-library/watched.json
-//           every mark made on this machine, keyed by absolute path
-//   folder  <library folder>/.video-library-watched.json
-//           the marks for what is in that folder, keyed by the path inside it
-//
-// The `tracking` setting picks which are used. "local" keeps the local file
-// alone. "source" keeps it too and copies each folder's share of it into
-// that folder, so another machine pointed at the same share reads the same
-// marks — and folds the folder's marks into the local file first, which is
-// how that other machine's marks come through. The local file is never
-// trimmed by any of this, so a mark on a folder that is not in the list
-// right now waits there until it is. Going back to "local" takes the folder
-// files away; going back to "source" puts them back from the local file.
-// "none" reads and writes nothing, and leaves both files as they are.
-//
-// A mark is made from the disc on a row, or by playback getting far enough
-// (lib/playback.js). Either way the tracker emits `changed` (path, watched),
-// which is how a row that is already built shows it; so does a mark read in
-// from another machine's folder file, and so does a position kept, which is
-// what moves the detail pane's Continue button along.
-//
-// An entry is {watched, at, position?}, `at` and `position` in seconds. An
-// unmark is kept as `watched: false` rather than dropped, so it outranks an
-// older mark on another machine: whichever of two entries has the later `at`
-// wins. `position` is where playback stopped, for resuming; marking an entry
-// either way drops it, so something watched plays from the start.
-//
-// The folder files sit on shares that idle out or go offline, so everything
-// that touches one is asynchronous (see "Never touch a media path
-// synchronously" in CLAUDE.md). The local file is on the local disk.
+// The two files and the `tracking` modes: .claude/rules/tracking.md. An entry is
+// {watched, at, position?} in seconds; the later `at` wins a merge.
 
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -51,8 +21,7 @@ function parse(bytes) {
     return entries && typeof entries === 'object' ? entries : {};
 }
 
-// Sorted, so a file whose marks have not changed is written out the same and
-// can be left alone.
+// Sorted, so unchanged marks serialize the same and need no write.
 function serialize(entries) {
     const sorted = {};
     for (const key of Object.keys(entries).sort())
@@ -75,22 +44,15 @@ export class Tracker extends Signals.EventEmitter {
         this._entries = {};
         this._mode = 'none';
         this._cancellable = null;
-        // Folder -> what is on its file as last read or written, and the
-        // folders with a write in flight or another one wanted after it.
         this._written = new Map();
         this._writing = new Set();
         this._again = new Set();
-        // The local file the same way: one write at a time, the latest
-        // marks after it.
         this._savingLocal = false;
         this._saveAgain = false;
-        // The folder list, read from the settings once until they change:
-        // it is asked for on every reading of a playing file's position.
+        // Cached: asked for on every reading of a playing file's position.
         this._folderList = null;
     }
 
-    // Only the sections of things that are watched — every section names one
-    // now, but a pick with no section of its own (nothing is open) is not.
     static tracks(section) {
         return !!section?.watched;
     }
@@ -115,8 +77,7 @@ export class Tracker extends Signals.EventEmitter {
         this.sync();
     }
 
-    // Reads in flight are dropped; a write in flight is let finish, since
-    // it was started with what is known and is small (see `_writeFolder`).
+    // A write in flight is let finish (see `_writeFolder`).
     disable() {
         this._settings.disconnectObject(this);
         this._cancellable?.cancel();
@@ -139,20 +100,15 @@ export class Tracker extends Signals.EventEmitter {
         this.emit('changed', path, watched);
     }
 
-    // Is this a file whose playback is worth following: under one of the
-    // folders of a section that is watched?
     covers(path) {
         return this.enabled && typeof path === 'string' && !!this._folderOf(path);
     }
 
-    // Where playback of a file stopped, in seconds; 0 for nowhere.
     positionOf(path) {
         return this.enabled ? this._entries[path]?.position ?? 0 : 0;
     }
 
-    // Keep where playback stopped, or forget it with 0. Whether it is
-    // watched is left as it was: a second look at something already
-    // watched, stopped halfway, does not unmark it.
+    // Leaves `watched` alone: a second look stopped halfway does not unmark.
     setPosition(path, position) {
         if (!this.enabled || typeof path !== 'string')
             return;
@@ -168,11 +124,6 @@ export class Tracker extends Signals.EventEmitter {
         this.emit('changed', path, entry.watched);
     }
 
-    // What to carry on with, given a show's episodes in order (`order`) and
-    // anything else of it that can be played (`others`, its extras): the
-    // file touched last, if it was left partway or unticked since, or else
-    // the first unwatched one after it in order. null when nothing has been
-    // touched, or everything after the last one is watched — start over.
     continueFrom(order, others = []) {
         if (!this.enabled)
             return null;
@@ -194,7 +145,6 @@ export class Tracker extends Signals.EventEmitter {
         return null;
     }
 
-    // Out to the local file, and to the folder's when that is kept too.
     _commit(path) {
         this._saveLocal();
         const folder = this._mode === 'source' ? this._folderOf(path) : null;
@@ -202,9 +152,6 @@ export class Tracker extends Signals.EventEmitter {
             this._writeFolder(folder);
     }
 
-    // Read every folder's file into the local one and write each folder its
-    // share back. On enable, when the folders change, and when a rescan lands
-    // — the moments another machine's marks are worth looking for.
     sync() {
         if (this._mode !== 'source')
             return;
@@ -221,22 +168,16 @@ export class Tracker extends Signals.EventEmitter {
             this._removeFolderFiles();
     }
 
-    // ------------------------------------------------------------------
-    // Where a path belongs
-    // ------------------------------------------------------------------
     _folders() {
         if (this._folderList)
             return this._folderList;
         const folders = new Set();
         for (const section of SECTIONS.filter(Tracker.tracks)) {
             let listed = this._settings.get_strv(`${section.prefix}-folders`);
-            // Earlier releases kept one folder; the scanner reads it while the
-            // list is empty, and so does this.
+            // The one-folder setting, read while the list is empty, as the scanner does.
             if (!listed.length && this._settings.get_string(`${section.prefix}-path`))
                 listed = [this._settings.get_string(`${section.prefix}-path`)];
             for (const folder of listed) {
-                // As the scanner reads it: `~` is the home folder, and a
-                // trailing slash is nothing.
                 let trimmed = folder.replace(/\/+$/, '');
                 if (trimmed === '~' || trimmed.startsWith('~/'))
                     trimmed = GLib.get_home_dir() + trimmed.slice(1);
@@ -248,8 +189,7 @@ export class Tracker extends Signals.EventEmitter {
         return this._folderList;
     }
 
-    // The innermost listed folder a path is under, so a folder listed inside
-    // another keeps its own marks.
+    // The innermost, so a folder listed inside another keeps its own marks.
     _folderOf(path, folders = this._folders()) {
         let best = null;
         for (const folder of folders) {
@@ -259,7 +199,6 @@ export class Tracker extends Signals.EventEmitter {
         return best;
     }
 
-    // A folder's share of the local marks, keyed by the path inside it.
     _shareOf(folder) {
         const share = {};
         const folders = this._folders();
@@ -270,9 +209,6 @@ export class Tracker extends Signals.EventEmitter {
         return share;
     }
 
-    // ------------------------------------------------------------------
-    // The local file
-    // ------------------------------------------------------------------
     _loadLocal() {
         this._entries = {};
         const path = localPath();
@@ -283,17 +219,14 @@ export class Tracker extends Signals.EventEmitter {
             if (ok)
                 this._entries = parse(bytes);
         } catch (e) {
-            // Put aside rather than read as empty: the next mark would write
-            // an empty file over every mark ever made here.
+            // Put aside, or the next mark would write an empty file over it.
             console.warn(`[Video Library] Could not read ${path}, keeping it as ${path}.broken: ${e}`);
             GLib.rename(path, `${path}.broken`);
         }
     }
 
-    // Written whole, in the background: this runs in the compositor, and a
-    // synchronous write of an existing file syncs the disk first. One write
-    // at a time; a mark made during one is written after it. Not
-    // cancellable, so what is known at a lock goes down.
+    // Async: a synchronous replace syncs the disk first. Not cancellable, so
+    // what is known at a lock goes down.
     _saveLocal() {
         if (this._savingLocal) {
             this._saveAgain = true;
@@ -319,9 +252,6 @@ export class Tracker extends Signals.EventEmitter {
             });
     }
 
-    // ------------------------------------------------------------------
-    // The folder files
-    // ------------------------------------------------------------------
     _readFolder(folder) {
         const file = Gio.File.new_for_path(GLib.build_filenamev([folder, FOLDER_FILE]));
         file.load_contents_async(this._cancellable, (_file, result) => {
@@ -332,8 +262,7 @@ export class Tracker extends Signals.EventEmitter {
             } catch (e) {
                 if (e.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
                     return;
-                // Not there yet is the usual case, and one this writes below;
-                // a folder that cannot be read at all is not written either.
+                // Missing is usual and written below; unreadable is left alone.
                 if (!isNotFound(e)) {
                     console.warn(`[Video Library] Could not read ${file.get_path()}: ${e.message}`);
                     return;
@@ -341,20 +270,15 @@ export class Tracker extends Signals.EventEmitter {
             }
             if (this._mode !== 'source')
                 return;
-            // A folder with no file and nothing to say is left untouched: it
-            // is recorded as holding the empty share it would be written.
+            // No file and nothing to say: recorded as the empty share, so not written.
             this._written.set(folder, serialize(theirs));
 
-            // Whose mark flipped, for the rows showing them; a position
-            // alone moves nothing on screen.
             const changed = [];
             let merged = false;
             const folders = this._folders();
             for (const [relative, entry] of Object.entries(theirs)) {
                 const path = `${folder}/${relative}`;
                 const previous = this._entries[path];
-                // Only if it is still this folder's: a folder listed inside
-                // it since keeps its own.
                 if (typeof entry?.watched === 'boolean' && this._folderOf(path, folders) === folder &&
                     newer(entry, previous)) {
                     this._entries[path] = {watched: entry.watched, at: entry.at ?? 0};
@@ -373,15 +297,12 @@ export class Tracker extends Signals.EventEmitter {
         });
     }
 
-    // Write a folder its share, unless that is what it already holds. One
-    // write per folder at a time; a mark made during one is written after it.
     _writeFolder(folder) {
         if (this._writing.has(folder)) {
             this._again.add(folder);
             return;
         }
-        // Never over a file not yet read: it may hold another machine's
-        // marks. The read folds them in and comes back here.
+        // Never over a file not yet read: it may hold another machine's marks.
         if (!this._written.has(folder)) {
             this._readFolder(folder);
             return;
@@ -393,9 +314,8 @@ export class Tracker extends Signals.EventEmitter {
         this._writing.add(folder);
         const file = Gio.File.new_for_path(GLib.build_filenamev([folder, FOLDER_FILE]));
         const bytes = new GLib.Bytes(new TextEncoder().encode(contents));
-        // Not cancellable: the last thing a lock does is keep where playback
-        // is, and a replace cancelled after it has opened leaves its
-        // temporary file beside the media.
+        // Not cancellable: the last thing a lock does is keep the position, and a
+        // cancelled replace leaves its temporary file beside the media.
         file.replace_contents_bytes_async(bytes, null, false, Gio.FileCreateFlags.NONE,
             null, (_file, result) => {
                 this._writing.delete(folder);
@@ -410,7 +330,6 @@ export class Tracker extends Signals.EventEmitter {
             });
     }
 
-    // Back to "local": the folders' copies go, the local file stays whole.
     _removeFolderFiles() {
         for (const folder of this._folders()) {
             const file = Gio.File.new_for_path(GLib.build_filenamev([folder, FOLDER_FILE]));

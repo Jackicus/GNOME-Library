@@ -1,22 +1,4 @@
-// Following playback, so that what is watched marks itself and what is left
-// halfway picks up there again. Nothing here plays anything: it listens to
-// whatever player is doing it over MPRIS, the D-Bus interface VLC, mpv (with
-// mpv-mpris), Showtime and Celluloid all speak, and the shell's own media
-// controls read. So a file counts however it was opened — from the library,
-// from Files — as long as it is under one of the watched sections' folders.
-//
-// MPRIS says when a player comes and goes, what it has open (`xesam:url`),
-// how long that is, whether it is playing, and when it seeks. It never says
-// where playback has got to unless asked, and a player that has closed cannot
-// be asked anything. So the position is read, and the clock reading it was
-// taken at kept beside it; where playback is at any moment is that position
-// moved on by the clock while playing. The poll only corrects drift and
-// catches the watched mark on its way past; the moments that matter — a
-// pause, a seek, another file, the player going — each carry their own.
-//
-// Nothing is written while a file plays. Where it stopped goes to the tracker
-// when it stops, pauses or goes, and the mark when the position passes
-// `watched-threshold`; the tracker does the writing, local and folder.
+// Follows any MPRIS player; plays nothing (.claude/rules/tracking.md).
 
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -27,12 +9,9 @@ const PLAYER = 'org.mpris.MediaPlayer2.Player';
 const PROPERTIES = 'org.freedesktop.DBus.Properties';
 const NO_TRACK = '/org/mpris/MediaPlayer2/TrackList/NoTrack';
 
-// How often a playing file's position is read, in seconds. See above: this
-// is drift and the watched mark, not the stopping point.
+// Only corrects drift and catches the threshold: the clock reckons between.
 const POLL_SECONDS = 30;
-// How long a launch's resume waits for the player to come up with the file.
 const RESUME_WAIT = 60;
-// Less than this far in, nothing is kept: a file opened and closed again.
 const MIN_POSITION = 30;
 
 const clock = () => GLib.get_monotonic_time() / 1e6;
@@ -41,8 +20,7 @@ function isCancelled(e) {
     return e instanceof GLib.Error && e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED);
 }
 
-// A file:// URI's path. A string operation for a local URI, so it is safe on
-// a path to a share that is asleep.
+// A string operation, so safe on a share that is asleep.
 function pathOf(url) {
     if (typeof url !== 'string' || !url.startsWith('file://'))
         return null;
@@ -53,7 +31,6 @@ function pathOf(url) {
     }
 }
 
-// One player on the bus, as far as it has told us.
 class Player {
     constructor(owner) {
         this.owner = owner;
@@ -65,12 +42,9 @@ class Player {
         this.canSeek = true;
         this.position = 0;
         this.readAt = clock();
-        // The file in hand has been marked watched this time round, so
-        // where it stops no longer matters.
         this.marked = false;
     }
 
-    // Where playback is now, in seconds.
     get now() {
         let position = this.position;
         if (this.status === 'Playing')
@@ -83,7 +57,6 @@ class Player {
         this.readAt = clock();
     }
 
-    // Take the clock's reckoning as read, before what it runs on changes.
     settle() {
         this.read(this.now);
     }
@@ -96,8 +69,7 @@ export class PlaybackWatcher {
         this._bus = null;
         this._cancellable = null;
         this._subscriptions = [];
-        // Unique bus name -> Player, and each well-known name -> its owner:
-        // one process can hold two names (VLC takes a second per instance).
+        // One process can hold two names (VLC takes a second per instance).
         this._players = new Map();
         this._names = new Map();
         this._pollId = 0;
@@ -135,8 +107,6 @@ export class PlaybackWatcher {
                 }),
         ];
 
-        // The players already up: after an unlock, the one that was playing
-        // through it.
         bus.call('org.freedesktop.DBus', '/org/freedesktop/DBus', 'org.freedesktop.DBus', 'ListNames',
             null, new GLib.VariantType('(as)'), Gio.DBusCallFlags.NONE, -1, this._cancellable,
             (_bus, result) => {
@@ -154,8 +124,7 @@ export class PlaybackWatcher {
     }
 
     disable() {
-        // Locking the screen lands here with a file playing; where it is goes
-        // down now, and the unlock picks the player up again.
+        // A lock lands here mid-file: keep where it is; the unlock picks it up.
         for (const player of this._players.values())
             this._keep(player);
         for (const id of this._subscriptions)
@@ -173,16 +142,11 @@ export class PlaybackWatcher {
         this._bus = null;
     }
 
-    // The library is about to play `path`: once a player has it, send it to
-    // where it was left, less `resume-rewind`.
     resumeNext(path) {
         const position = this._settings.get_boolean('resume-playback') ? this._tracker.positionOf(path) : 0;
         this._pending = position ? {path, position, until: clock() + RESUME_WAIT} : null;
     }
 
-    // ------------------------------------------------------------------
-    // Players coming and going
-    // ------------------------------------------------------------------
     _lookUpOwner(name) {
         this._bus.call('org.freedesktop.DBus', '/org/freedesktop/DBus', 'org.freedesktop.DBus', 'GetNameOwner',
             new GLib.Variant('(s)', [name]), new GLib.VariantType('(s)'), Gio.DBusCallFlags.NONE, -1,
@@ -228,9 +192,6 @@ export class PlaybackWatcher {
         this._schedulePoll();
     }
 
-    // ------------------------------------------------------------------
-    // What a player says
-    // ------------------------------------------------------------------
     _apply(player, props) {
         if ('Rate' in props) {
             player.settle();
@@ -242,8 +203,7 @@ export class PlaybackWatcher {
             const meta = props.Metadata ?? {};
             const path = pathOf(meta['xesam:url']);
             if (path !== player.path) {
-                // The last file ends here, as far as it got.
-                this._keep(player);
+                        this._keep(player);
                 player.path = path;
                 player.marked = false;
                 player.read(0);
@@ -255,8 +215,7 @@ export class PlaybackWatcher {
             player.settle();
             const was = player.status;
             player.status = props.PlaybackStatus;
-            // A pause is worth one exact reading. A stop is not: a stopped
-            // player reports 0, so the clock's reckoning is what is kept.
+            // A stopped player reports 0, so only a pause is worth a reading.
             if (was === 'Playing' && player.status === 'Paused')
                 this._readPosition(player, () => this._keep(player));
             else if (player.status === 'Stopped')
@@ -271,8 +230,6 @@ export class PlaybackWatcher {
     }
 
     _readPosition(player, then) {
-        // The answer is for the file in hand now; one that has moved on by
-        // the time it comes back would be given the old file's position.
         const {path} = player;
         this._bus.call(player.owner, MPRIS_PATH, PROPERTIES, 'Get', new GLib.Variant('(ss)', [PLAYER, 'Position']),
             new GLib.VariantType('(v)'), Gio.DBusCallFlags.NONE, -1, this._cancellable,
@@ -284,7 +241,6 @@ export class PlaybackWatcher {
                 } catch (e) {
                     if (isCancelled(e))
                         return;
-                    // Not answered: the clock's reckoning stands.
                 }
                 then();
             });
@@ -294,10 +250,6 @@ export class PlaybackWatcher {
         return !!player.path && this._tracker.covers(player.path);
     }
 
-    // ------------------------------------------------------------------
-    // What it comes to
-    // ------------------------------------------------------------------
-    // Past `watched-threshold`: marked, and where it stopped forgotten.
     _check(player) {
         if (player.marked)
             return true;
@@ -310,11 +262,8 @@ export class PlaybackWatcher {
         return true;
     }
 
-    // Where the file in hand stopped, kept for next time. With resuming off,
-    // anything kept before is forgotten. Stopped short of MIN_POSITION it is
-    // left as it was: a file opened and closed again says nothing about where
-    // it was left — and a resume the player did not take, or a look at the
-    // start from Files, must not cost the place that was kept.
+    // Short of MIN_POSITION the kept place stands: a quick look at the start
+    // must not cost it.
     _keep(player) {
         if (!this._following(player) || this._check(player))
             return;
@@ -335,8 +284,6 @@ export class PlaybackWatcher {
         const target = pending.position - this._settings.get_int('resume-rewind');
         if (clock() > pending.until || !player.canSeek || target <= 0)
             return;
-        // Absolute where the player names its track, relative where it
-        // does not; either way in microseconds.
         const [method, args] = player.trackId && player.trackId !== NO_TRACK
             ? ['SetPosition', new GLib.Variant('(ox)', [player.trackId, Math.round(target * 1e6)])]
             : ['Seek', new GLib.Variant('(x)', [Math.round((target - player.now) * 1e6)])];
@@ -352,8 +299,6 @@ export class PlaybackWatcher {
         player.read(target);
     }
 
-    // Read every playing file's position every POLL_SECONDS, for as long as
-    // one is playing.
     _schedulePoll() {
         const playing = () => [...this._players.values()].filter(p => p.status === 'Playing' && this._following(p));
         if (playing().length && !this._pollId) {

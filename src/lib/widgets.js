@@ -1,6 +1,3 @@
-// Small St building blocks shared by the views. Everything paints through the
-// stylesheet (ml-* classes); JS only sets sizes and wires behaviour.
-
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Pango from 'gi://Pango';
@@ -8,15 +5,11 @@ import Pango from 'gi://Pango';
 import {Duration, Ease, fadeTo} from './anim.js';
 import {radiusStyle} from './shape.js';
 
-// St bakes the corner radius into the artwork only when it renders the
-// background image itself, so the radius has to travel in the same inline
-// style as the image rather than being left to the stylesheet.
+// The radius must travel in the same inline style as the image to round it.
 export function artworkStyle(path, part = 'art') {
     return `background-image: url("file://${encodeURI(path)}"); background-size: cover; ${radiusStyle(part)}`;
 }
 
-// A single line of text that ellipsises rather than wraps: every title and
-// subtitle in the design, on a tile, a row or in the detail pane.
 export function createLabel(text, styleClass, props = {}) {
     const label = new St.Label({text, style_class: styleClass, ...props});
     label.clutter_text.single_line_mode = true;
@@ -24,21 +17,14 @@ export function createLabel(text, styleClass, props = {}) {
     return label;
 }
 
-// A poster: the image when there is one, otherwise a tinted placeholder built
-// from the section icon and the title. Placeholders live in the stylesheet so
-// they follow the system accent colour.
 export function createArtwork({path, title, icon, width, height, styleClass = 'ml-art', radius = 'art'}) {
     const art = new St.Widget({
         style_class: styleClass,
         width,
         height,
         layout_manager: new Clutter.BinLayout(),
-        // Not clipped: the focus ring is a box-shadow and has to show past
-        // the allocation. The placeholder's icon/label stack gets its own
-        // clip below instead.
-        // Explicit, because a placeholder's inner box expands to centre its
-        // icon, and Clutter would otherwise let that expansion leak upwards
-        // and stretch the artwork itself.
+        // Not clipped, for the focus ring's box-shadow. No expand, or the
+        // placeholder's expanding stack would stretch the artwork.
         x_expand: false,
         y_expand: false,
     });
@@ -58,9 +44,7 @@ export function createArtwork({path, title, icon, width, height, styleClass = 'm
         clip_to_allocation: true,
         style_class: 'ml-art-placeholder-content',
     });
-    // `width` is physical pixels but `icon_size` is logical, so the share of
-    // the artwork the icon takes is divided back down — the same
-    // physical-to-logical conversion `js/ui/iconGrid.js` applies to its own icons.
+    // `width` is physical, `icon_size` logical (as js/ui/iconGrid.js converts).
     const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
     stack.add_child(new St.Icon({
         icon_name: icon,
@@ -68,8 +52,6 @@ export function createArtwork({path, title, icon, width, height, styleClass = 'm
         style_class: 'ml-art-placeholder-icon',
         x_align: Clutter.ActorAlign.CENTER,
     }));
-    // Room for a title, and the most it may take, in logical px against a
-    // physical size.
     if (title && width >= 120 * scale) {
         const label = new St.Label({
             text: title,
@@ -88,12 +70,8 @@ export function createArtwork({path, title, icon, width, height, styleClass = 'm
     return art;
 }
 
-// The shell's own round icon button — the shape it uses for a message's close
-// button and the folder dialog's edit button — so the hover, focus ring and
-// pressed state are the theme's rather than ours. No `St.Icon` child and no
-// size: `.icon-button StIcon { icon-size }` sizes the glyph in em, so it
-// follows Large Text, exactly as the shell's own icon buttons in
-// `js/ui/appDisplay.js` are built.
+// No St.Icon child and no size: the theme's `.icon-button StIcon` sizes the
+// glyph in em, so it follows Large Text.
 export function createIconButton(iconName, {styleClass = 'icon-button', accessibleName} = {}) {
     return new St.Button({
         style_class: styleClass,
@@ -105,9 +83,6 @@ export function createIconButton(iconName, {styleClass = 'icon-button', accessib
     });
 }
 
-// A primary action: the shell's own `button.default`, which brings the accent
-// fill along with the hover, focus and pressed states; only the pill shape is
-// ours. `ml-action-secondary` is the theme's plain button.
 export function createActionButton({label, icon, styleClass = 'button default ml-action'}) {
     const content = new St.BoxLayout({style_class: 'ml-action-content', y_align: Clutter.ActorAlign.CENTER});
     if (icon)
@@ -121,15 +96,12 @@ export function createActionButton({label, icon, styleClass = 'button default ml
         track_hover: true,
         child: content,
     });
-    // For a button whose words move on while it is up (Continue).
     button.setLabel = value => {
         text.text = value;
     };
     return button;
 }
 
-// Swap a label's text under a cross-fade, so the header reads as one thing
-// changing rather than two labels being replaced.
 function crossFade(label, text) {
     label.remove_all_transitions();
     label.ease({
@@ -143,16 +115,12 @@ function crossFade(label, text) {
     });
 }
 
-// A section's name over a line beneath it: what the header says where there
-// are no tabs to say it — an open item, a library of one section.
 function createTitles(title = '', subtitle = '') {
     const actor = new St.BoxLayout({
         orientation: Clutter.Orientation.VERTICAL,
         style_class: 'ml-header-titles',
         y_align: Clutter.ActorAlign.CENTER,
     });
-    // One line each: a long title of a pick would otherwise run under the
-    // buttons at the header's far end.
     const titleLabel = createLabel(title, 'ml-header-title');
     const subtitleLabel = createLabel(subtitle, 'ml-header-subtitle');
     actor.add_child(titleLabel);
@@ -160,11 +128,7 @@ function createTitles(title = '', subtitle = '') {
     return {actor, titleLabel, subtitleLabel};
 }
 
-// The switch between the libraries: a pill of buttons, one per section, one
-// lit at a time — the shape of the shell's own screenshot/screencast switch
-// (`.screenshot-ui-shot-cast-container`), with words in it. The keyboard
-// landing on a tab chooses it, as tabs on a television do, so a remote's
-// arrows alone go from one library to the other.
+// Focus landing on a tab chooses it, so a remote's arrows alone switch sections.
 function createTabs(sections, active, onSwitch) {
     const actor = new St.BoxLayout({style_class: 'ml-tabs', y_align: Clutter.ActorAlign.CENTER});
     const tabs = new Map();
@@ -195,17 +159,8 @@ function createTabs(sections, active, onSwitch) {
     return {actor, setActive, lit: () => [...tabs.values()].find(tab => tab.checked) ?? null};
 }
 
-// The bar above a library: the tabs between its sections in the middle, a
-// Back button at the start that shows only while an item is open, and at the
-// far end whatever buttons the place it heads has room for (`end`). With
-// fewer than two sections there is nothing to switch between, and the name
-// stands where the tabs would. An open item puts its section's name in the
-// tabs' place, over the way back; the two modes are the same widgets with one
-// or the other showing, so nothing is rebuilt as the pane opens or closes.
-//
-// A bin rather than a row, so the tabs sit in the middle of the header however
-// wide what is either side of them is. A bin places a child by its alignment
-// only when the child expands; one that does not is centred, whatever it asks.
+// A bin, so the tabs sit centred however wide either side is: a bin aligns a
+// child by its x_align only when it expands, and centres it otherwise.
 export function createHeader({sections, active, onSwitch, onBack = null, end = []}) {
     const actor = new St.Widget({
         style_class: 'ml-header',
@@ -283,7 +238,6 @@ export function createHeader({sections, active, onSwitch, onBack = null, end = [
     return {
         actor,
         setActive: key => tabs?.setActive(key),
-        // The lit tab takes the keyboard, for an arrow up out of the grid.
         focusTabs: () => {
             const tab = tabs?.lit();
             tab?.grab_key_focus();
@@ -304,23 +258,13 @@ export function createHeader({sections, active, onSwitch, onBack = null, end = [
     };
 }
 
-// A small rounded label: a fact in the detail pane, a badge on a row. The class
-// is not optional — there is no bare `ml-pill` rule for one to fall back to.
 export function createPill(text, styleClass, style = null) {
     return new St.Label({text, style_class: styleClass, style, y_align: Clutter.ActorAlign.CENTER});
 }
 
-// One entry in a detail list: numbered circle, title/subtitle, badges, size and
-// a play glyph. Hover is a single background change on the row itself — nothing
-// inside it restyles, so one pointer crossing is one repaint rather than four.
-// `watched` is null for a row with nothing to track; true or false makes the
-// disc a toggle of its own, showing a tick once watched, and `onWatched` is
-// told each time it is flipped. Such a row also has `setWatched(watched)`,
-// for a mark made somewhere else — by playing the file — to show on it.
+// `watched` null: nothing to track; true or false makes the disc a toggle.
 export function createRow({index, title, subtitle, badges = [], size, onActivate, watched = null, onWatched}) {
     const row = new St.Button({
-        // The theme's flat button: hover, focus and pressed come with it, and
-        // the inline radius below overrides the one it brings.
         style_class: 'button flat ml-row',
         reactive: true,
         can_focus: true,
@@ -330,8 +274,7 @@ export function createRow({index, title, subtitle, badges = [], size, onActivate
     });
     const content = new St.BoxLayout({x_expand: true, y_align: Clutter.ActorAlign.CENTER});
 
-    // A disc with the number centred in it. A label given the disc's size
-    // in CSS draws its text at the top, so the disc is a bin around it.
+    // A label sized in CSS draws its text at the top, so the disc is a bin.
     const number = new St.Label({
         text: String(index),
         x_align: Clutter.ActorAlign.CENTER,
@@ -344,8 +287,7 @@ export function createRow({index, title, subtitle, badges = [], size, onActivate
             child: number,
         }));
     } else {
-        // A button inside the row's button: the press is the disc's alone,
-        // so ticking an episode off does not also play it.
+        // Its own button, so ticking an episode off does not also play it.
         const tick = new St.Icon({icon_name: 'object-select-symbolic', icon_size: 16});
         const face = new St.Widget({layout_manager: new Clutter.BinLayout()});
         face.add_child(number);
@@ -373,9 +315,7 @@ export function createRow({index, title, subtitle, badges = [], size, onActivate
             disc.checked = value;
             sync();
         };
-        // The disc from the keyboard: it sits inside the row's button, and
-        // St's focus stops at the row, so a remote or a controller reaches it
-        // through the row that has the focus (controls.js, Mark watched).
+        // St's focus stops at the row: Mark watched reaches the disc here.
         row.toggleWatched = () => {
             disc.checked = !disc.checked;
             sync();
@@ -391,7 +331,6 @@ export function createRow({index, title, subtitle, badges = [], size, onActivate
         text.add_child(createLabel(subtitle, 'ml-row-subtitle'));
         content.add_child(text);
     } else {
-        // One line needs no column to stack in; it takes the column's margins.
         titleLabel.add_style_class_name('ml-row-text');
         content.add_child(titleLabel);
     }
@@ -413,7 +352,6 @@ export function createRow({index, title, subtitle, badges = [], size, onActivate
     return row;
 }
 
-// Shown when a section has nothing in it.
 export function createEmptyState({icon, title, hint, actionLabel, onAction}) {
     const box = new St.BoxLayout({
         orientation: Clutter.Orientation.VERTICAL,
