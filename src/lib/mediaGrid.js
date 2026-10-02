@@ -249,8 +249,12 @@ class VideoLibraryMediaView extends BaseAppView {
         }
     }
 
-    // The parent's _init calls this before _data is set.
+    // The parent's _init calls this before _data is set. As the view is destroyed, its
+    // tiles going change the page count after the scroll view has let go of the
+    // grid's adjustment, which the shell's IconGrid.goToPage would ease in a later.
     goToPage(page, animate = true) {
+        if (!this._grid.hadjustment)
+            return;
         if (this._data)
             this._fillTo(page);
         super.goToPage(page, animate);
