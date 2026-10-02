@@ -90,6 +90,16 @@ function workspaceIsLive(workspace) {
     return false;
 }
 
+// A teardown step that reaches private shell API or another extension's object:
+// if it throws, the rest of the teardown still runs.
+function settle(what, step) {
+    try {
+        step();
+    } catch (e) {
+        console.error(`[Video Library] Could not release the ${what}: ${e}`);
+    }
+}
+
 export class VideoLibraryApp {
     constructor(extension) {
         this._extension = extension;
@@ -230,11 +240,11 @@ export class VideoLibraryApp {
         this._rebuildTimer = this._closeTimer = 0;
         this._leaving.clear();
         this._teardown();
-        removeSlideHook();
-        this._button.detach();
+        settle('slide hook', () => removeSlideHook());
+        settle('button', () => this._button.detach());
         this._libraryWorkspace = this._detailWorkspace = null;
         this._picked = this._origin = null;
-        this._keepOnly(new Set());
+        settle('held workspaces', () => this._keepOnly(new Set()));
         this._sections = {};
         // Playback saves its position before the tracker stops.
         this._playback.disable();
@@ -245,7 +255,7 @@ export class VideoLibraryApp {
     _teardown() {
         this._previews?.destroy();
         this._previews = null;
-        this._browser?.disable();
+        settle('library view', () => this._browser?.disable());
         this._browser = null;
         this._library = null;
         this._detailPage = null;
