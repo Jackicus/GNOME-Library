@@ -58,6 +58,34 @@
             <description>Command this section's files open with; the file's path is appended. The default plays in VLC full screen and closes it when the file ends, with VLC's own "continue playback" off, since resume-playback does that. Empty uses the system default application, and so does a command that is not installed.</description>
         </key>
 
+        <!-- Games are found through the launchers' own files, so the section
+             has no folders: Steam and PCSX2 are auto-detected, and a path
+             set here only overrides that. -->
+        <key name="games-enabled" type="b">
+            <default>true</default>
+            <summary>Show games</summary>
+        </key>
+        <key name="games-steam-path" type="s">
+            <default>""</default>
+            <summary>Steam library root</summary>
+            <description>The folder holding steamapps/. Empty auto-detects ~/.steam/steam, ~/.local/share/Steam and the flatpak install; extra libraries come from libraryfolders.vdf either way.</description>
+        </key>
+        <key name="games-pcsx2-path" type="s">
+            <default>""</default>
+            <summary>PCSX2 configuration folder</summary>
+            <description>The folder holding PCSX2.ini. Empty auto-detects ~/.config/PCSX2 and the flatpak install; the disc folders and covers folder come from PCSX2.ini.</description>
+        </key>
+        <key name="games-sources" type="as">
+            <default>['steam','igdb@1']</default>
+            <summary>Game sources, in order</summary>
+            <description>A game's source follows its platform: Steam apps use Steam, PS2 discs use IGDB. The order decides which IGDB slot is tried first; a slot with no credential is skipped.</description>
+        </key>
+        <key name="games-online" type="b">
+            <default>true</default>
+            <summary>Fetch artwork and descriptions online for games</summary>
+            <description>Off leaves this section with whatever is already cached.</description>
+        </key>
+
         <!-- Credentials, shared by every section that names a slot.
              A slot id is "<service>@<n>": the same slot on two pages is the
              same key, so the TMDB key TV shows use is the one films use, and a
@@ -66,7 +94,7 @@
         <key name="credentials" type="a{ss}">
             <default>{}</default>
             <summary>API credentials by slot</summary>
-            <description>Slot id ("tmdb@1", "tmdb@2") to credential. An empty or missing credential makes the sources that name it skip themselves.</description>
+            <description>Slot id ("tmdb@1", "tmdb@2", "igdb@1") to credential; IGDB's client id and secret are tab-separated in one slot. An empty or missing credential makes the sources that name it skip themselves.</description>
         </key>
 
         <!-- Where each thing opens. Two independent choices out of one

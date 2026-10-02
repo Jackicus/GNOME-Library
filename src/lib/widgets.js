@@ -256,7 +256,7 @@ export function createPill(text, styleClass, style = null) {
 }
 
 // `watched` null: nothing to track; true or false makes the disc a toggle.
-export function createRow({index, title, subtitle, badges = [], size, onActivate, watched = null, onWatched}) {
+export function createRow({index, title, subtitle, badges = [], size, icon = 'media-playback-start-symbolic', onActivate, watched = null, onWatched}) {
     const row = new St.Button({
         style_class: 'button flat ml-row',
         can_focus: true,
@@ -332,7 +332,7 @@ export function createRow({index, title, subtitle, badges = [], size, onActivate
         content.add_child(new St.Label({text: size, style_class: 'ml-row-size', y_align: Clutter.ActorAlign.CENTER}));
 
     content.add_child(new St.Icon({
-        icon_name: 'media-playback-start-symbolic',
+        icon_name: icon,
         icon_size: 16,
         style_class: 'ml-row-icon',
         y_align: Clutter.ActorAlign.CENTER,

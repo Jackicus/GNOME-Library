@@ -2,8 +2,8 @@
 
 Shared rules for every extension come from the GNOME-EXTENSIONS kit: `../CLAUDE.md` and `../.claude/rules/` (loaded with this file), and the `gnome-ext:*` skills. `.claude/kit.sh` pulls the kit at session start, or, with no kit beside this repository, fetches it and prints its rules into the session.
 
-A GNOME Shell extension (UUID `library@jackicus`) that shows a video library,
-TV shows and films, opened from one button beside Show Apps: in the overview, in a
+A GNOME Shell extension (UUID `library@jackicus`) that shows a library of TV shows,
+films and games, opened from one button beside Show Apps: in the overview, in a
 pop-up panel, on the wallpaper or on a workspace of its own, as a setting says.
 `metadata.json` claims GNOME Shell 50 only. The code is written for 48 to 50; 48
 and 49 are read against the shell's sources but never booted, and 51 breaks it
@@ -20,7 +20,7 @@ the same idea for games and runs alongside this one: see the last section.
 - `src/` ships as far as `./scripts/ext.conf`'s `EXT_SHIP` says: the entry points,
   stylesheet and schema, `lib/` and `backend/`'s JS and `icons/`' SVG, never the
   `CLAUDE.md` notes under it (`src/backend/CLAUDE.md`, the scanner's).
-- `src/lib/library.js`: `SECTIONS` (TV Shows and Films, in that order) is a
+- `src/lib/library.js`: `SECTIONS` (TV Shows, Films and Games, in that order) is a
   section's whole identity, its key, `<prefix>-` settings, title and icon. Nothing
   restates it: `prefs.js` imports it and adds only its pages, and the scanner takes
   its folders from the settings. A third section is an entry there plus its schema
@@ -62,10 +62,14 @@ lists the two artwork folders once per load rather than stat a poster each.
    Rescan buttons and `make scan` both just run it. Each section has an ordered list of folders
    (`<prefix>-folders`) and of sources (`<prefix>-sources`: TV tries TVmaze, TMDB,
    Wikipedia; films TMDB, Wikipedia), and its own `<prefix>-online` switch.
-   Neither section has a default folder, so both are off until pointed at one.
+   Neither video section has a default folder, so both are off until pointed at one.
+   **Games** (`launchers`) has no folders: `gamesScanner.js` reads Steam's and PCSX2's
+   own files, auto-detected (`games-steam-path`, `games-pcsx2-path` override), and a
+   game's source follows its platform (Steam's store for Steam, IGDB for a PS2 disc).
 2. **Credentials** are slots in one `credentials` setting (`a{ss}`): a source entry
    `tmdb@2` is a second TMDB key to fall back on, and the slot TV and films name is
-   the same key. An empty slot makes its source skip itself. The scanner reads them
+   the same key; IGDB's client id and secret are tab-separated in one slot (`igdb@1`).
+   An empty slot makes its source skip itself. The scanner reads them
    out of GSettings, falling back to `$LIBRARY_TMDB_KEY` for an
    empty slot 1. Each key row's Import button reads `~/Documents/keys/<SERVICE>/`, the
    user's key drop shared with other projects.
@@ -73,7 +77,8 @@ lists the two artwork folders once per load rather than stat a poster each.
    reads `library.json` and builds whichever places the two "opens in" settings name.
 4. **Watched marks and playback** (`lib/tracking.js`, `lib/playback.js`): the
    extension plays nothing. A pick runs the section's `<prefix>-open-command` (VLC by
-   default); the watcher follows any MPRIS player with a file from a watched folder
+   default), a game its own command line (`launch`: `xdg-open steam://rungameid/…` or
+   PCSX2 with the disc), closing what was up first; the watcher follows any MPRIS player with a file from a watched folder
    open, marks it past `watched-threshold`, keeps where it stopped, and the detail
    pane's Continue button resumes there. `.claude/rules/tracking.md`.
 

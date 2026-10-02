@@ -38,11 +38,22 @@ const TMDB_IMAGE = 'https://image.tmdb.org/t/p';
 const TMDB_POSTER_SIZE = 'w780';
 const TMDB_BACKDROP_SIZE = 'w1280';
 
+// Valve's store record and library art, keyless and sessionless.
+const STEAM_CDN = 'https://cdn.cloudflare.steamstatic.com/steam/apps';
+const STEAM_STORE_API = 'https://store.steampowered.com/api/appdetails';
+// IGDB is Twitch's: a client id and secret buy an app token, sent as a bearer.
+const IGDB_TOKEN_URL = 'https://id.twitch.tv/oauth2/token';
+const IGDB_API = 'https://api.igdb.com/v4';
+const IGDB_IMAGE = 'https://images.igdb.com/igdb/image/upload';
+const IGDB_PS2_PLATFORM = 8;
+
 const PROVIDERS = {
     tv: ['tvmaze', 'tmdb', 'wikipedia'],
     film: ['tmdb', 'wikipedia'],
+    game: ['steam', 'igdb'],
 };
-const CREDENTIAL_NEEDED = new Set(['tmdb']);
+// How many tab-separated fields a source's credential holds; none means keyless.
+const CREDENTIAL_FIELDS = {tmdb: 1, igdb: 2};
 const CACHED_FIELDS = ['summary', 'genres', 'rating', 'runtime', 'year', 'tagline', 'seasons'];
 
 function sourceId(entry) {
@@ -52,7 +63,7 @@ function sourceId(entry) {
 // "tmdb" is "tmdb@1"; a source without a credential never carries a slot.
 function normaliseEntry(entry) {
     const name = sourceId(entry);
-    if (!CREDENTIAL_NEEDED.has(name))
+    if (!CREDENTIAL_FIELDS[name])
         return name;
     return entry.includes('@') ? entry : `${name}@1`;
 }
@@ -63,6 +74,8 @@ const LOOKUPS = {
     'tv:wikipedia': (svc, item) => svc._wikipedia(item, 'tv'),
     'film:tmdb': (svc, item, entry) => svc._tmdb(item, 'movie', entry),
     'film:wikipedia': (svc, item) => svc._wikipedia(item, 'film'),
+    'game:steam': (svc, item) => svc._steam(item),
+    'game:igdb': (svc, item, entry) => svc._igdb(item, entry),
 };
 
 function now() {
@@ -254,12 +267,17 @@ function sleep(ms) {
 
 let failures = 0;
 
-// Retries a 429 (Wikipedia); goes offline after failures in a row (backend/CLAUDE.md).
-async function fetch(url, timeout) {
+// Retries a 429 (Wikipedia, Steam's store); goes offline after failures in a row
+// (backend/CLAUDE.md). A body makes it a POST, which is how IGDB is asked.
+async function fetch(url, timeout, {body = null, headers = {}} = {}) {
     if (failures >= OFFLINE_AFTER_FAILURES)
         throw new Error('the network is unreachable, not asking');
     for (let attempt = 0; ; attempt++) {
-        const message = Soup.Message.new('GET', url);
+        const message = Soup.Message.new(body === null ? 'GET' : 'POST', url);
+        if (body !== null)
+            message.set_request_body_from_bytes('text/plain', new GLib.Bytes(new TextEncoder().encode(body)));
+        for (const [name, value] of Object.entries(headers))
+            message.request_headers.append(name, value);
         let bytes;
         try {
             // eslint-disable-next-line no-await-in-loop -- a retry waits for the answer before it
@@ -285,8 +303,8 @@ async function fetch(url, timeout) {
     }
 }
 
-async function getJson(url, timeout = 6) {
-    return JSON.parse(decode(await fetch(url, timeout)));
+async function getJson(url, timeout = 6, request = {}) {
+    return JSON.parse(decode(await fetch(url, timeout, request)));
 }
 
 function query(params) {
@@ -356,6 +374,7 @@ export class MetadataService {
         this._credentials = {...credentials};
         // For an empty slot 1.
         this._envCredentials = {tmdb: (GLib.getenv('LIBRARY_TMDB_KEY') ?? '').trim()};
+        this._igdbTokens = new Map();
         this._warned = new Set();
         this._refused = new Set();
         this._unflushed = 0;
@@ -363,20 +382,22 @@ export class MetadataService {
         this._index = this._loadIndex();
     }
 
+    // One string per field: IGDB's client id and secret are tab-separated in one slot.
     credential(entry) {
         let raw = this._credentials[entry];
         if (!raw && entry.endsWith('@1'))
             raw = this._envCredentials[sourceId(entry)];
-        return (raw || '').trim();
+        const parts = (raw || '').split('\t');
+        return Array.from({length: CREDENTIAL_FIELDS[sourceId(entry)] ?? 0}, (_, i) => (parts[i] ?? '').trim());
     }
 
-    // A missing credential skips the source, so TMDB can sit unkeyed in a list.
+    // A missing credential skips the source, so TMDB or IGDB can sit unkeyed in a list.
     _usable(entry) {
-        if (!CREDENTIAL_NEEDED.has(sourceId(entry)))
+        if (!CREDENTIAL_FIELDS[sourceId(entry)])
             return true;
         if (this._refused.has(entry))
             return false;
-        if (this.credential(entry))
+        if (this.credential(entry).every(Boolean))
             return true;
         const name = sourceId(entry);
         if (!this._warned.has(name)) {
@@ -476,7 +497,10 @@ export class MetadataService {
     // Sources are tried in order until one has the artwork; each fills in the facts it knows.
     async enrich(item) {
         const kind = item.kind;
-        const listed = this.sources[kind] ?? [];
+        let listed = this.sources[kind] ?? [];
+        // A game's source is its platform's: only Steam knows a Steam app, only IGDB a disc.
+        if (kind === 'game')
+            listed = listed.filter(e => sourceId(e) === (item.platform === 'steam' ? 'steam' : 'igdb'));
         if (!listed.length)
             return;
         const [key, posterFile, backdropFile] = this._paths(item);
@@ -565,7 +589,7 @@ export class MetadataService {
 
     // `entry` names the key slot: "tmdb@1" and "tmdb@2" ask with two keys.
     async _tmdb(item, media, entry) {
-        const apiKey = this.credential(entry);
+        const [apiKey] = this.credential(entry);
         const params = {
             api_key: apiKey,
             query: cleanQuery(item.title, media === 'movie' ? 'film' : 'tv'),
@@ -635,6 +659,82 @@ export class MetadataService {
         if (!film.year && m)
             film.year = Number(m[1]);
         return (summary.originalimage || summary.thumbnail)?.source;
+    }
+
+    // The store's record, and the CDN's art for what the client had not cached.
+    async _steam(item) {
+        const appid = String(item.app_id ?? '').trim();
+        if (!appid)
+            return null;
+        let data = null;
+        try {
+            const record = (await getJson(`${STEAM_STORE_API}?${query({appids: appid, l: 'english'})}`, 8))[appid];
+            data = record?.success ? record.data : null;
+        } catch (e) {
+            print(`Steam store lookup failed for '${item.title}': ${describe(e)}`);
+        }
+        if (data) {
+            fill(item, 'summary', stripHtml(data.short_description || data.about_the_game));
+            fill(item, 'genres', (data.genres ?? []).map(g => g.description).filter(Boolean));
+            const score = data.metacritic?.score;
+            fill(item, 'rating', score ? Math.round(score) / 10 : null);
+            const year = /\b(\d{4})\b/.exec(data.release_date?.date ?? '');
+            if (!item.year && year)
+                item.year = Number(year[1]);
+        }
+        const art = {};
+        if (!item.poster_path)
+            art.poster = `${STEAM_CDN}/${appid}/library_600x900.jpg`;
+        if (!item.backdrop_path)
+            art.backdrop = `${STEAM_CDN}/${appid}/library_hero.jpg`;
+        return data || Object.keys(art).length ? art : null;
+    }
+
+    // One token per slot per run, minted once however many discs ask at once.
+    _igdbToken(entry) {
+        if (!this._igdbTokens.has(entry)) {
+            const [id, secret] = this.credential(entry);
+            const url = `${IGDB_TOKEN_URL}?${query({client_id: id, client_secret: secret, grant_type: 'client_credentials'})}`;
+            this._igdbTokens.set(entry, getJson(url, 10, {body: ''}).then(answer => answer.access_token ?? null, e => {
+                print(`IGDB authentication failed: ${describe(e)}`);
+                return null;
+            }));
+        }
+        return this._igdbTokens.get(entry);
+    }
+
+    // Pinned to the PS2, so a remake on another console cannot outrank the disc.
+    async _igdb(item, entry) {
+        const token = await this._igdbToken(entry);
+        if (!token) {
+            this._refuse(entry, 'IGDB gave no token for this client id and secret');
+            return null;
+        }
+        const search = cleanQuery(item.title, 'game').replaceAll('"', '');
+        const results = await getJson(`${IGDB_API}/games`, 10, {
+            body: `search "${search}"; fields name,summary,storyline,first_release_date,total_rating,` +
+                'genres.name,cover.image_id,artworks.image_id,screenshots.image_id; ' +
+                `where platforms = (${IGDB_PS2_PLATFORM}); limit 5;`,
+            headers: {
+                'Client-ID': this.credential(entry)[0],
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json',
+            },
+        });
+        const best = results?.[0];
+        if (!best)
+            return null;
+        fill(item, 'summary', best.summary || best.storyline);
+        fill(item, 'genres', (best.genres ?? []).map(g => g.name).filter(Boolean));
+        fill(item, 'rating', best.total_rating ? Math.round(best.total_rating) / 10 : null);
+        if (!item.year && best.first_release_date)
+            item.year = new Date(best.first_release_date * 1000).getUTCFullYear();
+        const cover = best.cover?.image_id;
+        const wide = [...best.artworks ?? [], ...best.screenshots ?? []].find(w => w.image_id)?.image_id;
+        return {
+            poster: cover ? `${IGDB_IMAGE}/t_cover_big/${cover}.jpg` : null,
+            backdrop: wide ? `${IGDB_IMAGE}/t_1080p/${wide}.jpg` : null,
+        };
     }
 }
 

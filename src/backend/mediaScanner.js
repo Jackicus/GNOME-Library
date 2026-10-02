@@ -52,7 +52,7 @@ function compareKeys(a, b) {
     return a.length - b.length;
 }
 
-function sortNatural(items, keys) {
+export function sortNatural(items, keys) {
     return items
         .map(item => ({item, key: [keys(item)].flat().map(naturalKey)}))
         .sort((a, b) => {
@@ -67,7 +67,7 @@ function sortNatural(items, keys) {
 }
 
 // A refused stat returns an info without the attribute, not an error.
-function sizeMb(path) {
+export function sizeMb(path) {
     try {
         const info = Gio.File.new_for_path(path).query_info('standard::size', Gio.FileQueryInfoFlags.NONE, null);
         return info.has_attribute('standard::size')
@@ -89,7 +89,7 @@ function followedType(path) {
 
 // Name and type only, so the type comes from readdir with no stat per name.
 // A name that is not UTF-8 is skipped rather than losing the folder.
-function list(path, quiet = false) {
+export function list(path, quiet = false) {
     let entries = null;
     let unreadable = 0;
     try {
@@ -143,7 +143,7 @@ function filesWithExt(entries, extensions) {
         e => e.name).map(e => e.name);
 }
 
-function realpath(path) {
+export function realpath(path) {
     const rest = (path.startsWith('/') ? path : join(GLib.get_current_dir(), path)).split('/').reverse();
     let resolved = '';
     let hops = 0;

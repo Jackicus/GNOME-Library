@@ -1,9 +1,9 @@
 # Backend
 
 The scanner: `scanLibrary.js` (the settings, `--only` and `--force`, the lock, the
-merge and the write), `mediaScanner.js` (the folders), `metadata.js` (the
-sources and the artwork cache), `files.js` (the file helpers both use) and
-`html.js` (TVmaze's markup). `gjs -m src/backend/scanLibrary.js --help` lists
+merge and the write), `mediaScanner.js` (the folders), `gamesScanner.js` (Steam's
+and PCSX2's files), `metadata.js` (the sources and the artwork cache), `files.js`
+(the file helpers they use) and `html.js` (TVmaze's markup). `gjs -m src/backend/scanLibrary.js --help` lists
 its flags, and `make check` runs exactly that; `make scan` is a real scan, online
 with the user's keys, so it is not a test. The root `CLAUDE.md` has where its
 settings and credentials come from.
@@ -29,15 +29,34 @@ settings and credentials come from.
 - **The artwork cache.** The scanner scales on the way in, copies a cover image
   found beside the media (`mediaScanner.js` `COVER_NAMES`) in with the rest, and prunes the cache on each
   scan.
+- **Games are the launchers' bookkeeping, not a folder walk.** `gamesScanner.js`
+  reads `steamapps/libraryfolders.vdf` for every library root, one
+  `appmanifest_<appid>.acf` per title, `userdata/*/config/localconfig.vdf` for
+  playtime, and `PCSX2.ini` for the disc folders and the covers folder. Both roots
+  are auto-detected from `~`; a machine without Steam, or with PCSX2 never launched,
+  yields an empty list. Proton, the runtimes and the redistributables are skipped.
+  Every scan reads them all again: a manifest is one small file. A game carries its
+  own `launch` argv; a disc with no PCSX2 found has none, and no Play button.
+- **A game's source is its platform's**, whatever the order of `games-sources`: a
+  Steam app is Steam's keyless store record and CDN art (for what the client's
+  `appcache/librarycache` lacks), a PS2 disc is IGDB's (PCSX2's own cover first).
+  The order only decides which IGDB slot is tried first.
 - **`metadata/index.json`** holds every cached record.
-- **A credential is one slotted value.** `credential()` returns one string per slot
-  (`tmdb@1`, `tmdb@2`, …); TMDB is the only source that needs one. Where they come
+- **A credential is one slotted value.** `credential()` returns a slot's fields
+  (`tmdb@1` has one, `igdb@1` two: Twitch's client id and secret, tab-separated);
+  TMDB and IGDB are the sources that need one. Where they come
   from is the root `CLAUDE.md`'s. Never print one.
 
 ## Gotchas
 
-- **Wikipedia rate-limits bursts** (HTTP 429). `fetch` retries with backoff;
-  a film that still fails is simply retried on the next scan.
+- **Wikipedia and Steam's store rate-limit bursts** (HTTP 429). `fetch` retries
+  with backoff; an item that still fails is simply retried on the next scan.
+- **IGDB is asked with a POST** (Apicalypse: the query is the body) and a bearer
+  token minted once per slot per run from the client id and secret; a slot whose
+  token is refused is skipped for the rest of the scan.
+- **`gamesScanner.js` is a port of Games Library's `games_scanner.py`** and was
+  checked against it on the same Steam and PCSX2 fixtures: the same items, field
+  for field. Its id rules (`steam_<appid>`, `ps2_<path hash>`) are the cache's keys.
 - **A title no source had artwork for is not asked about again for a week.**
   `_save` stamps the record with `tried` and the sources that *answered* (a
   source that could not be asked — the network down, a key TMDB refused — is

@@ -9,7 +9,8 @@ import Pango from 'gi://Pango';
 import {SECTIONS as LIBRARY_SECTIONS, openCommandKey, readSections} from './lib/library.js';
 import {ACTIONS, NATIVE_KEYS, padLabel} from './lib/actions.js';
 
-// A key's Import reads ~/Documents/keys/<service>/<key.file>.
+// A credential's `fields` are tab-joined in one slot of the `credentials` setting;
+// a field's Import reads ~/Documents/keys/<service>/<field.file>.
 const SOURCES = {
     tvmaze: {
         title: 'TVmaze',
@@ -23,7 +24,7 @@ const SOURCES = {
         help: 'https://www.themoviedb.org/settings/api',
         helpHint: 'themoviedb.org → Settings → API (free for personal use)',
         service: 'TMDB',
-        key: {title: 'API key', file: 'API KEY.txt'},
+        fields: [{title: 'API key', file: 'API KEY.txt'}],
     },
     wikipedia: {
         title: 'Wikipedia',
@@ -31,7 +32,25 @@ const SOURCES = {
         help: 'https://www.wikipedia.org/',
         helpHint: 'wikipedia.org — no account needed',
     },
+    steam: {
+        title: 'Steam',
+        blurb: 'Free and keyless. Valve\'s own store record and library artwork, for installed Steam games.',
+        help: 'https://store.steampowered.com/',
+        helpHint: 'steampowered.com — no account needed',
+    },
+    igdb: {
+        title: 'IGDB',
+        blurb: 'Covers, synopses and ratings for PS2 discs, which have no store record of their own.',
+        help: 'https://dev.twitch.tv/console/apps',
+        helpHint: 'dev.twitch.tv → Applications → Register (free)',
+        service: 'IGDB',
+        fields: [
+            {title: 'Client ID', file: 'CLIENT ID.txt'},
+            {title: 'Client secret', file: 'CLIENT SECRET.txt'},
+        ],
+    },
 };
+const FIELD_SEP = '\t';
 
 const VIDEO_OPENER = {
     title: 'Video player command',
@@ -54,6 +73,16 @@ const PAGES = {
         online: 'Where posters, synopses, genres and ratings come from.',
         sources: ['tmdb', 'wikipedia'],
         opener: VIDEO_OPENER,
+    },
+    games: {
+        lower: 'games', noun: 'games',
+        layout: 'Installed Steam games come from Steam\'s own library files, libraries on other drives included. PS2 games come from the folders PCSX2.ini points at, and their covers from its covers folder.',
+        paths: [
+            {key: 'games-steam-path', title: 'Steam library', hint: 'Auto-detected — ~/.steam/steam, ~/.local/share/Steam or the flatpak install'},
+            {key: 'games-pcsx2-path', title: 'PCSX2 configuration', hint: 'Auto-detected — ~/.config/PCSX2 or the flatpak install'},
+        ],
+        online: 'A game\'s source follows its platform: Steam games use Steam, PS2 discs use IGDB. The order decides which IGDB key is tried first.',
+        sources: ['steam', 'igdb'],
     },
 };
 
@@ -136,8 +165,20 @@ export default class LibraryPreferences extends ExtensionPreferences {
         settings.set_value('credentials', new GLib.Variant('a{ss}', all));
     }
 
-    _credentialReady(settings, slot) {
-        return this._credential(settings, slot).trim() !== '';
+    _fields(settings, slot, count) {
+        const parts = this._credential(settings, slot).split(FIELD_SEP);
+        return Array.from({length: count}, (_, i) => parts[i] ?? '');
+    }
+
+    _setField(settings, slot, index, value, count) {
+        const parts = this._fields(settings, slot, count);
+        parts[index] = value;
+        this._setCredential(settings, slot, parts.some(Boolean) ? parts.join(FIELD_SEP) : '');
+    }
+
+    // The scanner skips a slot with any field empty.
+    _credentialReady(settings, slot, count) {
+        return this._fields(settings, slot, count).every(value => value.trim() !== '');
     }
 
     _pruneCredentials(settings) {
@@ -755,11 +796,17 @@ export default class LibraryPreferences extends ExtensionPreferences {
         settings.bind(`${section.prefix}-enabled`, enabled, 'active', Gio.SettingsBindFlags.DEFAULT);
         files.add(enabled);
 
-        this._foldersGroup(state, section, files);
+        if (section.paths) {
+            for (const spec of section.paths)
+                files.add(this._pathRow(state, section, spec));
+        } else {
+            this._foldersGroup(state, section, files);
+        }
 
         page.add(this._sourcesGroup(state, section));
 
-        page.add(this._openerGroup(state, section));
+        if (section.opener)
+            page.add(this._openerGroup(state, section));
 
         const library = new Adw.PreferencesGroup({title: 'Library'});
         page.add(library);
@@ -877,7 +924,7 @@ export default class LibraryPreferences extends ExtensionPreferences {
         const id = sourceId(entry);
         const spec = SOURCES[id];
         const slot = entry.includes('@') ? entry : null;
-        const field = spec?.key ?? null;
+        const fields = spec?.fields ?? [];
 
         const row = new Adw.ExpanderRow({
             title: spec?.title ?? id,
@@ -887,13 +934,13 @@ export default class LibraryPreferences extends ExtensionPreferences {
         const sync = () => {
             if (!spec)
                 row.set_subtitle('Unknown source — remove it or fix the setting');
-            else if (!slot || !field)
+            else if (!slot || !fields.length)
                 row.set_subtitle('No key needed');
             else {
                 const shared = this._sharedWith(settings, section, entry);
                 const which = `Key ${entry.split('@')[1]}`;
                 const where = shared.length ? ` · shared with ${shared.join(' and ')}` : '';
-                row.set_subtitle(this._credentialReady(settings, slot)
+                row.set_subtitle(this._credentialReady(settings, slot, fields.length)
                     ? `${which} is set${where}`
                     : `${which} is not set — skipped${where}`);
             }
@@ -933,7 +980,7 @@ export default class LibraryPreferences extends ExtensionPreferences {
             help = new Gtk.Button({
                 icon_name: 'help-about-symbolic',
                 valign: Gtk.Align.CENTER,
-                tooltip_text: field
+                tooltip_text: fields.length
                     ? `Get a ${spec.title} key — ${spec.helpHint}`
                     : `About ${spec.title} — ${spec.helpHint}`,
                 css_classes: ['flat'],
@@ -947,7 +994,7 @@ export default class LibraryPreferences extends ExtensionPreferences {
                 row.add_suffix(button);
         }
 
-        if (!field) {
+        if (!fields.length) {
             row.add_row(new Adw.PasswordEntryRow({
                 title: spec ? `${spec.title} needs no key` : 'No key',
                 sensitive: false,
@@ -955,44 +1002,48 @@ export default class LibraryPreferences extends ExtensionPreferences {
             return {row, sync};
         }
 
-        const value = new Adw.PasswordEntryRow({
-            title: field.title,
-            text: this._credential(settings, slot),
-            show_apply_button: true,
-        });
-        value.connect('apply', () => {
-            this._setCredential(settings, slot, value.get_text().trim());
-            sync();
-        });
-
-        const dropFile = this._keyDropFile(spec.service, field.file);
-        if (dropFile) {
-            const importBtn = new Gtk.Button({
-                label: 'Import',
-                valign: Gtk.Align.CENTER,
-                tooltip_text: `Read it from ${dropFile}`,
-                css_classes: ['flat'],
+        const values = fields.map((field, i) => {
+            const value = new Adw.PasswordEntryRow({
+                title: field.title,
+                text: this._fields(settings, slot, fields.length)[i],
+                show_apply_button: true,
             });
-            importBtn.connect('clicked', () => {
-                const imported = this._readKeyDrop(dropFile);
-                if (!imported)
-                    return;
-                value.set_text(imported);
-                this._setCredential(settings, slot, imported);
+            value.connect('apply', () => {
+                this._setField(settings, slot, i, value.get_text().trim(), fields.length);
                 sync();
             });
-            value.add_suffix(importBtn);
-        }
-        row.add_row(value);
+            const dropFile = this._keyDropFile(spec.service, field.file);
+            if (dropFile) {
+                const importBtn = new Gtk.Button({
+                    label: 'Import',
+                    valign: Gtk.Align.CENTER,
+                    tooltip_text: `Read it from ${dropFile}`,
+                    css_classes: ['flat'],
+                });
+                importBtn.connect('clicked', () => {
+                    const imported = this._readKeyDrop(dropFile);
+                    if (!imported)
+                        return;
+                    value.set_text(imported);
+                    this._setField(settings, slot, i, imported, fields.length);
+                    sync();
+                });
+                value.add_suffix(importBtn);
+            }
+            row.add_row(value);
+            return value;
+        });
 
         return {
             row,
             sync: () => {
-                const current = this._credential(settings, slot);
-                // Not while typed into: the keys are in the row's text widget, so focus-within.
-                const typing = value.get_state_flags() & Gtk.StateFlags.FOCUS_WITHIN;
-                if (!typing && value.get_text() !== current)
-                    value.set_text(current);
+                const current = this._fields(settings, slot, fields.length);
+                values.forEach((value, i) => {
+                    // Not while typed into: the keys are in the row's text widget, so focus-within.
+                    const typing = value.get_state_flags() & Gtk.StateFlags.FOCUS_WITHIN;
+                    if (!typing && value.get_text() !== current[i])
+                        value.set_text(current[i]);
+                });
                 sync();
             },
         };
@@ -1005,7 +1056,7 @@ export default class LibraryPreferences extends ExtensionPreferences {
         const spec = SOURCES[id];
 
         let entry = id;
-        if (spec?.key) {
+        if (spec?.fields?.length) {
             let n = 1;
             while (list.includes(`${id}@${n}`))
                 n++;
@@ -1033,6 +1084,41 @@ export default class LibraryPreferences extends ExtensionPreferences {
         const docs = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_DOCUMENTS) ?? GLib.get_home_dir();
         const path = GLib.build_filenamev([docs, 'keys', service, field]);
         return GLib.file_test(path, GLib.FileTest.IS_REGULAR) ? path : null;
+    }
+
+    // One folder that overrides auto-detection; empty is auto-detected.
+    _pathRow(state, section, spec) {
+        const {settings} = state;
+        const row = new Adw.ActionRow({title: spec.title, activatable: true});
+        const reset = new Gtk.Button({
+            icon_name: 'edit-clear-symbolic',
+            valign: Gtk.Align.CENTER,
+            tooltip_text: 'Back to auto-detection',
+            css_classes: ['flat'],
+        });
+        const pick = new Gtk.Button({
+            icon_name: 'folder-open-symbolic',
+            valign: Gtk.Align.CENTER,
+            tooltip_text: 'Choose folder',
+            css_classes: ['flat'],
+        });
+        row.add_suffix(reset);
+        row.add_suffix(pick);
+        const sync = () => {
+            const path = settings.get_string(spec.key);
+            row.set_subtitle(path || spec.hint);
+            reset.visible = path !== '';
+            if (path)
+                this._checkFolder(row, path, () => settings.get_string(spec.key) === path);
+        };
+        const choose = () => this._pickFolder(state.window, `Choose the ${spec.title.toLowerCase()}`,
+            settings.get_string(spec.key) || null, path => settings.set_string(spec.key, path));
+        pick.connect('clicked', choose);
+        row.connect('activated', choose);
+        reset.connect('clicked', () => settings.set_string(spec.key, ''));
+        settings.connect(`changed::${spec.key}`, sync);
+        sync();
+        return row;
     }
 
     _foldersGroup(state, section, group) {
@@ -1173,7 +1259,7 @@ export default class LibraryPreferences extends ExtensionPreferences {
                 return;
             }
             // One with no folder still runs if it has items left to clear.
-            const ready = enabled.filter(s =>
+            const ready = enabled.filter(s => s.launchers ||
                 state.settings.get_strv(`${s.prefix}-folders`).length || state.counts[s.key]);
             if (!ready.length) {
                 content.set_label('No folder set');

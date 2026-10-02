@@ -280,6 +280,8 @@ export class DetailView {
             main.add_child(createLabel(item.tagline, 'ml-tagline'));
 
         const facts = new St.BoxLayout({style_class: 'ml-facts', y_align: Clutter.ActorAlign.CENTER});
+        if (item.subtitle)
+            facts.add_child(createPill(item.subtitle, 'ml-fact ml-fact-strong'));
         if (item.year)
             facts.add_child(createPill(String(item.year), 'ml-fact'));
         if (item.rating)
@@ -383,6 +385,7 @@ export class DetailView {
                     subtitle: entry.subtitle,
                     badges: entry.badges,
                     size: entry.size,
+                    icon: entry.icon,
                     onActivate: () => this._open(entry.path),
                     watched: tracker && entry.path ? tracker.isWatched(entry.path) : null,
                     onWatched: watched => tracker.setWatched(entry.path, watched),
