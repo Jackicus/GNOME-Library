@@ -5,9 +5,8 @@ Shared rules for every extension come from the GNOME-EXTENSIONS kit: `../CLAUDE.
 A GNOME Shell extension (UUID `library@jackicus`) that shows a library of TV shows,
 films and games, opened from one button beside Show Apps: in the overview, in a
 pop-up panel, on the wallpaper or on a workspace of its own, as a setting says.
-`metadata.json` claims GNOME Shell 50 only. The code is written for 48 to 50; 48
-and 49 are read against the shell's sources but never booted, and 51 breaks it
-(`docs/compatibility.md`). The name is the same
+`metadata.json` claims GNOME Shell 50 only, and the code is written for 50 alone, with
+no fallback for an older shell; 51 breaks it (`docs/compatibility.md`). The name is the same
 throughout: `metadata.json`'s `name`, the UUID, the schema
 `org.gnome.shell.extensions.library`, the cache and data folders, the
 `[Library]` log prefix and the `Library*` GObject class names.

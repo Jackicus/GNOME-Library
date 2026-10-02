@@ -15,10 +15,9 @@ an `if`, and then the only sign is the symptom, with nothing logged.
 
 | Expression | File | If it changes | Guarded |
 |---|---|---|---|
-| `Main.layoutManager._backgroundGroup` | app.js | The surface goes under `global.window_group` instead | Yes |
+| `Main.layoutManager._backgroundGroup` | app.js | Building the surface throws; no `desktop` or `workspaces` place | No |
 | `workspace._keepAliveId` (read and set) | app.js | A workspace the library or pane is on is folded away under it; a workspace the shell holds mid drag-and-drop can be claimed | No, and silent |
 | `Main.wm._workspaceTracker._queueCheckWorkspaces()` | app.js | A released workspace folds away on the shell's next check, not at once | Yes, `?.` |
-| Restated `WINDOW_ANIMATION_TIME` (`WORKSPACE_SLIDE_TIME`) | app.js | A claimed workspace is released a little before or after the slide ends | No |
 | `Dash.ShowAppsIcon`, its `_createIcon`, `_iconActor` | libraryButton.js | The subclass throws building; no button, a warning | Yes, try/catch |
 | `Main.overview.dash._dashContainer`, `dash._hookUpLabel` | libraryButton.js | No button in the dash; no hover label | Yes, `?.` |
 | `global.dashToPanel.panels[0]`, `panels-created`, `.showAppsIconWrapper.realShowAppsIcon`, `.panel`, `._updateGroupedElements` (wrapped), `.geom`, `.updateElementPositions` | libraryButton.js | The button goes in the dash instead | Yes, each checked first |
@@ -124,7 +123,7 @@ id someone else set. The public `Main.wm.keepWorkspaceAlive(workspace,
 duration)` writes the same field but expires on a clock, and the hold here
 lasts as long as the library is open. `_queueCheckWorkspaces()` is called
 after a release and a claim so the tracker re-checks at once.
-`_releaseWorkspaces()` waits `WORKSPACE_SLIDE_TIME` (through
+`_releaseWorkspaces()` waits `workspaceAnimation.js`'s `WINDOW_ANIMATION_TIME` (through
 `adjustAnimationTime`, plus 50 ms) before giving up a workspace being left.
 
 ## The overview previews and the workspace slide (overviewPreview.js)
