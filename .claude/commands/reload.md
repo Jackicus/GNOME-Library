@@ -18,7 +18,7 @@ which is the user's to do.
 2. `./scripts/nested.sh reload`. It waits for ACTIVE.
 3. `./scripts/nested.sh logs 40` and report whether it came up clean. A healthy
    reload logs `[Library] Enabled from
-   $XDG_RUNTIME_DIR/library@jackicus/shell-<pid>/lib-<checksum>` (a new checksum when
+   $XDG_RUNTIME_DIR/library/shell-<pid>/lib-<checksum>` (a new checksum when
    `lib/` changed); `[Library] Rebuilt` follows a rescan or a setting's change.
    Anything with `Failed to load`, `Error during disable`, or a JS stack trace
    under a `[Library]` line is a real failure: quote it and say which file

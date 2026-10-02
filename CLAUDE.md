@@ -33,7 +33,7 @@ the same idea for games and runs alongside this one: see the last section.
   the code keeps to a line), `screenshots/` (the README's).
 - `scripts/`: the kit's `dev.sh`, `nested.sh`, `nested_driver.py`, `kit.mk` and
   `dev-extension.js` (the entry point `make link` installs, staging `lib/` under
-  `$XDG_RUNTIME_DIR/library@jackicus/shell-<pid>/lib-<checksum>`), changed only in the
+  `$XDG_RUNTIME_DIR/library/shell-<pid>/lib-<checksum>`), changed only in the
   kit; this extension's own `ext.conf`, `dev.d/library.sh` (`scan`, `prune`,
   `stalls`, the `scanner` check, the cache and library `status` lines) and
   `nested.d/library.sh` (the made-up library under `start --stand-in`);

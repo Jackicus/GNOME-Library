@@ -114,7 +114,7 @@ No `disable()` is async, which 51 now rejects.
    Blur my Shell on and off: the pop-up's shade follows a folder's.
 9. Under `make link`, disable and enable ten times: no errors, and one
    `lib-<checksum>` directory left under
-   `$XDG_RUNTIME_DIR/library@jackicus/shell-<pid>/`, the shell's own.
+   `$XDG_RUNTIME_DIR/library/shell-<pid>/`, the shell's own.
 10. With Games Library enabled too, repeat 5 to 8, and disable each in turn:
     the other's button, folded workspace row and app-grid view stay.
 11. Then add the version to `shell-version`.
