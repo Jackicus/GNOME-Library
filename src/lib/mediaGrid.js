@@ -1,18 +1,5 @@
-// The library grid: the shell's own app grid, holding posters instead of apps.
-//
-// One grid serves every view — the pages drawn on the wallpaper (app.js), the
-// pages in the overview's app-grid slot (mediaMenu.js) and the pages in the
-// folder's panel (libraryWindow.js) — so paging, swipe, the page dots, the
-// hover arrows, scroll-wheel paging and keyboard focus are the shell's
-// everywhere, and Video Library only says what a tile is.
-//
-// A view is a subclass of the class the app grid itself is built on, and a
-// tile is an AppViewItem around a BaseIcon styled `overview-tile`. Three
-// things are ours, because the shell's grid is made for square icons: the icon
-// asks for the shape of its artwork rather than a square, the layout places
-// cells of that shape the theme's gap apart, and a view builds the pages in
-// reach of the one showing rather than a tile for everything owned — a library
-// runs to thousands where an app grid runs to dozens.
+// The shell's own app grid, holding posters instead of apps. A library runs to
+// thousands, so only the pages in reach of the one showing are built.
 
 import GObject from 'gi://GObject';
 import Clutter from 'gi://Clutter';
@@ -28,53 +15,29 @@ import {createArtwork} from './widgets.js';
 // Not exported by the shell, but it is what AppDisplay extends.
 const BaseAppView = Object.getPrototypeOf(AppDisplay.AppDisplay);
 
-// Every number below is logical pixels, as the theme writes them, and is
-// multiplied by the scale factor where it meets an allocation.
-//
-// The smallest a cover is allowed to get; it is what caps "columns" and "rows".
+// Logical pixels, as the theme writes them.
 const MIN_ART = 96;
-// .icon-grid column-spacing/row-spacing (data/theme/…/_app-grid.scss), the
-// value the theme hands the layout; only gridFor, which runs before the grid
-// exists, needs it here.
+// .icon-grid's column-spacing and row-spacing in the shell theme.
 const GAP = 12;
-// What an `overview-tile` adds around its artwork: 12px of padding on each
-// side, and beneath it a 6px gap and one line of label.
+// An overview-tile's padding, and its label beneath the artwork.
 const TILE_PADDING = 24;
 const TILE_CHROME = 56;
-// A second line of that label, left free under the bottom row: a hovered tile
-// there wraps its title downwards like any other, and the page edge would
-// otherwise cut the line off.
+// Room for a hovered title in the bottom row to wrap to a second line.
 const TITLE_LINE = 20;
-// The `icon-grid` theme's page padding.
 const PAGE_PADDING_V = 48;
 const PAGE_PADDING_H = 36;
-// Beside the grid: a tenth of the width each side, where the page arrows
-// stand (the shell's PAGE_PREVIEW_RATIO). Beneath it: the page dots.
+// The shell's PAGE_PREVIEW_RATIO each side, for the page arrows.
 const ARROWS_SHARE = 0.2;
 const DOTS_HEIGHT = 36;
-// Pages built beyond the one showing, so the next is there to swipe to.
 const PAGES_AHEAD = 2;
 
-// The `grid-align` setting: 'center' places a part-full row as the app grid
-// does, under the middle of the full ones, 'start' lines it up on the leading
-// edge. The block itself is always centred. Read by the layout as it
-// allocates, so it is set before any grid is built and a change rebuilds them
-// all (app.js).
 let gridAlign = 'center';
 export function setGridAlign(align) {
     gridAlign = align === 'start' ? 'start' : 'center';
 }
 
-// Rows, columns and the artwork height that fills them, for the box a view is
-// given. Decided once, before any item is added: the layout pages items as
-// they arrive and does not page them again when the mode changes (the shell's
-// own modes all hold twenty-four).
-//
-// `columns` and `rows` are the two "covers per page" preferences, and they
-// lead: the cover is whatever size that many of them come to in the width and
-// height on offer. Each is capped by how many fit at MIN_ART, which is what
-// makes the smallest box — the overview's grid slot — the bottleneck, in one
-// place, for all three views.
+// Decided before any item is added: the layout does not page items again
+// when the mode changes.
 function gridFor(width, height, aspect, wantColumns, wantRows) {
     const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
     const gap = GAP * scale;
@@ -85,37 +48,28 @@ function gridFor(width, height, aspect, wantColumns, wantRows) {
     const gridW = width * (1 - ARROWS_SHARE) - PAGE_PADDING_H * scale;
     const gridH = height - (DOTS_HEIGHT + PAGE_PADDING_V + TITLE_LINE) * scale;
 
-    // How many columns fit at the smallest cover.
     const fitColumns = Math.floor((gridW + gap) / (minArt / aspect + pad + gap));
     const columns = Math.max(1, Math.min(wantColumns, fitColumns));
     const cellW = Math.floor((gridW - gap * (columns - 1)) / columns);
     const byWidth = Math.floor((cellW - pad) * aspect);
 
-    // How many rows fit at the smallest cover, the same way.
     const forRows = n => Math.floor((gridH + gap) / n - chrome - gap);
     const fitRows = Math.floor((gridH + gap) / (minArt + chrome + gap));
     const rows = Math.max(1, Math.min(wantRows, fitRows));
 
-    // The cover is the largest it can be before either axis is hit: that many
-    // columns across, or that many rows down. The other axis is left with
-    // slack, and the layout centres the block in it.
     const iconSize = Math.max(minArt, Math.min(byWidth, forRows(rows)));
 
     return {rows, columns, iconSize};
 }
 
-// The shell's layout takes the larger of an item's width and height as the
-// side of every cell. This one keeps the two apart, sets the cells the theme's
-// gap apart and centres the block on the page. Paging is untouched.
+// The shell's layout makes every cell a square; posters are not.
 const PosterGridLayout = GObject.registerClass(
 class VideoLibraryPosterGridLayout extends IconGrid.IconGridLayout {
     vfunc_allocate() {
         if (!this._pageWidth || !this._pageHeight)
             return;
 
-        // Every tile of a view is the same size, so the cell is one tile's
-        // answer rather than all of them — this runs on each frame the
-        // overview moves.
+        // Every tile is the same size; this runs on each frame the overview moves.
         const first = this._pages[0]?.visibleChildren[0];
         if (!first)
             return;
@@ -123,9 +77,7 @@ class VideoLibraryPosterGridLayout extends IconGrid.IconGridLayout {
         const cellH = first.get_preferred_height(-1)[0];
 
         const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
-        // IconGrid.vfunc_style_changed (js/ui/iconGrid.js) fills these from
-        // the theme, already scaled — never scale them again. They are 0
-        // until the first style change, hence the fallback.
+        // Already scaled by the theme, and 0 until the first style change.
         const hGap = this.columnSpacing || GAP * scale;
         const vGap = this.rowSpacing || GAP * scale;
 
@@ -133,15 +85,6 @@ class VideoLibraryPosterGridLayout extends IconGrid.IconGridLayout {
         const {columnsPerPage: columns, rowsPerPage: rows, pagePadding: pad} = this;
         const blockW = columns * cellW + (columns - 1) * hGap;
         const blockH = rows * cellH + (rows - 1) * vGap;
-        // IconGridLayout._calculateSpacing's pageHalign/pageValign CENTER
-        // (js/ui/iconGrid.js), done by hand because that one takes a single
-        // square childSize and ours is a poster. The block is centred
-        // whatever `grid-align` says: the setting is where a part-full row
-        // sits under the full ones, not where the block sits on the page.
-        // gridFor shrinks the cover to fit the "rows" and "columns" settings
-        // exactly, so the block can be well short of the page width — a block
-        // hugging the leading edge instead would put all of that in one gap
-        // on the trailing side.
         const centred = gridAlign === 'center';
         const left = pad.left + Math.max(0, (this._pageWidth - pad.left - pad.right - blockW) / 2);
         const top = pad.top +
@@ -154,12 +97,6 @@ class VideoLibraryPosterGridLayout extends IconGrid.IconGridLayout {
             page.visibleChildren.forEach((item, index) => {
                 const column = rtl ? columns - 1 - index % columns : index % columns;
                 const row = Math.floor(index / columns);
-                // _getRowPadding with lastRowAlign CENTER (js/ui/iconGrid.js),
-                // which this override skips past: a part-full last row is
-                // centred under the full ones instead of hugging the start,
-                // unless `grid-align` says start. Passing `last_row_align` in
-                // the params would do nothing, since the parent's own loop
-                // never runs.
                 const inRow = Math.min(columns, page.visibleChildren.length - row * columns);
                 const rowOffset = centred
                     ? (rtl ? -1 : 1) * (columns - inRow) * (cellW + hGap) / 2
@@ -168,21 +105,13 @@ class VideoLibraryPosterGridLayout extends IconGrid.IconGridLayout {
                     Math.floor(pageIndex * this._pageWidth + left + rowOffset +
                         column * (cellW + hGap)),
                     Math.floor(top + row * (cellH + vGap)));
-                // A tile whose title is too long for one line wraps it to
-                // two while it is hovered or focused (AppViewItem does that
-                // for us) and clips itself to its allocation as it goes, so
-                // the cell is a floor and not a ceiling, exactly as the
-                // shell's own layout has it. Asked for the same width every
-                // time, the answer is Clutter's cached one until the wrap
-                // actually changes.
+                // A hovered tile wraps its title, so the cell is a floor.
                 box.set_size(cellW, Math.max(cellH, item.get_preferred_height(cellW)[1]));
                 item.allocate(box);
             });
         });
 
         this._pageSizeChanged = false;
-        // The parent eases items into their new places when the grid is
-        // reordered; nothing here ever reorders, so the flag is only cleared.
         this._shouldEaseItems = false;
     }
 });
@@ -197,11 +126,7 @@ class VideoLibraryMediaGrid extends AppDisplay.AppGrid {
         });
         this.setGridModes([{rows, columns}]);
 
-        // The grid makes its own layout and offers no way to choose it. The
-        // one it made goes unreferenced here on purpose: the `IconGrid`
-        // class's own constructor (`js/ui/iconGrid.js`, not `IconGridLayout`'s)
-        // closes over it, so it stays alive and disconnects itself without
-        // our help.
+        // The layout IconGrid made stays alive in its constructor's closure.
         const layout = new PosterGridLayout({
             allow_incomplete_pages: true,
             orientation: Clutter.Orientation.HORIZONTAL,
@@ -214,8 +139,7 @@ class VideoLibraryMediaGrid extends AppDisplay.AppGrid {
     }
 });
 
-// A BaseIcon is a square bin: it asks for the larger of its child's width and
-// height both ways. This one asks for what its child does, as a plain bin.
+// A BaseIcon asks for a square; this one asks for its child's shape.
 const PosterIcon = GObject.registerClass(
 class VideoLibraryPosterIcon extends IconGrid.BaseIcon {
     vfunc_get_preferred_width(forHeight) {
@@ -240,7 +164,6 @@ class VideoLibraryMediaItem extends AppDisplay.AppViewItem {
         this.item = item;
         this.order = order;
 
-        // The icon's size is the height of its artwork.
         this.icon = new PosterIcon(item.title, {
             setSizeManually: true,
             createIcon: size => createArtwork({
@@ -252,19 +175,15 @@ class VideoLibraryMediaItem extends AppDisplay.AppViewItem {
             }),
         });
         this.set_child(this.icon);
-        // The tile goes along, for whatever the pick zooms or flies out of.
         this.connect('clicked', () => onActivate(section.key, item, this));
     }
 
-    // The artwork itself, which the hero flight takes off from. A BaseIcon
-    // keeps what its createIcon built as `icon`.
     get artwork() {
         return this.icon.icon;
     }
 });
 
-// _createGrid() is called from the parent's _init, before there is a `this`
-// to have kept the parameters on.
+// _createGrid() runs in the parent's _init, before `this` can hold parameters.
 let pendingGrid = null;
 
 const MediaView = GObject.registerClass(
@@ -277,36 +196,17 @@ class VideoLibraryMediaView extends BaseAppView {
         });
         this.add_child(this._box);
 
-        // BaseAppView re-runs _redisplay — a diff over every tile built so
-        // far — whenever an app is pinned to the dash or the parental filter
-        // changes (BaseAppView's own signal connections, js/ui/appDisplay.js).
-        // Neither has anything to say about media, so both hooks go.
+        // Pinning an app or a parental filter change would redisplay every tile.
         this._parentalControlsManager.disconnectObject(this);
         this._appFavorites.disconnectObject(this);
 
-        // The arrow keys walk a grid because St is asked to walk it: the focus
-        // manager navigates within the nearest registered group around what is
-        // focused. The shell registers the app grid the long way round, as a
-        // Ctrl+Alt+Tab target — `ControlsManager`'s own call to
-        // `focus_manager.add_group` for it, in `js/ui/overviewControls.js` —
-        // a grid of ours is not one of those, so it registers itself. A group
-        // further out — the whole surface, say — leaves the arrows with
-        // nothing to move between.
         global.focus_manager.add_group(this);
         this.connect('destroy', () => global.focus_manager.remove_group(this));
 
-        // A remote's keys, or the user's own, reach the grid before anything
-        // around it: in the overview there is nothing of ours around it.
         this.connect('key-press-event', (_view, event) => handleBoundKey(event)
             ? Clutter.EVENT_STOP : Clutter.EVENT_PROPAGATE);
 
-        // The page dots keep their room whether or not they show. The shell
-        // hides them for a single page (PageIndicators.setNPages, in
-        // js/ui/pageIndicators.js) and re-centres the grid into the space —
-        // without this, a section with one page would sit a few pixels lower
-        // than one with two, for the same covers. gridFor budgets
-        // DOTS_HEIGHT for every view, so the dots are faded rather than
-        // dropped and every section lands the same.
+        // The dots keep their room on a one-page section (.claude/rules/layout.md).
         const dots = this._pageIndicators;
         const holdRoom = () => {
             if (!dots.visible) {
@@ -317,9 +217,7 @@ class VideoLibraryMediaView extends BaseAppView {
             }
         };
         dots.connect('notify::visible', holdRoom);
-        // And once the page count has settled: the shell's own handler of
-        // this signal is what calls setNPages, and this is connected after
-        // it, so the dots are looked at with their final count.
+        // Connected after the shell's own handler, which sets the page count.
         this._grid.connect('pages-changed', holdRoom);
         holdRoom();
 
@@ -333,9 +231,7 @@ class VideoLibraryMediaView extends BaseAppView {
         this._fillTo(0);
     }
 
-    // Tiles up to PAGES_AHEAD pages past `page`, appended in order. Straight
-    // into the grid: the view's own _redisplay diffs every item against every
-    // other, which is nothing for the apps and seconds for a big library.
+    // Straight into the grid: _redisplay's diff takes seconds on a big library.
     _fillTo(page) {
         const want = Math.min(this._data.length, (page + 1 + PAGES_AHEAD) * this._perPage);
         while (this._media.length < want) {
@@ -348,61 +244,45 @@ class VideoLibraryMediaView extends BaseAppView {
             });
             this._media.push(item);
             this._byId.set(this._data[order].id, item);
-            // Placed outright rather than appended: told to append, the grid
-            // keeps its own counsel about where a new tile goes (an app that
-            // has just been installed is kept off the first page), and the
-            // library's own order is the only one that makes sense here.
+            // Placed outright: appended, the grid keeps new apps off the first page.
             this._addItem(item, Math.floor(order / this._perPage), order % this._perPage);
         }
     }
 
-    // Every way of turning the page comes through here.
+    // The parent's _init calls this before _data is set.
     goToPage(page, animate = true) {
         if (this._data)
             this._fillTo(page);
         super.goToPage(page, animate);
     }
 
-    // The tile showing `itemId`, if it has been built: where the detail pane's
-    // artwork flies back to.
     tileFor(itemId) {
         return this._byId.get(itemId) ?? null;
     }
 
-    // Stagger in the tiles of the page on show, the way the app grid settles.
     reveal() {
         const start = this._shownPage() * this._perPage;
         staggerIn(this._media.slice(start, start + this._perPage));
     }
 
-    // Where the keyboard starts: the first tile of the page being shown, not
-    // wherever the focus chain happens to begin — that can be a page away, and
-    // the grid would page over to it.
     focusFirst() {
         const item = this._media[this._shownPage() * this._perPage] ?? this._media[0];
         item?.grab_key_focus();
         return !!item;
     }
 
-    // Whether `actor` is a tile on the top row of its page: an arrow up from
-    // there has nowhere in the grid to go, and leaves it for the tabs above.
     atTopRow(actor) {
         const order = this._media.indexOf(actor);
         return order >= 0 && order % this._perPage < this._columns;
     }
 
-    // Which page is showing is the scroll adjustment's answer, not the
-    // grid's: the grid's own idea of it is whatever the last batch of tiles
-    // left behind.
+    // The adjustment's answer, not the grid's, which the last batch of tiles moved.
     _shownPage() {
         const {value, page_size: pageSize} = this._adjustment;
         return pageSize > 0 ? Math.round(value / pageSize) : 0;
     }
 
-    // A page on or back, from a remote or a controller: the shell's grid
-    // turns a page for the scroll wheel, a swipe and its arrows, but not for
-    // a key. The keyboard goes with it to the new page's first tile — left a
-    // page behind, the next arrow would turn it straight back.
+    // The shell's grid turns no page for a key; the focus goes along with it.
     pageBy(delta) {
         const page = this._shownPage() + delta;
         if (page < 0 || page * this._perPage >= this._data.length)
@@ -416,8 +296,6 @@ class VideoLibraryMediaView extends BaseAppView {
         return new MediaGrid(pendingGrid);
     }
 
-    // Whatever asks the view to redisplay, the answer is the items built so
-    // far, not new ones.
     _loadApps() {
         return [...this._media];
     }
@@ -427,13 +305,10 @@ class VideoLibraryMediaView extends BaseAppView {
     }
 });
 
-// A view of `items` for the box it is given. `columns` and `rows` are the
-// grid-shape settings, which every caller passes.
 export function createMediaView({section, items, width, height, columns, rows, onActivate}) {
     pendingGrid = gridFor(width, height, section.aspect, columns, rows);
     const view = new MediaView({section, items, onActivate});
-    // Filling the grid moves it: each batch of tiles makes another page, and
-    // the grid follows the one it has just made. Start at the first.
+    // Each batch of tiles moves the grid to the page it made.
     view.goToPage(0, false);
     return view;
 }
