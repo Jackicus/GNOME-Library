@@ -14,11 +14,16 @@
 #   ./scripts/dev.sh scanner    the scanner's whole import graph, offline in a scratch
 #                               home, and the Python scripts byte-compiled; one of
 #                               'check's
+#   ./scripts/dev.sh import-settings [--force]
+#                               carry Video Library's and Games Library's settings,
+#                               cache and watched marks into Library's (the owner's own
+#                               session, once; scripts/import_settings.py says what)
 #
 # 'status' adds the cache and the library's size per section.
 
 # Append to this on each rename so 'prune' sweeps up every superseded build.
-LEGACY_UUIDS=("gnomeflix@jackt" "media-workspace-desktop@jackt" "media-libraries@jackt")
+LEGACY_UUIDS=("gnomeflix@jackt" "media-workspace-desktop@jackt" "media-libraries@jackt"
+    "video-library@jackicus" "games-library@jackicus")
 # As GLib.get_user_cache_dir() resolves it in the extension.
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/library@jackicus"
 
@@ -53,6 +58,11 @@ cmd_uninstall() {
     remove_installed
     ok "Removed $EXT_DIR"
     cmd_prune
+}
+
+cmd_import_settings() {
+    require python3
+    python3 "$REPO_DIR/scripts/import_settings.py" "$@"
 }
 
 # A freeze is over by the time anyone looks; this leaves a log of what stalled.
