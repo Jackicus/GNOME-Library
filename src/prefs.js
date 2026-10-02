@@ -97,6 +97,7 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
             counts: this._readCounts(),
             refreshCounts: [],
             padMonitor: null,
+            padHandlers: [],
         };
         this._migrateFolders(settings);
 
@@ -105,10 +106,12 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         for (const section of SECTIONS)
             window.add(this._sectionPage(state, section));
 
-        // The Extensions app outlives its windows; a controller monitor left
-        // to the garbage collector keeps its device files open until then.
+        // The Extensions app outlives its windows: no handler of a closed one
+        // may stay connected to a controller.
         window.connect('close-request', () => {
-            state.padMonitor?.run_dispose();
+            for (const [object, id] of state.padHandlers)
+                object.disconnect(id);
+            state.padHandlers = [];
             state.padMonitor = null;
             return false;
         });
@@ -698,7 +701,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
             for (const [object, id] of handlers)
                 object.disconnect(id);
             handlers.length = 0;
-            monitor.run_dispose();
         });
     }
 
@@ -709,19 +711,21 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
             return;
         }
         const monitor = state.padMonitor = new Manette.Monitor();
+        const listen = (object, signal, handler) =>
+            state.padHandlers.push([object, object.connect(signal, handler)]);
         const names = new Map();
         const sync = () => {
             row.subtitle = names.size ? [...names.values()].join(', ') : 'None';
         };
         const add = device => {
             names.set(device, device.get_name());
-            device.connect('disconnected', () => {
+            listen(device, 'disconnected', () => {
                 names.delete(device);
                 sync();
             });
             sync();
         };
-        monitor.connect('device-connected', (_m, device) => add(device));
+        listen(monitor, 'device-connected', (_m, device) => add(device));
         const devices = monitor.iterate();
         let device;
         while (([, device] = devices.next()) && device)
