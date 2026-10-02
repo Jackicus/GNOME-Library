@@ -12,9 +12,6 @@ throughout: `metadata.json`'s `name`, the UUID, the schema
 `org.gnome.shell.extensions.library`, the cache and data folders, the
 `[Library]` log prefix and the `Library*` GObject class names.
 
-A sibling, **Games Library** (`games-library@jackicus`, `GNOME-Games-Library`), is
-the same idea for games and runs alongside this one: see the last section.
-
 ## Layout
 
 - `src/` ships as far as `./scripts/ext.conf`'s `EXT_SHIP` says: the entry points,
@@ -175,21 +172,12 @@ and API keys (the skill says how).
 read and labelled so; `make reload` is the user's own session, theirs to run, and `/scan`
 is the real scan, run only when the user types it.
 
-## Coexisting with Games Library
+## Running next to other extensions
 
-The two run enabled at once and subclass the same shell classes, so nothing here may
-assume it is the only extension reaching into the shell:
-
-- every registered GObject class is `Library*`, never the bare shell name;
-  stylesheet classes are `ml-`; the pop-up's blur effect is named
-  `library-panel-blur` (`panel.js` `BLUR`), Games Library's
-  `games-library-panel-blur`;
-- both wrap Dash to Panel's `_updateGroupedElements` and the overview layout's
-  `_getAppDisplayBoxForState`, chain-safely (`docs/private-api.md`, "Chain-safe
-  wraps");
-- in the `menu` library, our button pressed while Games Library's view fills the
-  app-grid slot closes the overview and reopens it onto ours rather than drawing over
-  it, and Games Library does the same in reverse (`mediaMenu.js` `open()`, `_next`),
-  the one place either reads what the other put there;
-- the Home action's default bindings differ (`keys-home`, `pad-home` in each
-  schema), so out of the box a remote's or controller's Home drives only one.
+Docks, Dash to Panel, Blur my Shell and Wallpaper FX reach the same places, so
+nothing here assumes it is the only extension in the shell: every registered
+GObject class is `Library*`, stylesheet classes are `ml-`, the pop-up's blur effect
+is `library-panel-blur` (`panel.js` `BLUR`), and the three wraps (Dash to Panel's
+`_updateGroupedElements`, the overview layout's `_getAppDisplayBoxForState`, the
+workspace slide's `_prepareWorkspaceSwitch`) are chain-safe
+(`docs/private-api.md`, "Chain-safe wraps").

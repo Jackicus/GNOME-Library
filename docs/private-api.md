@@ -29,7 +29,6 @@ an `if`, and then the only sign is the symptom, with nothing logged.
 | `controls._stateAdjustment` | mediaMenu.js | The workspace row is not folded in step with the overview | Yes, `?.` |
 | `controls._workspacesDisplay` (`.opacity`, `.reactive`, `setPrimaryWorkspaceVisible`) | mediaMenu.js, overviewPreview.js | The row is never faded, so it stays over the posters and takes their clicks; no clones in the previews | Yes, `?.` |
 | `controls.layout_manager._getAppDisplayBoxForState` (wrapped) | mediaMenu.js | The slot never grows over the workspace row | Yes, `typeof` check |
-| `Object.getPrototypeOf(this)._getAppDisplayBoxForState` | mediaMenu.js | The next view is sized for a slot another extension's wrap grew | Yes, falls back to the stock result |
 | Restated `DASH_MAX_HEIGHT_RATIO`, `VERTICAL_SPACING_RATIO`, and `_slotSize()` restating `ControlsManagerLayout.vfunc_allocate` | mediaMenu.js | A view built before the overview ever laid out is a little off until next built | No |
 | `Object.getPrototypeOf(AppDisplay.AppDisplay)` (`BaseAppView`) | mediaGrid.js | `mediaGrid.js` throws as it loads; the extension does not load | No |
 | `BaseAppView`'s `_parentalControlsManager`, `_appFavorites`, `_box`, `_pageIndicators`, `_grid` | mediaGrid.js | `MediaView`'s constructor throws; no grid anywhere | No |
@@ -75,9 +74,7 @@ The row of small workspaces folds away by wrapping
 `ControlsManagerLayout._getAppDisplayBoxForState` (`_foldWorkspaces()`), the
 method that computes the app grid's box for each overview state: there is no
 hook for that layout. The wrap also records the slot (`menu._slot`) for a view
-that has to be built before it is ever laid out. That size is asked of the
-prototype's method, the shell's own, because the closed-over `stock` can be
-Games Library's wrap, already grown for its view. `_slotSize()` works the same
+that has to be built before it is ever laid out. `_slotSize()` works the same
 slot out step for step for a button pressed before the overview has ever been
 shown, with the two ratios restated from `overviewControls.js`.
 
@@ -150,18 +147,17 @@ removed at disable (`removeSlideHook`), not per rebuild, by the same protocol as
 the wraps below: Wallpaper FX wraps the same prototype method for its own slide
 clones.
 
-## Chain-safe wraps, beside Games Library
+## Chain-safe wraps
 
-Games Library wraps the same two methods, Dash to Panel's
-`_updateGroupedElements` (`libraryButton.js` `_attachToPanel`) and the shell's
-`_getAppDisplayBoxForState` (`mediaMenu.js` `_foldWorkspaces`), as the kit's
-monkey-patch rule has it. Each wrap here closes over what the property held
-(possibly the other's wrap), always calls through, does nothing once it is no
-longer current (`inert`, or `_foldedBox` no longer itself), and on release
-puts back what it found only while it is still the outermost: the other's wrap
-if that was there, or a `delete` if the property was never an own one. So
-disabling either extension, in either order, leaves the other's working. That
-Games Library keeps the same protocol cannot be checked from here.
+Dash to Panel's `_updateGroupedElements` (`libraryButton.js` `_attachToPanel`)
+and the shell's `_getAppDisplayBoxForState` (`mediaMenu.js` `_foldWorkspaces`)
+are wrapped as the kit's monkey-patch rule has it, since another extension may
+wrap either (Dash to Dock patches the latter on the prototype). Each wrap here
+closes over what the property held, always calls through, does nothing once it
+is no longer current (`inert`, or `_foldedBox` no longer itself), and on
+release puts back what it found only while it is still the outermost: another
+extension's wrap if that was there, or a `delete` if the property was never an
+own one. So disabling either, in either order, leaves the other's working.
 
 The slide wrap (`overviewPreview.js`) keeps it beside Wallpaper FX, which wraps
 `_prepareWorkspaceSwitch` on the same prototype through `InjectionManager`.
