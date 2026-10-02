@@ -226,8 +226,8 @@ export class DetailView {
             });
     }
 
-    hideMain({duration = Duration.FAST} = {}) {
-        this._main?.ease({opacity: 0, duration, mode: Ease.OUT});
+    hideMain() {
+        this._main?.ease({opacity: 0, duration: Duration.FAST, mode: Ease.OUT});
     }
 
     _buildSide(item, section) {

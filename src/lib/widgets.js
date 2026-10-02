@@ -72,9 +72,9 @@ export function createArtwork({path, title, icon, width, height, styleClass = 'm
 
 // No St.Icon child and no size: the theme's `.icon-button StIcon` sizes the
 // glyph in em, so it follows Large Text.
-export function createIconButton(iconName, {styleClass = 'icon-button', accessibleName} = {}) {
+export function createIconButton(iconName, {accessibleName} = {}) {
     return new St.Button({
-        style_class: styleClass,
+        style_class: 'icon-button',
         can_focus: true,
         track_hover: true,
         accessible_name: accessibleName,
@@ -111,19 +111,6 @@ function crossFade(label, text) {
             label.ease({opacity: 255, duration: Duration.FAST, mode: Ease.OUT});
         },
     });
-}
-
-function createTitles(title = '', subtitle = '') {
-    const actor = new St.BoxLayout({
-        orientation: Clutter.Orientation.VERTICAL,
-        style_class: 'ml-header-titles',
-        y_align: Clutter.ActorAlign.CENTER,
-    });
-    const titleLabel = createLabel(title, 'ml-header-title');
-    const subtitleLabel = createLabel(subtitle, 'ml-header-subtitle');
-    actor.add_child(titleLabel);
-    actor.add_child(subtitleLabel);
-    return {actor, titleLabel, subtitleLabel};
 }
 
 // Focus landing on a tab chooses it, so a remote's arrows alone switch sections.
@@ -179,8 +166,16 @@ export function createHeader({sections, active, onSwitch, onBack = null, end = [
     start.add_child(back);
     const single = sections.length < 2;
     const name = single ? sections[0]?.title ?? '' : '';
-    const {actor: titles, titleLabel, subtitleLabel} = createTitles(name);
-    titles.visible = single;
+    const titles = new St.BoxLayout({
+        orientation: Clutter.Orientation.VERTICAL,
+        style_class: 'ml-header-titles',
+        y_align: Clutter.ActorAlign.CENTER,
+        visible: single,
+    });
+    const titleLabel = createLabel(name, 'ml-header-title');
+    const subtitleLabel = createLabel('', 'ml-header-subtitle');
+    titles.add_child(titleLabel);
+    titles.add_child(subtitleLabel);
     start.add_child(titles);
     actor.add_child(start);
 

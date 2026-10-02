@@ -5,7 +5,7 @@ import GLib from 'gi://GLib';
 const MARGIN = 600;
 
 // `buildBatch()` appends the next batch and returns false when nothing is left.
-export function fillOnScroll(scroll, buildBatch, {margin = MARGIN} = {}) {
+export function fillOnScroll(scroll, buildBatch) {
     const adjustment = scroll.vadjustment;
     let more = buildBatch();
     let pending = 0;
@@ -13,7 +13,7 @@ export function fillOnScroll(scroll, buildBatch, {margin = MARGIN} = {}) {
     // page_size is 0 until the view is first allocated.
     const wantsMore = () => adjustment.page_size > 0 &&
         (adjustment.upper <= adjustment.page_size + 1 ||
-         adjustment.value + adjustment.page_size >= adjustment.upper - margin);
+         adjustment.value + adjustment.page_size >= adjustment.upper - MARGIN);
 
     const topUp = () => {
         if (pending || !more)
