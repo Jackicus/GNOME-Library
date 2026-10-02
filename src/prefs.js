@@ -6,7 +6,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Pango from 'gi://Pango';
 
-import {SECTIONS as LIBRARY_SECTIONS, migrateOpenCommand, openCommandKey, readSections} from './lib/library.js';
+import {SECTIONS as LIBRARY_SECTIONS, openCommandKey, readSections} from './lib/library.js';
 import {ACTIONS, NATIVE_KEYS, padLabel} from './lib/actions.js';
 
 // A key's Import reads ~/Documents/keys/<service>/<key.file>.
@@ -99,7 +99,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
             padMonitor: null,
             padHandlers: [],
         };
-        this._migrateFolders(settings);
 
         window.add(this._generalPage(state));
         window.add(this._controlsPage(state));
@@ -1094,18 +1093,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
     }
 
     // <prefix>-path held a section's one folder before <prefix>-folders.
-    _migrateFolders(settings) {
-        migrateOpenCommand(settings);
-        for (const section of SECTIONS) {
-            const legacy = settings.get_string(`${section.prefix}-path`);
-            if (!legacy)
-                continue;
-            if (!settings.get_strv(`${section.prefix}-folders`).length)
-                settings.set_strv(`${section.prefix}-folders`, [legacy]);
-            settings.set_string(`${section.prefix}-path`, '');
-        }
-    }
-
     // Asynchronous: a share that has idled out takes seconds to stat.
     _checkFolder(row, path, stillCurrent) {
         const text = row.get_subtitle();

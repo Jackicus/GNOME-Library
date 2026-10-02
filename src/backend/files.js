@@ -64,15 +64,6 @@ export function names(folder) {
     return found;
 }
 
-export function removeTree(path) {
-    const type = Gio.File.new_for_path(path).query_file_type(Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS, null);
-    if (type === Gio.FileType.DIRECTORY) {
-        for (const name of names(path))
-            removeTree(join(path, name));
-    }
-    remove(path);
-}
-
 const decoder = new TextDecoder('utf-8', {fatal: true});
 const encoder = new TextEncoder();
 

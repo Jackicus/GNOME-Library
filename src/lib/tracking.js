@@ -67,12 +67,10 @@ export class Tracker extends Signals.EventEmitter {
         this._mode = this._settings.get_string('tracking');
         this._settings.connectObject('changed::tracking', () => this._onModeChanged(), this);
         for (const section of SECTIONS.filter(Tracker.tracks)) {
-            for (const key of [`${section.prefix}-folders`, `${section.prefix}-path`]) {
-                this._settings.connectObject(`changed::${key}`, () => {
-                    this._folderList = null;
-                    this.sync();
-                }, this);
-            }
+            this._settings.connectObject(`changed::${section.prefix}-folders`, () => {
+                this._folderList = null;
+                this.sync();
+            }, this);
         }
         this.sync();
     }
@@ -173,10 +171,7 @@ export class Tracker extends Signals.EventEmitter {
             return this._folderList;
         const folders = new Set();
         for (const section of SECTIONS.filter(Tracker.tracks)) {
-            let listed = this._settings.get_strv(`${section.prefix}-folders`);
-            // The one-folder setting, read while the list is empty, as the scanner does.
-            if (!listed.length && this._settings.get_string(`${section.prefix}-path`))
-                listed = [this._settings.get_string(`${section.prefix}-path`)];
+            const listed = this._settings.get_strv(`${section.prefix}-folders`);
             for (const folder of listed) {
                 let trimmed = folder.replace(/\/+$/, '');
                 if (trimmed === '~' || trimmed.startsWith('~/'))

@@ -7,7 +7,7 @@ import GdkPixbuf from 'gi://GdkPixbuf';
 import Soup from 'gi://Soup?version=3.0';
 
 import {
-    decode, exists, extension, join, modified, names, readJson, remove, removeTree, rename, writeJson,
+    decode, exists, extension, join, modified, names, readJson, remove, rename, writeJson,
 } from './files.js';
 import {unescapeHtml} from './html.js';
 
@@ -32,7 +32,6 @@ const ART_CACHES = [
     [POSTER_CACHE_DIR, POSTER_BOX],
     [BACKDROP_CACHE_DIR, BACKDROP_BOX],
 ];
-const ART_FIT_STAMP = join(CACHE_DIR, 'art-fit.json');
 
 const TMDB_API = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE = 'https://image.tmdb.org/t/p';
@@ -49,7 +48,6 @@ const DEFAULT_SOURCES = {
     film: ['tmdb@1', 'wikipedia'],
 };
 const CREDENTIAL_NEEDED = new Set(['tmdb']);
-const LEGACY_PROVIDER = {tv: 'tvmaze', film: 'wikipedia'};
 const CACHED_FIELDS = ['summary', 'genres', 'rating', 'runtime', 'year', 'tagline', 'seasons'];
 
 export function sourceId(entry) {
@@ -208,30 +206,6 @@ export async function localiseArt(sections) {
     return outside.length;
 }
 
-// Runs only when the caps change: reading each file's size costs too much per scan.
-export async function fitCachedArt() {
-    const caps = Object.fromEntries(ART_CACHES.map(([dir, box]) => [GLib.path_get_basename(dir), box]));
-    if (JSON.stringify(readJson(ART_FIT_STAMP)) === JSON.stringify(caps))
-        return 0;
-    let fitted = 0;
-    for (const [directory, box] of ART_CACHES) {
-        for (const name of names(directory).sort()) {
-            const path = join(directory, name);
-            /* eslint-disable no-await-in-loop -- a sweep that runs once per change of the caps */
-            const size = await imageSize(path);
-            if (size && (size[0] > box[0] || size[1] > box[1]) && await fitImage(path, box))
-                fitted++;
-            /* eslint-enable no-await-in-loop */
-        }
-    }
-    try {
-        writeJson(ART_FIT_STAMP, caps);
-    } catch {
-        // runs again next time
-    }
-    return fitted;
-}
-
 // `sections` must be the whole merged library, under the scan lock.
 export function pruneArt(sections) {
     const keep = new Set();
@@ -251,9 +225,6 @@ export function pruneArt(sections) {
                 removed++;
         }
     }
-    const thumbs = join(CACHE_DIR, 'thumbs');
-    if (GLib.file_test(thumbs, GLib.FileTest.IS_DIR) && !GLib.file_test(thumbs, GLib.FileTest.IS_SYMLINK))
-        removeTree(thumbs);
     return removed;
 }
 
@@ -442,14 +413,7 @@ export class MetadataService {
         const data = readJson(METADATA_INDEX);
         if (!data || typeof data !== 'object' || Array.isArray(data))
             return Object.create(null);
-        const kept = Object.create(null);
-        for (const [key, record] of Object.entries(data)) {
-            if (key.startsWith('album_') || key.startsWith('game_'))
-                this._unflushed++;
-            else
-                kept[key] = record;
-        }
-        return kept;
+        return Object.assign(Object.create(null), data);
     }
 
     // TV shows keep the bare id, so posters on disk keep their names.
@@ -459,23 +423,10 @@ export class MetadataService {
         return [safe, join(POSTER_CACHE_DIR, `${safe}.jpg`), join(BACKDROP_CACHE_DIR, `${safe}.jpg`)];
     }
 
-    // A show called "Index" has the index's own name, and no file of its own.
-    _record(key) {
-        if (Object.hasOwn(this._index, key) || key === 'index')
-            return this._index[key] ?? null;
-        const data = readJson(join(METADATA_CACHE_DIR, `${key}.json`));
-        if (!data || typeof data !== 'object' || Array.isArray(data))
-            return null;
-        this._index[key] ??= data;
-        this._unflushed++;
-        return data;
-    }
-
     _applyCached(item, provider, data, posterFile, backdropFile) {
         if (data === null || data === undefined)
             return false;
-        const cachedBy = data.provider || LEGACY_PROVIDER[item.kind];
-        if (!Object.hasOwn(data, 'year') || cachedBy !== provider)
+        if (!Object.hasOwn(data, 'year') || data.provider !== provider)
             return false;
         for (const field of CACHED_FIELDS) {
             if (data[field] !== null && data[field] !== undefined && blank(item[field]))
@@ -488,7 +439,7 @@ export class MetadataService {
         }
         if (exists(backdropFile))
             item.backdrop_path = backdropFile;
-        item.provider = cachedBy;
+        item.provider = provider;
         return true;
     }
 
@@ -541,7 +492,7 @@ export class MetadataService {
         if (!listed.length)
             return;
         const [key, posterFile, backdropFile] = this._paths(item);
-        const record = this._record(key);
+        const record = this._index[key] ?? null;
         // Usable or not: a key blanked in the preferences keeps what it fetched.
         for (const entry of listed) {
             if (this._applyCached(item, sourceId(entry), record, posterFile, backdropFile))

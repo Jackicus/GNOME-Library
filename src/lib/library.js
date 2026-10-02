@@ -38,19 +38,6 @@ export function openCommandKey(section) {
     return `${section.prefix}-open-command`;
 }
 
-// player-command is superseded by the per-section open commands.
-export function migrateOpenCommand(settings) {
-    const legacy = settings.get_string('player-command');
-    if (!legacy)
-        return;
-    for (const key of ['tv-shows-open-command', 'films-open-command']) {
-        // Unset, not empty: an empty command is a choice.
-        if (settings.get_user_value(key) === null)
-            settings.set_string(key, legacy);
-    }
-    settings.set_string('player-command', '');
-}
-
 function cacheDir() {
     return GLib.build_filenamev([GLib.get_user_cache_dir(), 'video-library']);
 }
@@ -179,11 +166,6 @@ function groupOf(ep) {
         const n = seasonNumberOf(group);
         if (n !== null)
             return `Season ${n}`;
-    } else if (group === undefined) {
-        // An older library.json named the subfolder in the title: "[Extras] OP01".
-        const title = ep.title || '';
-        if (title.startsWith('[') && title.includes(']'))
-            return title.slice(1, title.indexOf(']')).trim();
     }
     const m = (ep.filename || '').match(/S(\d+)/i);
     return m ? `Season ${parseInt(m[1], 10)}` : 'Season 1';
