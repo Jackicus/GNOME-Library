@@ -54,6 +54,8 @@ development install back.
 
 ## The review guidelines
 
+Checked against both pages as read on 2026-10-02, before the 1.0 release.
+
 - **Initialisation holds only static resources.** Module scope under `lib/` is
   imports, constants, classes and plain values: `let` module state in
   `log.js`, `shape.js`, `mediaGrid.js`, `controls.js` and `overviewPreview.js`,
@@ -74,6 +76,15 @@ development install back.
 - **Not interfering with the extension system.** The shipped `extension.js`
   imports `./lib/app.js` statically; the staging that lets `make reload` pick
   up edits lives only in `./scripts/dev-extension.js`, which never ships.
+- **Other extensions.** The guidelines discourage interacting with another
+  extension and review it case by case. The one reach, into Dash to Panel's
+  panel for the button beside Show Apps, happens only while **Work with Dash
+  to Panel** (`dash-to-panel`, off by default) is on: off, nothing of Dash to
+  Panel is read or watched. On, it uses Dash to Panel's exported
+  `global.dashToPanel` and its `panels-created` signal, and one chain-safe
+  wrap ([private-api.md](private-api.md#the-button-beside-show-apps-librarybuttonjs)).
+  Say so in the upload notes.
+- **No `GObject.run_dispose()`.**
 - **Logging.** The shipped extension logs failures only. Informational lines
   go through `lib/log.js` `note()`, which only the development entry point
   turns on.
