@@ -54,7 +54,9 @@
 # puts there once per start (a demo library, stand-in logins); PATH is the
 # system's only; settings start fresh, in GNOME's stock look. Commands named in
 # EXT_STAND_IN_BINS are stand-ins overlaid on /usr/bin, in a user and mount
-# namespace of the session's own.
+# namespace of the session's own. Variables named in EXT_STAND_IN_UNSET (one
+# that points the extension at a real login, say) are removed from the
+# session's environment, which otherwise is the caller's.
 #
 # Nothing is left behind: a shell started from a Claude Code session stops
 # itself after NESTED_IDLE seconds (default 600, 0 = never) without a command
@@ -76,6 +78,7 @@ die()  { printf '\033[1;31m✗\033[0m %s\n' "$*" >&2; exit 1; }
 
 [[ -f "$REPO_DIR/scripts/ext.conf" ]] || die "scripts/ext.conf is missing: it names this extension for the kit's scripts."
 EXT_STAND_IN_BINS=()
+EXT_STAND_IN_UNSET=()
 NESTED_STRAYS=()
 # shellcheck source=/dev/null
 source "$REPO_DIR/scripts/ext.conf"
@@ -152,14 +155,18 @@ config_dir() {
 }
 
 # The environment of the nested session: its bus, its displays, its settings,
-# and under --stand-in its home. DISPLAY is the nested Xwayland's, or unset,
-# never the real desktop's.
+# and under --stand-in its home, without EXT_STAND_IN_UNSET (env -u
+# SESSION_UNSET). DISPLAY is the nested Xwayland's, or unset, never the real
+# desktop's.
 session_vars() {
+    local name
+    SESSION_UNSET=()
     SESSION_VARS=(
         XDG_CONFIG_HOME="$(config_dir)" GSETTINGS_BACKEND=keyfile DCONF_PROFILE="$DCONF_NONE"
         WAYLAND_DISPLAY="$WL_DISPLAY"
     )
     if stand_in; then
+        for name in "${EXT_STAND_IN_UNSET[@]}"; do SESSION_UNSET+=(-u "$name"); done
         SESSION_VARS+=(
             HOME="$STAND_IN_HOME" PATH=/usr/local/bin:/usr/bin
             XDG_CACHE_HOME="$STAND_IN_HOME/.cache" XDG_DATA_HOME="$STAND_IN_HOME/.local/share"
@@ -174,10 +181,10 @@ nested_env() {
     x11="$(cat "$X11_FILE" 2>/dev/null || true)"
     xauth="$(cat "$XAUTH_FILE" 2>/dev/null || true)"
     if [[ -n "$x11" && -n "$xauth" ]]; then
-        env "${SESSION_VARS[@]}" DBUS_SESSION_BUS_ADDRESS="$(nested_bus)" \
+        env "${SESSION_UNSET[@]}" "${SESSION_VARS[@]}" DBUS_SESSION_BUS_ADDRESS="$(nested_bus)" \
             DISPLAY="$x11" XAUTHORITY="$xauth" "$@"
     else
-        env -u DISPLAY "${SESSION_VARS[@]}" DBUS_SESSION_BUS_ADDRESS="$(nested_bus)" "$@"
+        env -u DISPLAY "${SESSION_UNSET[@]}" "${SESSION_VARS[@]}" DBUS_SESSION_BUS_ADDRESS="$(nested_bus)" "$@"
     fi
 }
 
@@ -361,7 +368,7 @@ cmd_start() {
     for (( i = 0; i < monitors; i++ )); do mode_args+=(--virtual-monitor "$geometry"); done
     session_vars
     # shellcheck disable=SC2016  # expanded by the inner shell
-    local launch=(env -u DISPLAY "${SESSION_VARS[@]}" dbus-run-session -- bash -c '
+    local launch=(env -u DISPLAY "${SESSION_UNSET[@]}" "${SESSION_VARS[@]}" dbus-run-session -- bash -c '
         echo "$DBUS_SESSION_BUS_ADDRESS" > "$1"
         exec gnome-shell "${@:2}"
     ' _ "$BUS_FILE" "${mode_args[@]}")
