@@ -287,16 +287,7 @@ export async function scanTv(root, previous, exclude) {
             continue;
         }
         const sig = signature(folder, tree);
-        let episodes = reusable(previous, id, sig, 'episodes');
-        if (episodes === null) {
-            episodes = videoEntries(tree);
-            for (const ep of episodes) {
-                // A reused list carries its prefix already.
-                const group = ep.group;
-                const prefix = group && !group.toLowerCase().startsWith('season') ? `[${group}] ` : '';
-                ep.title = `${prefix}${ep.title}`;
-            }
-        }
+        const episodes = reusable(previous, id, sig, 'episodes') ?? videoEntries(tree);
         if (!episodes.length)
             continue;
         const [title, year] = splitYear(entry.name);

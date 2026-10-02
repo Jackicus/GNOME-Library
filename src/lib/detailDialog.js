@@ -75,17 +75,13 @@ class VideoLibraryDetailDialog extends MediaPanel {
         this._restSize = [this._narrowWidth, paneHeight + frame];
     }
 
-    _opened() {
-        this._widen();
-    }
-
     _closeSequence() {
         this._detail.cancelDeferred();
         this._narrowAndZoomOut();
     }
 
-    // After the zoom, never during it: its scale is a ratio of the panel's width.
-    _widen() {
+    // Widens after the zoom, never during it: its scale is a ratio of the panel's width.
+    _opened() {
         if (!this.isOpen)
             return;
         this._detail.revealMain({delay: Duration.NORMAL / 4});

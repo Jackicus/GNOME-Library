@@ -322,14 +322,6 @@ export class VideoLibraryApp {
         return mode === 'desktop' || mode === 'workspaces';
     }
 
-    _surfaceWanted() {
-        return this._libraryOnSurface() || this._detailOnSurface();
-    }
-
-    _detailPopsUp() {
-        return !this._detailOnSurface();
-    }
-
     // Grid and pane on one workspace: a pick flies the artwork into the grid's place.
     _detailInPlace() {
         return this._libraryOnSurface() && this._detailMode() === 'desktop';
@@ -341,14 +333,6 @@ export class VideoLibraryApp {
 
     _detailClaimsWorkspace() {
         return this._detailMode() === 'workspaces';
-    }
-
-    _columns() {
-        return this._settings.get_int('columns');
-    }
-
-    _rows() {
-        return this._settings.get_int('rows');
     }
 
     _placeForWorkspace(workspace) {
@@ -755,7 +739,7 @@ export class VideoLibraryApp {
             this._sectionKey = (sections.find(s => this._sections[s.key]?.length) ?? sections[0]).key;
         this._button.attach();
 
-        if (this._detailPopsUp()) {
+        if (!this._detailOnSurface()) {
             this._dialog = new DetailDialog({
                 onOpen: (path, section) => this._open(path, section),
                 tracker: this._tracker,
@@ -770,8 +754,8 @@ export class VideoLibraryApp {
                 sections,
                 itemsFor: key => this._sections[key] ?? [],
                 onActivate: (key, item, tile) => this._openPicked(key, item, tile),
-                columns: this._columns(),
-                rows: this._rows(),
+                columns: this._settings.get_int('columns'),
+                rows: this._settings.get_int('rows'),
                 button: this._button,
                 onSwitch: key => (this._sectionKey = key),
                 onOpenSettings: () => this._openSettings(),
@@ -779,7 +763,7 @@ export class VideoLibraryApp {
             this._browser.enable();
         }
 
-        if (!this._surfaceWanted())
+        if (!this._libraryOnSurface() && !this._detailOnSurface())
             return;
 
         this._container = new St.Widget({
@@ -830,8 +814,10 @@ export class VideoLibraryApp {
             this._showLibraryNow({reveal: !!place});
 
         this._previews = new OverviewPreview({
-            placeForWorkspace: workspace => this._pictureFor(workspace),
-            sourceFor: where => this._actorForPlace(where),
+            // A workspace on its way out is no longer ours, but the slide still draws it.
+            placeForWorkspace: workspace => workspace
+                ? this._leaving.get(workspace) ?? this._placeForWorkspace(workspace) : null,
+            sourceFor: where => where === DETAIL ? this._detailPage?.actor : this._library?.actor,
             bounds,
         });
         this._previews.enable();
@@ -852,8 +838,8 @@ export class VideoLibraryApp {
             active: this._sectionKey,
             width,
             height,
-            columns: this._columns(),
-            rows: this._rows(),
+            columns: this._settings.get_int('columns'),
+            rows: this._settings.get_int('rows'),
             onActivate: (key, item, tile) => this._openItem(key, item, tile),
             onSwitch: key => (this._sectionKey = key),
             onBack: () => this._goBack(),
@@ -887,16 +873,6 @@ export class VideoLibraryApp {
         return this._detailPage;
     }
 
-    _actorForPlace(place) {
-        return place === DETAIL ? this._detailPage?.actor : this._library?.actor;
-    }
-
-    // A workspace on its way out is no longer ours, but the slide still draws it.
-    _pictureFor(workspace) {
-        if (!workspace)
-            return null;
-        return this._leaving.get(workspace) ?? this._placeForWorkspace(workspace);
-    }
 
     _bounds() {
         const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
