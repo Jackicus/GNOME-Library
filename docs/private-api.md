@@ -43,7 +43,7 @@ an `if`, and then the only sign is the symptom, with nothing logged.
 | `controls._workspacesDisplay._workspacesViews`, `view._workspaces` | overviewPreview.js | No clones in the overview's previews | Yes, `?? []` |
 | `workspace._background`, `._backgroundGroup`, `._monitorIndex` | overviewPreview.js | No clone in that preview | Yes, skipped |
 | `controls._thumbnailsBox._thumbnails`, `thumbnail._contents` | overviewPreview.js | No clone in the thumbnails | Yes, `?.` |
-| `Main.wm._workspaceAnimation._prepareWorkspaceSwitch` (overridden), `._switchData` | overviewPreview.js | No clones in the slide; the library blinks back once it lands | Yes, `InjectionManager` |
+| `Main.wm._workspaceAnimation._prepareWorkspaceSwitch` (overridden), `._switchData` | overviewPreview.js | No clones in the slide; the library blinks back once it lands | Yes, a chain-safe wrap |
 | `switchData.monitors`, `strip._monitor`, `strip._workspaceGroups`, `group._background` | overviewPreview.js | No clones in the slide | Yes, `?.` |
 
 ## The button beside Show Apps (libraryButton.js)
@@ -145,10 +145,10 @@ In the slide, the clone goes above `group._background.get_first_child()`,
 below any window clones the slide adds after. The `_prepareWorkspaceSwitch`
 override compares `this._switchData` before and after calling through: unset
 before and set after is a fresh slide, handed to the current
-`OverviewPreview`. `InjectionManager` (public) installs it once per enable
-(`installSlideHook`) and removes it at disable (`removeSlideHook`), not per
-rebuild: it sits on a shared prototype, and taking it out on every rescan
-would drop a wrap another extension added over it.
+`OverviewPreview`. It is installed once per enable (`installSlideHook`) and
+removed at disable (`removeSlideHook`), not per rebuild, by the same protocol as
+the wraps below: Wallpaper FX wraps the same prototype method for its own slide
+clones.
 
 ## Chain-safe wraps, beside Games Library
 
@@ -162,3 +162,10 @@ puts back what it found only while it is still the outermost: the other's wrap
 if that was there, or a `delete` if the property was never an own one. So
 disabling either extension, in either order, leaves the other's working. That
 Games Library keeps the same protocol cannot be checked from here.
+
+The slide wrap (`overviewPreview.js`) keeps it beside Wallpaper FX, which wraps
+`_prepareWorkspaceSwitch` on the same prototype through `InjectionManager`.
+Disabling Video Library leaves Wallpaper FX's wrap in place in either order.
+`InjectionManager.restoreMethod` puts back what it saved whatever is there now,
+so disabling Wallpaper FX while ours sits over its wrap drops ours until the
+next enable: that half is Wallpaper FX's to change.

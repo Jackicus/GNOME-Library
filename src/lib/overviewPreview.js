@@ -2,30 +2,43 @@
 // build wallpapers of their own: docs/private-api.md.
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import {InjectionManager} from 'resource:///org/gnome/shell/extensions/extension.js';
 import GObject from 'gi://GObject';
 import Clutter from 'gi://Clutter';
 
 // The current build's previews, handed each slide.
 let current = null;
-const injections = new InjectionManager();
+// The wrap on a prototype Wallpaper FX wraps too: chain-safe, docs/private-api.md.
+let slideHook = null;
 
 export function installSlideHook() {
     const animation = Main.wm._workspaceAnimation;
     if (!animation?._prepareWorkspaceSwitch)
         return;
-    injections.overrideMethod(Object.getPrototypeOf(animation), '_prepareWorkspaceSwitch',
-        original => function (...args) {
-            // Returns early, setting nothing, when a slide is already under way.
-            const fresh = !this._switchData;
-            original.apply(this, args);
-            if (fresh && this._switchData)
-                current?._joinSlide(this._switchData);
-        });
+    const proto = Object.getPrototypeOf(animation);
+    const hadOwn = Object.hasOwn(proto, '_prepareWorkspaceSwitch');
+    const previous = proto._prepareWorkspaceSwitch;
+    const hook = function (...args) {
+        // Returns early, setting nothing, when a slide is already under way.
+        const fresh = !this._switchData;
+        const result = previous.apply(this, args);
+        if (slideHook?.hook === hook && fresh && this._switchData)
+            current?._joinSlide(this._switchData);
+        return result;
+    };
+    proto._prepareWorkspaceSwitch = hook;
+    slideHook = {proto, hadOwn, previous, hook};
 }
 
+// Put back only while it is still the outermost; left in a chain, it does nothing.
 export function removeSlideHook() {
-    injections.clear();
+    const {proto, hadOwn, previous, hook} = slideHook ?? {};
+    if (proto && proto._prepareWorkspaceSwitch === hook) {
+        if (hadOwn)
+            proto._prepareWorkspaceSwitch = previous;
+        else
+            delete proto._prepareWorkspaceSwitch;
+    }
+    slideHook = null;
 }
 
 // The preview's group is re-allocated small and stretched as the overview
