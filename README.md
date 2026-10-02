@@ -1,4 +1,4 @@
-# Library
+# Library Menu
 
 Your own TV shows, films and games as a library, opened from a button beside Show
 Apps: posters, synopses, seasons and episodes, in the overview, a pop-up panel, on
@@ -114,8 +114,8 @@ whose **Fetch artwork and descriptions online** switch is on (on by default).
   setting, and goes only to TMDB. If a file `keys/TMDB/API KEY.txt` exists in your
   Documents folder, the key row offers **Import**, which reads it when pressed.
 - **What is stored:** the library index, artwork and fetched descriptions in
-  `~/.cache/library@jackicus/`; watched marks and where playback stopped in
-  `~/.local/share/library@jackicus/watched.json`. With **Keep marks in** set to
+  `~/.cache/library-menu@jackicus/`; watched marks and where playback stopped in
+  `~/.local/share/library-menu@jackicus/watched.json`. With **Keep marks in** set to
   **Folders** (the default), each library folder also gets a
   `.library-watched.json` with its own marks, so another computer reading the
   same folder sees them; **Local** removes those copies, **Off** stops tracking.
@@ -136,16 +136,16 @@ Not on extensions.gnome.org yet. From source, which needs `make` and
 `glib-compile-schemas` (part of GLib):
 
 ```bash
-git clone https://github.com/Jackicus/GNOME-Library.git
-cd GNOME-Library
+git clone https://github.com/Jackicus/GNOME-Library-Menu.git
+cd GNOME-Library-Menu
 make install
 ```
 
 Log out and back in (a Wayland session cannot load an extension it has never seen),
-then `gnome-extensions enable library@jackicus`.
+then `gnome-extensions enable library-menu@jackicus`.
 
 TV Shows and Films are empty until they have folders. Open the preferences
-(`gnome-extensions prefs library@jackicus`), and on the **TV Shows** and **Films**
+(`gnome-extensions prefs library-menu@jackicus`), and on the **TV Shows** and **Films**
 pages add your folders and press **Rescan**. Games need nothing: press **Find Games** on
 the empty Games tab, or **Rescan** on its page.
 
@@ -162,7 +162,7 @@ To update, `git pull && make install`, then log out and back in. To remove,
 
 ## Preferences
 
-`gnome-extensions prefs library@jackicus`, or the Settings button beside the
+`gnome-extensions prefs library-menu@jackicus`, or the Settings button beside the
 library on the desktop.
 
 <table>
@@ -190,10 +190,10 @@ library on the desktop.
 
 ## Troubleshooting
 
-The extension logs to the journal under `[Library]`:
+The extension logs to the journal under `[Library Menu]`:
 
 ```bash
-journalctl -f -o cat /usr/bin/gnome-shell | grep -F '[Library]'
+journalctl -f -o cat /usr/bin/gnome-shell | grep -F '[Library Menu]'
 ```
 
 The preferences, and the scans they start, log in their own process:
@@ -252,5 +252,5 @@ your own library come from [TVmaze](https://www.tvmaze.com/),
 [TMDB](https://www.themoviedb.org/) with your own key, and
 [Wikipedia](https://www.wikipedia.org/); games' from Steam and
 [IGDB.com](https://www.igdb.com/) with your own Twitch key. VLC is a trademark of
-VideoLAN; Steam of Valve; PlayStation of Sony Interactive Entertainment. Library is not
-affiliated with any of them.
+VideoLAN; Steam of Valve; PlayStation of Sony Interactive Entertainment. Library Menu is
+not affiliated with any of them.

@@ -1,15 +1,16 @@
-# Library
+# Library Menu
 
 Shared rules for every extension come from the GNOME-EXTENSIONS kit: `../CLAUDE.md` and `../.claude/rules/` (loaded with this file), and the `gnome-ext:*` skills. `.claude/kit.sh` pulls the kit at session start, or, with no kit beside this repository, fetches it and prints its rules into the session.
 
-A GNOME Shell extension (UUID `library@jackicus`) that shows a library of TV shows,
+Library Menu, a GNOME Shell extension (UUID `library-menu@jackicus`), that shows a library of TV shows,
 films and games, opened from one button beside Show Apps: in the overview, in a
 pop-up panel, on the wallpaper or on a workspace of its own, as a setting says.
 `metadata.json` claims GNOME Shell 50 only, and the code is written for 50 alone, with
 no fallback for an older shell; 51 breaks it (`docs/compatibility.md`). The name is the same
 throughout: `metadata.json`'s `name`, the UUID, the schema
-`org.gnome.shell.extensions.library`, the cache and data folders, the
-`[Library]` log prefix and the `Library*` GObject class names.
+`org.gnome.shell.extensions.library-menu`, the cache and data folders and the
+`[Library Menu]` log prefix. The code keeps a shorter prefix of its own: `Library*`
+GObject class names and `ml-` style classes.
 
 ## Layout
 
@@ -29,7 +30,7 @@ throughout: `metadata.json`'s `name`, the UUID, the schema
   the code keeps to a line), `screenshots/` (the README's).
 - `scripts/`: the kit's `dev.sh`, `nested.sh`, `nested_driver.py`, `kit.mk` and
   `dev-extension.js` (the entry point `make link` installs, staging `lib/` under
-  `$XDG_RUNTIME_DIR/library/shell-<pid>/lib-<checksum>`), changed only in the
+  `$XDG_RUNTIME_DIR/library-menu/shell-<pid>/lib-<checksum>`), changed only in the
   kit; this extension's own `ext.conf`, `dev.d/library.sh` (`scan`, `prune`,
   `stalls`, the `scanner` check, the cache and library `status` lines) and
   `nested.d/library.sh` (the made-up library under `start --stand-in`);
@@ -38,7 +39,7 @@ throughout: `metadata.json`'s `name`, the UUID, the schema
   (`./scripts/dev.sh import-settings`: the owner's one-off carry of Video Library's and
   Games Library's settings, cache and watched marks into Library's, never shipped).
 
-Runtime data is `~/.cache/library@jackicus/` (`GLib.get_user_cache_dir()` on both sides,
+Runtime data is `~/.cache/library-menu@jackicus/` (`GLib.get_user_cache_dir()` on both sides,
 which is how `start --stand-in` points the extension and the scanner at a cache of
 its own): `library.json`, `posters/`, `backdrops/`, `metadata/index.json`. The shell side never
 scrapes; it reads the `library.json` the scanner wrote, and a file monitor on it

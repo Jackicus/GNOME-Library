@@ -50,7 +50,7 @@ export function openCommandKey(section) {
 }
 
 function cacheDir() {
-    return GLib.build_filenamev([GLib.get_user_cache_dir(), 'library@jackicus']);
+    return GLib.build_filenamev([GLib.get_user_cache_dir(), 'library-menu@jackicus']);
 }
 
 export function libraryPath() {
@@ -69,7 +69,7 @@ export function readSections() {
         const raw = JSON.parse(new TextDecoder('utf-8').decode(bytes));
         return {sections: raw?.sections ?? {}, generated: raw?.generated ?? null};
     } catch (e) {
-        console.error(`[Library] Failed to read ${path}: ${e}`);
+        console.error(`[Library Menu] Failed to read ${path}: ${e}`);
         return nothing;
     }
 }

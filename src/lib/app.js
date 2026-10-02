@@ -101,7 +101,7 @@ function settle(what, step) {
     try {
         step();
     } catch (e) {
-        console.error(`[Library] Could not release the ${what}: ${e}`);
+        console.error(`[Library Menu] Could not release the ${what}: ${e}`);
     }
 }
 
@@ -424,7 +424,7 @@ export class LibraryApp {
     _takeWorkspace(what) {
         const workspace = this._claimWorkspace();
         if (!workspace) {
-            console.warn(`[Library] No free workspace to open ${what} on ` +
+            console.warn(`[Library Menu] No free workspace to open ${what} on ` +
                 '(Settings → Multitasking, or open it on the desktop instead).');
             return null;
         }
@@ -623,7 +623,7 @@ export class LibraryApp {
     }
 
     _scanFailed(why) {
-        console.error(`[Library] Scan failed: ${why}`);
+        console.error(`[Library Menu] Scan failed: ${why}`);
         this._scheduleRebuild();
     }
 
@@ -771,7 +771,7 @@ export class LibraryApp {
             return;
         const workspace = this._claimWorkspace();
         if (!workspace) {
-            console.warn('[Library] No empty workspace to play on (Settings → Multitasking).');
+            console.warn('[Library Menu] No empty workspace to play on (Settings → Multitasking).');
             return;
         }
         this._dismiss();

@@ -112,7 +112,7 @@ export class LibraryButton {
             else if (Main.overview.dash?._dashContainer)
                 this._attachToDash(Main.overview.dash);
         } catch (e) {
-            console.warn(`[Library] No button beside Show Apps: ${e}`);
+            console.warn(`[Library Menu] No button beside Show Apps: ${e}`);
             this._detach();
         }
         this.sync(this._checked);

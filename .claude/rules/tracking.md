@@ -10,7 +10,7 @@ paths:
 
 ## Marks (`lib/tracking.js`, setting `tracking`)
 
-- Two files of one format: `~/.local/share/library@jackicus/watched.json`, every mark made
+- Two files of one format: `~/.local/share/library-menu@jackicus/watched.json`, every mark made
   on this machine keyed by absolute path, and `<folder>/.library-watched.json` at
   the top of each folder in `<prefix>-folders`, keyed by the path inside it so another
   machine mounting it elsewhere reads them.

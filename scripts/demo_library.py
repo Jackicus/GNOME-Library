@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """A made-up library for screenshots: `demo_library.py CACHE_HOME`.
 
-Writes CACHE_HOME/library@jackicus/ exactly as the scanner would —
+Writes CACHE_HOME/library-menu@jackicus/ exactly as the scanner would —
 library.json, with posters and backdrops in its own posters/ and backdrops/
 folders at the cache's own caps — but for shows, films and games that do
 not exist, with artwork drawn here. The README's screenshots are of this
@@ -328,7 +328,7 @@ def slug(text):
 def main():
     if len(sys.argv) != 2:
         sys.exit(__doc__)
-    root = os.path.join(os.path.abspath(sys.argv[1]), "library@jackicus")
+    root = os.path.join(os.path.abspath(sys.argv[1]), "library-menu@jackicus")
     posters = os.path.join(root, "posters")
     backdrops = os.path.join(root, "backdrops")
     for folder in (posters, backdrops):

@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
-"""Carry Video Library's and Games Library's settings, cache and watched marks into Library.
+"""Carry Video Library's and Games Library's settings, cache and watched marks into Library Menu.
 
     ./scripts/dev.sh import-settings [--force]
 
 Development only, for the owner's own session; never shipped. Settings are read
 with `dconf dump` from the two old extensions' paths and written with `dconf load`
-under Library's, keeping only keys Library's schema has. A key Library already has
+under Library Menu's, keeping only keys its schema has. A key Library Menu already has
 is left alone unless --force. Video Library's value wins where both had one;
 Games Library's Steam and PCSX2 paths become games-steam-path and
-games-pcsx2-path, its shortcut becomes library-shortcut if Library has none, and
+games-pcsx2-path, its shortcut becomes library-shortcut if Library Menu has none, and
 the two credential sets are merged.
 
-The cache and watched marks are copied, not moved, only where Library has none
-yet: ~/.cache/video-library becomes ~/.cache/library@jackicus with its paths
+The cache and watched marks are copied, not moved, only where Library Menu has none
+yet: ~/.cache/video-library becomes ~/.cache/library-menu@jackicus with its paths
 rewritten, Games Library's games and artwork are added to it, and
-~/.local/share/video-library becomes ~/.local/share/library@jackicus. Each library
+~/.local/share/video-library becomes ~/.local/share/library-menu@jackicus. Each library
 folder's .video-library-watched.json is renamed .library-watched.json.
 """
 import glob
@@ -32,7 +32,7 @@ from gi.repository import GLib  # noqa: E402
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OLD_VIDEO = '/org/gnome/shell/extensions/video-library/'
 OLD_GAMES = '/org/gnome/shell/extensions/games-library/'
-NEW = '/org/gnome/shell/extensions/library/'
+NEW = '/org/gnome/shell/extensions/library-menu/'
 GAMES_RENAMED = {'steam-path': 'games-steam-path', 'pcsx2-path': 'games-pcsx2-path'}
 CACHE = GLib.get_user_cache_dir()
 DATA = GLib.get_user_data_dir()
@@ -93,7 +93,7 @@ def rewrite(path, old, new):
 
 def import_cache():
     old, games_old = os.path.join(CACHE, 'video-library'), os.path.join(CACHE, 'games-library')
-    new = os.path.join(CACHE, 'library@jackicus')
+    new = os.path.join(CACHE, 'library-menu@jackicus')
     library = os.path.join(new, 'library.json')
     if os.path.exists(library):
         print(f'cache: {library} exists, left as it is')
@@ -138,14 +138,14 @@ def import_cache():
 
 
 def import_marks(folders):
-    old, new = os.path.join(DATA, 'video-library'), os.path.join(DATA, 'library@jackicus')
+    old, new = os.path.join(DATA, 'video-library'), os.path.join(DATA, 'library-menu@jackicus')
     if os.path.isdir(old) and not os.path.exists(new):
         shutil.copytree(old, new)
         print(f'marks: copied {old}')
     for folder in folders:
         src, dest = os.path.join(folder, '.video-library-watched.json'), os.path.join(folder, '.library-watched.json')
         try:
-            # `mv -n` never replaces a mark file Library has written since.
+            # `mv -n` never replaces a mark file Library Menu has written since.
             done = subprocess.run(['sh', '-c', 'test -e "$1" && mv -n "$1" "$2"', 'mv', src, dest],
                                   timeout=FOLDER_TIMEOUT).returncode == 0
         except subprocess.TimeoutExpired:

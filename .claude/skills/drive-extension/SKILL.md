@@ -18,10 +18,10 @@ CLAUDE.md's list, and why, unless the task asks for exactly that:
   watched marks and positions. A game's **Play** launches the real game through Steam
   or PCSX2 (under `--stand-in` it runs `true`).
 - **Rescan**, or `make scan` (`/scan`, which runs only when the user types it), is an
-  online scan with the user's real keys, writing `~/.cache/library@jackicus/` (unless
+  online scan with the user's real keys, writing `~/.cache/library-menu@jackicus/` (unless
   under `--stand-in`).
 - **A watched disc**, or Mark watched from a key or the pad, outside `--stand-in`, writes
-  the real `~/.local/share/library@jackicus/watched.json` and, with `tracking` `source`,
+  the real `~/.local/share/library-menu@jackicus/watched.json` and, with `tracking` `source`,
   a `.library-watched.json` into the library folder itself. If a test needs it,
   put both back.
 
@@ -52,7 +52,7 @@ CLAUDE.md's list, and why, unless the task asks for exactly that:
   on only while a library is up and no window has the focus, so close the prefs first.
 - **Places are settings**: `library-opens-in` and `detail-opens-in`, changed with
   `./scripts/nested.sh run timeout 5 gsettings --schemadir src/schemas set
-  org.gnome.shell.extensions.library …` (the nested session's own settings) to
+  org.gnome.shell.extensions.library-menu …` (the nested session's own settings) to
   watch a live switch.
 - **The "Allow inhibiting shortcuts" prompt** (capturing `library-shortcut` in the
   prefs) writes the real permission store. If a test answers it, delete the entry
@@ -98,7 +98,7 @@ after opening or closing an item.
   prefs included). Test typing into a window with `library-opens-in` `menu` or `modal`.
 - **The look beside Dash to Panel, Blur my Shell and app folders** (`panel.js`
   `folderLook`) needs them enabled in the nested session's own settings (`run timeout
-  5 gsettings set org.gnome.shell enabled-extensions "['library@jackicus',
+  5 gsettings set org.gnome.shell enabled-extensions "['library-menu@jackicus',
   'dash-to-panel@jderose9.github.com', 'blur-my-shell@aunetx']"`, then `stop` +
   `start`); not under `--stand-in`, whose home has none of the user's extensions.
 

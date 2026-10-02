@@ -28,7 +28,7 @@ Never press, unless the user asked for exactly that:
   default) plays the user's real media, and the tracker writes their real watched
   marks and positions.
 - **Rescan**: an online scan with the user's real keys, writing
-  `~/.cache/library@jackicus/`.
+  `~/.cache/library-menu@jackicus/`.
 - **A watched disc**, or Mark watched from a key or the pad, outside `--stand-in`: it
   writes the real `watched.json` and, with `tracking` `source`, a file into the
   library folder itself.
