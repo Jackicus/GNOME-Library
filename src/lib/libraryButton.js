@@ -148,7 +148,7 @@ export class LibraryButton {
         };
     }
 
-    // A chain-safe wrap, beside Games Library's: docs/private-api.md.
+    // Chain-safe, as another extension may wrap it too: docs/private-api.md.
     _attachToPanel(panel) {
         const showApps = panel.showAppsIconWrapper.realShowAppsIcon;
         const box = new St.BoxLayout({

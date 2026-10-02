@@ -2,7 +2,6 @@
 // (.claude/rules/places.md has how it behaves).
 
 import Clutter from 'gi://Clutter';
-import GLib from 'gi://GLib';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {ControlsState} from 'resource:///org/gnome/shell/ui/overviewControls.js';
@@ -33,9 +32,6 @@ export class MediaMenu {
         this._fold = 0;
         this._forced = false;
         this._escapeId = 0;
-        // The tab to reopen onto when another extension's view held the slot.
-        this._next = null;
-        this._reopenId = 0;
     }
 
     enable() {
@@ -72,19 +68,7 @@ export class MediaMenu {
         this._adjustment = this._controls._stateAdjustment ?? null;
         this._adjustment?.connectObject('notify::value', () => this._syncWorkspaces(), this);
 
-        // Reopened off an idle, once the shell's own hide has finished.
-        Main.overview.connectObject('hidden', () => {
-            this._unforce();
-            const next = this._next;
-            this._next = null;
-            if (next && !this._reopenId) {
-                this._reopenId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                    this._reopenId = 0;
-                    this.open(next);
-                    return GLib.SOURCE_REMOVE;
-                });
-            }
-        }, this);
+        Main.overview.connectObject('hidden', () => this._unforce(), this);
 
         this._foldWorkspaces();
     }
@@ -107,10 +91,6 @@ export class MediaMenu {
         this._showAppsButton = null;
         Main.overview.disconnectObject(this);
         this._unforce();
-        if (this._reopenId)
-            GLib.source_remove(this._reopenId);
-        this._reopenId = 0;
-        this._next = null;
         this._controls._searchController?.disconnectObject(this);
         this._adjustment?.disconnectObject(this);
         this._adjustment = null;
@@ -132,12 +112,7 @@ export class MediaMenu {
             const slot = stock.call(this, state, box, searchHeight, dashHeight, workspacesBox, spacing);
             if (menu._foldedBox !== folded)
                 return slot;
-            // Measured by the prototype's method: `stock` may be Games
-            // Library's wrap, which has already grown the slot.
-            const own = Object.getPrototypeOf(this)._getAppDisplayBoxForState;
-            const shell = own && own !== stock
-                ? own.call(this, state, box, searchHeight, dashHeight, workspacesBox, spacing) : slot;
-            menu._slot = [shell.get_width(), shell.get_height() + workspacesBox.get_height() + spacing];
+            menu._slot = [slot.get_width(), slot.get_height() + workspacesBox.get_height() + spacing];
             if (!menu._showing)
                 return slot;
             const extra = workspacesBox.get_height() + spacing;
@@ -223,18 +198,10 @@ export class MediaMenu {
     }
 
     open(key = null) {
-        this._next = null;
         if (!this._appsBox)
             return;
         if (this._sections.some(s => s.key === key))
             this._key = key;
-        // Another extension's view in the slot: hide, and reopen onto ours.
-        if (Main.overview.visible && this._showAppsButton.checked &&
-            !this._showing && !this._appsBox.visible) {
-            this._next = this._key;
-            Main.overview.hide();
-            return;
-        }
         this._show(true);
         if (Main.overview.visible) {
             this._showAppsButton.checked = true;

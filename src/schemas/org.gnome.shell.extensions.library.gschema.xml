@@ -209,7 +209,7 @@
             <summary>Controller inputs for back</summary>
         </key>
         <key name="pad-home" type="as">
-            <default>['button:315']</default>
+            <default>['button:316','button:315']</default>
             <summary>Controller inputs for home</summary>
         </key>
         <key name="pad-page-previous" type="as">

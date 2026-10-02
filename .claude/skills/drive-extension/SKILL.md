@@ -78,8 +78,7 @@ tooltip "Library", and it is the only way in.
 - **Detail pane on the surface**: Back (48, 83); group tabs y ≈ 374 from x ≈ 372; rows
   from y ≈ 430 in ≈ 54 px steps; Play (177, 562), never pressed.
 - **`menu`**: the overview opens onto the tabs (y ≈ 127, same x) over the grid, rows
-  centred at y ≈ 320 and 570. With Games Library's view showing there, pressing ours
-  closes the overview and reopens it onto ours.
+  centred at y ≈ 320 and 570.
 - **`modal`**: a panel out of the button, about `210,78` to `1390,800`, tabs at y ≈ 104.
 - **A pop-up detail** (`detail-opens-in` `menu` or `modal`): the shade's edge is 48 px in
   from the work area, so `click 20 450` closes it, as `key Escape` does.

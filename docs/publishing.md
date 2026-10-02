@@ -66,7 +66,7 @@ development install back.
   container), removes the slide hook, detaches the button, releases the
   workspaces it held and disables the playback watcher, tracker and controls, each of which drops its own
   subscriptions, cancellables and sources. The three wraps of methods it does
-  not own come off chain-safely ([private-api.md](private-api.md#chain-safe-wraps-beside-games-library)).
+  not own come off chain-safely ([private-api.md](private-api.md#chain-safe-wraps)).
 - **No deprecated modules** (`ByteArray`, `Mainloop`, `Lang`), **no GTK in the
   shell, no shell in the preferences**: `prefs.js` imports Adw, Gtk, Gdk, Gio,
   GLib and Pango, plus `lib/library.js` (Gio, GLib) and `lib/actions.js` (no
