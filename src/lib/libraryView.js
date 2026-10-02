@@ -1,14 +1,4 @@
-// The library: tabs between its sections over one grid per section, each
-// built the first time its tab is chosen and kept, so switching is a matter of
-// which one shows. Every place the library is browsed holds one of these — the
-// page on the wallpaper (app.js), the overview's app-grid slot (mediaMenu.js),
-// the folder's panel (libraryWindow.js) — and says only what goes around it.
-//
-// The keyboard walks a grid because the grid is a focus group of its own
-// (mediaGrid.js), which is also why an arrow up from its top row has nowhere
-// to go: St navigates within the nearest group and no further. So the view
-// takes that one step itself, up onto the tabs, and the step back down into
-// the grid — which lets a remote with nothing but arrows switch libraries.
+// Tabs over one grid per section, each built the first time its tab is chosen.
 
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
@@ -17,17 +7,11 @@ import GLib from 'gi://GLib';
 import {createMediaView} from './mediaGrid.js';
 import {createEmptyState, createHeader} from './widgets.js';
 
-// `.ml-header`'s height (52px) plus its margin-bottom (24px) in stylesheet.css
-// — keep in step — taken off the top before anything under it is sized.
-// Logical px.
+// .ml-header's height plus its margin-bottom in stylesheet.css, logical px.
 export const HEADER_ALLOWANCE = 76;
 
 export class LibraryView {
-    // `sections` are the tabs, in order, and `active` the one to show first.
-    // `width` and `height` are the whole view's, header included, in physical
-    // px. `onSwitch` hears of a tab chosen here, so whoever holds the view can
-    // open on the same one next time; `onBack` and `end` go to the header
-    // (createHeader), and `onOpenSettings` is the empty state's way out.
+    // width and height are the whole view, header included, in physical px.
     constructor({sections, itemsFor, active, width, height, columns, rows, onActivate, onSwitch, onBack, end, onOpenSettings}) {
         this._sections = sections;
         this._itemsFor = itemsFor;
@@ -38,8 +22,6 @@ export class LibraryView {
         this._onActivate = onActivate;
         this._onSwitch = onSwitch;
         this._onOpenSettings = onOpenSettings;
-        // A section's grid, or its empty state, by key; `view` is null for
-        // the empty state.
         this._pages = new Map();
         this._prebuildIdle = 0;
         this._key = this._sectionFor(active)?.key ?? null;
@@ -61,9 +43,7 @@ export class LibraryView {
         });
         this.actor.add_child(this.header.actor);
 
-        // Where the grids take turns, and where the detail pane goes when it
-        // takes a grid's place (app.js). Unclipped on purpose: the grid
-        // overhangs it slightly so hovered edge tiles are not cut off.
+        // Unclipped: the grid overhangs it so hovered edge tiles are not cut off.
         this.stack = new St.Widget({
             layout_manager: new Clutter.BinLayout(),
             x_expand: true,
@@ -84,17 +64,14 @@ export class LibraryView {
         this.actor.destroy();
     }
 
-    // The section on show.
     get key() {
         return this._key;
     }
 
-    // Its grid, or null when it has nothing in it.
     get currentView() {
         return this._pages.get(this._key)?.view ?? null;
     }
 
-    // `key`'s tab, or the one showing when there is no such section.
     show(key, {reveal = false} = {}) {
         this._key = this._sectionFor(key)?.key ?? this._key;
         if (!this._key)
@@ -107,9 +84,7 @@ export class LibraryView {
             page.view?.reveal();
     }
 
-    // The rest of the tabs, built ahead one to an idle while nothing is
-    // moving: a grid is a couple of hundred actors, which is a dropped frame
-    // on the click that first wants it.
+    // A grid is a couple of hundred actors: the rest are built ahead, one to an idle.
     prebuild() {
         if (this._prebuildIdle)
             return;
@@ -124,8 +99,6 @@ export class LibraryView {
         });
     }
 
-    // Where the keyboard starts: the grid's first tile on show, or, with
-    // nothing in the section, whatever the empty state offers.
     focusFirst() {
         const view = this.currentView;
         if (view)
@@ -158,8 +131,6 @@ export class LibraryView {
                 onActivate: this._onActivate,
             });
         } else {
-            // A section with nothing in it says so, rather than showing an
-            // empty grid.
             actor = createEmptyState({
                 icon: section.icon,
                 title: `No ${section.title.toLowerCase()} yet`,
@@ -174,10 +145,7 @@ export class LibraryView {
         return page;
     }
 
-    // The two steps between the tabs and the grid under them that St's own
-    // navigation cannot take (see the top of this file). Only while the grid
-    // is what shows: an open item has the stack to itself, and the header's
-    // Back button then leads down into that.
+    // St walks within one focus group, so the step between the tabs and the grid is ours.
     _onKeyPress(event) {
         const view = this.currentView;
         if (!view?.visible)

@@ -1,14 +1,4 @@
-// The library's button beside Show Apps: the one way in, wherever the library
-// opens.
-//
-// The button is the shell's own `ShowAppsIcon` — a DashItemContainer around a
-// `show-apps` toggle with a BaseIcon in it — subclassed for its icon and its
-// label, so hover, focus, the tooltip and the dash's sizing all come from
-// `Dash.ShowAppsIcon` (`js/ui/dash.js`). It sits in the dash, or in Dash to
-// Panel's panel when that has taken the dash away.
-//
-// What a press means is the caller's (`onActivate`), and so is whether the
-// button is lit (`sync`); everything else about it is here.
+// The library's button beside Show Apps, in the dash or in Dash to Panel's panel.
 
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
@@ -21,13 +11,10 @@ import * as Dash from 'resource:///org/gnome/shell/ui/dash.js';
 
 import {LIBRARY} from './library.js';
 
-// Show Apps with our icon and our tooltip, and nothing to drop on it.
 const LibraryIcon = GObject.registerClass(
 class VideoLibraryLibraryIcon extends Dash.ShowAppsIcon {
     _init(gicon) {
-        // Read by _createIcon, which the BaseIcon super._init() builds calls
-        // straight away — so it is set before the chain-up, as the shell sets
-        // _iconActor before setDragApp() reads it.
+        // Read by _createIcon, which BaseIcon's _init calls before the chain-up returns.
         this._gicon = gicon;
         // eslint-disable-next-line no-restricted-syntax -- constructor() could not set it first
         super._init();
@@ -51,8 +38,7 @@ class VideoLibraryLibraryIcon extends Dash.ShowAppsIcon {
 });
 
 export class LibraryButton {
-    // `path` is the extension's own directory, which the icon is read from:
-    // lib/ runs from a staged copy that holds nothing else.
+    // The icon is read from the extension directory: lib/ runs from a staged copy.
     constructor({path, onActivate}) {
         this._gicon = new Gio.FileIcon({
             file: Gio.File.new_for_path(GLib.build_filenamev([path, LIBRARY.icon])),
@@ -60,27 +46,20 @@ export class LibraryButton {
         this._onActivate = onActivate;
         this._button = null;
         this._buttonHost = null;
-        // The Dash to Panel panel the button is in, or null in the dash: a
-        // change of it is what a re-attach is for.
         this._hostPanel = null;
         this._dashToPanel = null;
-        // Whether it is lit, kept so a re-attach lights it again.
         this._checked = false;
         this._attached = false;
     }
 
-    // Put beside Show Apps, and kept there — across Dash to Panel rebuilding
-    // its panels — until `detach`. Attaching what is attached does nothing.
     attach() {
         if (this._attached)
             return;
         this._attached = true;
-        // Dash to Panel builds its panels when it is enabled and again when
-        // its settings change, either of which can come after this.
+        // Dash to Panel rebuilds its panels when enabled, on a settings change and on
+        // monitors-changed (panels-created).
         Main.extensionManager.connectObject('extension-state-changed',
             () => this._reattach(), this);
-        // It also rebuilds them on monitors-changed, which no extension state
-        // reflects, and says so with `panels-created` on its own emitter.
         this._armDashToPanel();
         this._attach();
     }
@@ -93,9 +72,6 @@ export class LibraryButton {
         this._detach();
     }
 
-    // The button's icon, for a panel that wants to zoom out of it — or null
-    // while it is not on screen (the dash is the overview's, and a shortcut
-    // can be pressed on the desktop), which leaves nothing to zoom out of.
     get icon() {
         const icon = this._button?.icon;
         return icon?.mapped ? icon : null;
@@ -108,8 +84,6 @@ export class LibraryButton {
             this._button.toggleButton.checked = this._checked;
     }
 
-    // ------------------------------------------------------------------
-
     _armDashToPanel() {
         const dashToPanel = global.dashToPanel;
         if (!dashToPanel || dashToPanel === this._dashToPanel)
@@ -119,13 +93,9 @@ export class LibraryButton {
         dashToPanel.connectObject?.('panels-created', () => this._reattach(), this);
     }
 
-    // Only when where the button sits has changed: Dash to Panel appearing,
-    // going, or making new panels — its old ones take the button with them.
-    // Any extension changing state says so (`extension-state-changed`), and
-    // a button built again for nothing takes the modal library's panel down
-    // with it, since that panel zooms out of the button and dies with it.
+    // Only when the host changed: a rebuilt button takes the modal library's panel
+    // down with it.
     _reattach() {
-        // Dash to Panel may only have appeared since we last looked.
         this._armDashToPanel();
         const panel = global.dashToPanel?.panels?.[0] ?? null;
         if (panel !== this._hostPanel || !this._button?.get_parent())
@@ -134,8 +104,6 @@ export class LibraryButton {
 
     _attach() {
         this._detach();
-        // The primary panel only: a button per panel would make the host's
-        // release a list, and is not done.
         const panel = global.dashToPanel?.panels?.[0] ?? null;
         this._hostPanel = panel;
         try {
@@ -184,16 +152,7 @@ export class LibraryButton {
         };
     }
 
-    // Dash to Panel lays out only the elements it knows, in groups it works
-    // out from its settings. Ours is one more element, put into the group
-    // Show Apps is in, straight after it, each time the groups are made.
-    //
-    // By wrapping the panel's own `_updateGroupedElements` — which another
-    // extension can wrap as well (Games Library puts its button there the same
-    // way), so the wrap is taken off only while it is still the outermost,
-    // and what was there before is put back rather than deleted. Wrapped over
-    // since, it is left in place and goes inert instead: taking it out would
-    // take the other one's with it.
+    // A chain-safe wrap, beside Games Library's: docs/private-api.md.
     _attachToPanel(panel) {
         const showApps = panel.showAppsIconWrapper.realShowAppsIcon;
         const box = new St.BoxLayout({
@@ -213,8 +172,7 @@ export class LibraryButton {
         });
         box.add_child(container);
 
-        // The way out is in place before anything is put into the panel, so
-        // a throw part-way through still has it to call.
+        // The way out is in place before anything goes into the panel.
         let released = false;
         box.connect('destroy', () => (released = true));
         const element = {actor: box, box: new Clutter.ActorBox()};
@@ -238,7 +196,6 @@ export class LibraryButton {
             box.visible = showApps.visible;
         };
         this._buttonHost = {
-            // The panel sizes its icons after it is made, and again as it fills.
             sync: () => {
                 container.icon.setIconSize(showApps.icon.iconSize);
                 container.toggleButton.set_style(showApps.toggleButton.get_style());
