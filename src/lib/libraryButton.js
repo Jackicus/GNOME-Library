@@ -11,6 +11,8 @@ import * as Dash from 'resource:///org/gnome/shell/ui/dash.js';
 
 import {LIBRARY} from './library.js';
 
+const DASH_TO_PANEL = 'dash-to-panel@jderose9.github.com';
+
 const LibraryIcon = GObject.registerClass(
 class LibraryButtonIcon extends Dash.ShowAppsIcon {
     _init(gicon) {
@@ -39,15 +41,17 @@ class LibraryButtonIcon extends Dash.ShowAppsIcon {
 
 export class LibraryButton {
     // The icon is read from the extension directory: lib/ runs from a staged copy.
-    constructor({path, onActivate}) {
+    constructor({path, settings, onActivate}) {
         this._gicon = new Gio.FileIcon({
             file: Gio.File.new_for_path(GLib.build_filenamev([path, LIBRARY.icon])),
         });
+        this._settings = settings;
         this._onActivate = onActivate;
         this._button = null;
         this._buttonHost = null;
         this._hostPanel = null;
         this._dashToPanel = null;
+        this._reattachId = 0;
         this._checked = false;
         this._attached = false;
     }
@@ -56,20 +60,20 @@ export class LibraryButton {
         if (this._attached)
             return;
         this._attached = true;
-        // Dash to Panel rebuilds its panels when enabled, on a settings change and on
-        // monitors-changed (panels-created).
-        Main.extensionManager.connectObject('extension-state-changed',
-            () => this._reattach(), this);
-        this._armDashToPanel();
-        this._attach();
+        this._settings.connectObject('changed::dash-to-panel', () => this._follow(), this);
+        this._follow();
     }
 
     detach() {
         this._attached = false;
+        this._settings.disconnectObject(this);
         Main.extensionManager.disconnectObject(this);
+        if (this._reattachId)
+            GLib.Source.remove(this._reattachId);
+        this._reattachId = 0;
+        this._detach();
         this._dashToPanel?.disconnectObject?.(this);
         this._dashToPanel = null;
-        this._detach();
     }
 
     get icon() {
@@ -84,27 +88,42 @@ export class LibraryButton {
             this._button.toggleButton.checked = this._checked;
     }
 
+    // Nothing of Dash to Panel is read or watched unless the setting asks.
+    _follow() {
+        this._detach();
+        Main.extensionManager.disconnectObject(this);
+        if (this._settings.get_boolean('dash-to-panel')) {
+            Main.extensionManager.connectObject('extension-state-changed', (_manager, extension) => {
+                if (extension.uuid === DASH_TO_PANEL)
+                    this._reattach();
+            }, this);
+        }
+        this._armDashToPanel();
+        this._attach();
+    }
+
+    // Dash to Panel's own global, which emits panels-created whenever it rebuilds its
+    // panels: on enable, on its settings' changes and on monitors-changed.
     _armDashToPanel() {
-        const dashToPanel = global.dashToPanel;
-        if (!dashToPanel || dashToPanel === this._dashToPanel)
+        const dashToPanel = this._settings.get_boolean('dash-to-panel') ? global.dashToPanel ?? null : null;
+        if (dashToPanel === this._dashToPanel)
             return;
         this._dashToPanel?.disconnectObject?.(this);
         this._dashToPanel = dashToPanel;
-        dashToPanel.connectObject?.('panels-created', () => this._reattach(), this);
+        dashToPanel?.connectObject?.('panels-created', () => this._reattach(), this);
     }
 
     // Only when the host changed: a rebuilt button takes the modal library's panel
     // down with it.
     _reattach() {
         this._armDashToPanel();
-        const panel = global.dashToPanel?.panels?.[0] ?? null;
-        if (panel !== this._hostPanel || !this._button?.get_parent())
+        if ((this._dashToPanel?.panels?.[0] ?? null) !== this._hostPanel || !this._button?.get_parent())
             this._attach();
     }
 
     _attach() {
         this._detach();
-        const panel = global.dashToPanel?.panels?.[0] ?? null;
+        const panel = this._dashToPanel?.panels?.[0] ?? null;
         this._hostPanel = panel;
         try {
             if (panel?.showAppsIconWrapper && panel.panel && panel._updateGroupedElements)
@@ -168,9 +187,22 @@ export class LibraryButton {
         });
         box.add_child(container);
 
-        // The way out is in place before anything goes into the panel.
+        // The way out is in place before anything goes into the panel. The shell disables
+        // and re-enables the extensions enabled after one being disabled, with no signal,
+        // so Show Apps going is what says Dash to Panel let go of its panel.
         let released = false;
+        let gone = false;
+        let host = null;
         box.connect('destroy', () => (released = true));
+        showApps.connectObject('destroy', () => {
+            gone = true;
+            this._detach();
+            this._reattachId ||= GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+                this._reattachId = 0;
+                this._reattach();
+                return GLib.SOURCE_REMOVE;
+            });
+        }, box);
         const element = {actor: box, box: new Clutter.ActorBox()};
         const hadOwn = Object.hasOwn(panel, '_updateGroupedElements');
         const stock = panel._updateGroupedElements;
@@ -191,7 +223,7 @@ export class LibraryButton {
             }
             box.visible = showApps.visible;
         };
-        this._buttonHost = {
+        host = {
             sync: () => {
                 container.icon.setIconSize(showApps.icon.iconSize);
                 container.toggleButton.set_style(showApps.toggleButton.get_style());
@@ -206,13 +238,16 @@ export class LibraryButton {
                 }
                 if (!released)
                     box.destroy();
+                if (gone)
+                    return;
                 try {
-                    panel.updateElementPositions?.();
-                } catch {
-                    // The panel itself is on its way out.
+                    panel.updateElementPositions();
+                } catch (e) {
+                    console.warn(`[Library Menu] Dash to Panel's panel was not laid out again: ${e}`);
                 }
             },
         };
+        this._buttonHost = host;
 
         panel.panel.add_child(box);
         panel._updateGroupedElements = wrapped;

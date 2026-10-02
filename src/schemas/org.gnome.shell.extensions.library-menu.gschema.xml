@@ -271,6 +271,12 @@
             <description>When on, playing something — an episode or a film — first moves to an empty workspace, so the player's window opens there and the one it was picked on is left as it was. Folders ("Show in Files") open where you are either way.</description>
         </key>
 
+        <key name="dash-to-panel" type="b">
+            <default>false</default>
+            <summary>Work with Dash to Panel</summary>
+            <description>When on and Dash to Panel is enabled, the library's button goes beside Show Apps in Dash to Panel's panel, on the primary monitor. When off, the extension leaves Dash to Panel alone and the button stays in the overview's dash.</description>
+        </key>
+
         <!-- What has been watched: lib/tracking.js. -->
         <key name="tracking" type="s">
             <choices>

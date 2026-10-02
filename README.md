@@ -171,8 +171,8 @@ library on the desktop.
     <td width="50%"><img src="docs/screenshots/prefs-tv-shows.png" alt="The TV Shows page: the switch for the TV Shows tab, no folder yet, and the information sources tried in order: TVmaze, TMDB and Wikipedia"></td>
   </tr>
   <tr>
-    <td valign="top"><b>General</b>: where things open, the keyboard shortcut (none
-    to begin with), the grid's size and shape, watched marks, and Rescan everything.</td>
+    <td valign="top"><b>General</b>: where things open, the button in Dash to Panel's
+    panel (off to begin with), the keyboard shortcut (none to begin with), the grid's size and shape, watched marks, and Rescan everything.</td>
     <td valign="top"><b>TV Shows</b> and <b>Films</b>: folders, the information
     sources and their keys, and the player command.</td>
   </tr>

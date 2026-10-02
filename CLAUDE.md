@@ -92,7 +92,8 @@ app folder's, `detailDialog.js`) and `modal` (a folder-style panel over the desk
 thing that follows from the pair is `app.js` `_detailInPlace()`: grid and pane on one
 workspace, so a pick flies the artwork into the grid's place. The surface is built
 only when either setting is a surface place. The one button (`libraryButton.js`, a
-`Dash.ShowAppsIcon` subclass, in the dash or Dash to Panel's panel), `library-shortcut`
+`Dash.ShowAppsIcon` subclass, in the dash, or in Dash to Panel's panel when the
+`dash-to-panel` setting, off by default, asks), `library-shortcut`
 and the Home action are the only ways in. `.claude/rules/places.md` has how each place
 behaves.
 
@@ -180,6 +181,6 @@ Docks, Dash to Panel, Blur my Shell and Wallpaper FX reach the same places, so
 nothing here assumes it is the only extension in the shell: every registered
 GObject class is `Library*`, stylesheet classes are `ml-`, the pop-up's blur effect
 is `library-panel-blur` (`panel.js` `BLUR`), and the three wraps (Dash to Panel's
-`_updateGroupedElements`, the overview layout's `_getAppDisplayBoxForState`, the
+`_updateGroupedElements`, only with `dash-to-panel` on, the overview layout's `_getAppDisplayBoxForState`, the
 workspace slide's `_prepareWorkspaceSwitch`) are chain-safe
 (`docs/private-api.md`, "Chain-safe wraps").
