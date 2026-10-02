@@ -1,6 +1,6 @@
 # Backend
 
-The scanner: `scanLibrary.js` (the command line, the settings, the lock, the
+The scanner: `scanLibrary.js` (the settings, `--only` and `--force`, the lock, the
 merge and the write), `mediaScanner.js` (the folders), `metadata.js` (the
 sources and the artwork cache), `files.js` (the file helpers both use) and
 `html.js` (TVmaze's markup). `gjs -m src/backend/scanLibrary.js --help` lists
@@ -20,8 +20,7 @@ settings and credentials come from.
   source that wrote it, so a title one of a section's sources already answered is
   not fetched again, and dropping that source refetches on the next scan.
 - **Folders.** Every folder of a section is walked into one list (a name found in
-  two folders gets a `~2` id); the flags repeat to match (`--films-path A
-  --films-path B`). A section switched on and named in the run but with no folder
+  two folders gets a `~2` id). A section switched on and named in the run but with no folder
   is written out empty, so removing its last folder clears it. A folder out of
   reach (a share offline, a drive unplugged, a failed mount), or a show or film
   folder unreadable this time, keeps what the last scan found, artwork included.
@@ -29,9 +28,7 @@ settings and credentials come from.
   TV folder inside the films folder is not a film when the Films page rescans alone.
 - **The artwork cache.** The scanner scales on the way in, copies a cover image
   found beside the media (`mediaScanner.js` `COVER_NAMES`) in with the rest, and prunes the cache on each
-  scan, but only when writing the shared `library.json`: a run sent elsewhere with
-  `--out` is merged onto that file's sections and would prune artwork the real
-  library still names.
+  scan.
 - **`metadata/index.json`** holds every cached record.
 - **A credential is one slotted value.** `credential()` returns one string per slot
   (`tmdb@1`, `tmdb@2`, …); TMDB is the only source that needs one. Where they come

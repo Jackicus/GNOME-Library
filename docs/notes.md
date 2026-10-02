@@ -19,7 +19,7 @@ Design reasoning that the code keeps to one line or none.
   than taken over, and the dialog inhibits system shortcuts while it listens so a
   taken key can be named. The extension grabs whatever `library-shortcut` holds, so
   writing the setting is all the preferences do.
-- Rescan runs `backend/scanLibrary.js --from-settings`, which reads folders, sources,
+- Rescan runs `backend/scanLibrary.js`, which reads folders, sources,
   keys and the online switches itself; two scans at once queue on its lock.
 
 ## Input, playback and motion

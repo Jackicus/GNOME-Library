@@ -83,8 +83,8 @@ development install back.
   preferences closing the window would kill a scan. It asks
   `api.tvmaze.com`, `api.themoviedb.org` and `en.wikipedia.org` over Soup 3
   and writes `~/.cache/video-library/`; the extension watches the file it
-  writes. Only a Rescan button starts it (`prefs.js` `_scanButton`, with
-  `--from-settings`, so no key is ever on a command line), and each source can
+  writes. Only a Rescan button starts it (`prefs.js` `_scanButton`; it reads
+  the keys from the settings, so no key is ever on a command line), and each source can
   be switched off per section (`<prefix>-online`). The preferences also start
   `gnome-control-center background` from the Accent colour row.
 - **Spawning a player.** `lib/app.js` runs the section's

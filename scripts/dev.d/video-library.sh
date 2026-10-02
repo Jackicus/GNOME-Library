@@ -22,17 +22,15 @@ LEGACY_UUIDS=("gnomeflix@jackt" "media-workspace-desktop@jackt" "media-libraries
 # As GLib.get_user_cache_dir() resolves it in the extension.
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/video-library"
 
-# Scan every enabled section. The scanner reads the preferences itself
-# (--from-settings), so which setting becomes which flag is decided in exactly
-# one place rather than here and in the preferences' Rescan buttons as well.
+# Scan every enabled section. The scanner reads the preferences itself, so
+# nothing here or in the preferences' Rescan buttons turns settings into flags.
 # Extra arguments are passed straight through, e.g. '--only films' or '--force'.
 cmd_scan() {
     require gjs
     compile_schemas
-    # The API keys are read straight out of the preferences by the scanner,
-    # along with everything else --from-settings covers, so nothing has to be
-    # handed to it here and no key ever reaches a command line.
-    gjs -m "$SRC_DIR/backend/scanLibrary.js" --from-settings "$@"
+    # The API keys are read straight out of the preferences by the scanner, so
+    # no key ever reaches a command line.
+    gjs -m "$SRC_DIR/backend/scanLibrary.js" "$@"
 }
 
 # Remove superseded builds of this extension, leaving the current one alone.

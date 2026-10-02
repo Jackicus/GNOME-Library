@@ -1182,7 +1182,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
             const argv = [
                 gjsPath(), '-m',
                 GLib.build_filenamev([this.path, 'backend', 'scanLibrary.js']),
-                '--from-settings',
             ];
             for (const s of ready)
                 argv.push('--only', s.key);

@@ -268,7 +268,7 @@ function videoEntries(tree) {
 }
 
 // <root>/<Show>/[Season N/]<episode>.mkv; null when root is out of reach.
-export async function scanTv(root, previous = null, exclude = []) {
+export async function scanTv(root, previous, exclude) {
     const entries = list(root);
     if (!entries)
         return null;
@@ -320,7 +320,7 @@ export async function scanTv(root, previous = null, exclude = []) {
 }
 
 // <root>/<Film (Year)>/<file>.mkv or <root>/<Film (Year)>.mkv
-export async function scanFilms(root, exclude = [], previous = null) {
+export async function scanFilms(root, previous, exclude) {
     const entries = list(root);
     if (!entries)
         return null;
