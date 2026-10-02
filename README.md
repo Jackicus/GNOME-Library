@@ -6,7 +6,7 @@ the desktop or on a workspace of its own. It plays nothing itself: a show or fil
 opens in VLC, mpv or whichever player you choose, and it remembers what you have
 watched; a game starts through Steam or PCSX2.
 
-![The library in the overview: TV Shows and Films tabs over a grid of posters, opened from the television button in the dash](docs/screenshots/menu.jpg)
+![The library in the overview: TV Shows, Films and Games tabs over a grid of posters, opened from the television button in the dash](docs/screenshots/menu.jpg)
 
 ## What it does
 
@@ -23,6 +23,26 @@ watched; a game starts through Steam or PCSX2.
   browse from the sofa.
 - **Four places to open.** In the overview, in a pop-up panel, on the desktop, or on a
   workspace of its own.
+
+## Games
+
+The Games tab finds your games by itself, with nothing to set up: Steam's own library
+files list every installed Steam game, libraries on other drives included, and the
+folders PCSX2 is pointed at hold your PlayStation 2 discs. On a first run the empty tab
+has a **Find Games** button; after that, **Rescan** on the Games page of the preferences
+picks up what you installed since.
+
+- **Play** starts the game the way its launcher would: a Steam game through Steam
+  (`steam://rungameid/…`), with your launch options and compatibility tool; a PS2 disc
+  in PCSX2, full screen. A disc with no PCSX2 found has no Play button.
+- **Show in Files** opens the game's install folder or the disc's folder.
+- A Steam game's description, genres and artwork come from Steam's own store, keyless.
+  A PS2 disc keeps PCSX2's cover; for its description and a cover PCSX2 lacks, give IGDB
+  a Twitch client id and secret on the Games page.
+- Steam and PCSX2 are found in their usual places, the Flatpak installs included; the
+  Games page takes a different folder for either.
+
+![A Steam game picked in the overview: its poster, Play and Show in Files on the left; Steam, the year, its rating, hours played, genres, its description and its install folder on the right](docs/screenshots/games.jpg)
 
 ## Where it opens
 
@@ -62,11 +82,13 @@ picked item opens. The two settings are separate, so you can mix them.
   empty a file opens in your default video app. Watched marks and Continue need a
   player that shows up in GNOME's media controls (MPRIS): VLC, Showtime, Celluloid, or
   mpv with mpv-mpris.
+- For games, Steam or PCSX2 (either is enough, neither is needed for TV shows and
+  films).
 - For game controllers, libmanette, which most desktops already have with WebKitGTK.
   Without it the extension works and controllers are ignored.
 
-The scanner that reads your folders runs on GJS, libsoup 3 and GdkPixbuf, which GNOME
-Shell itself depends on.
+The scanner that reads your folders and finds your games runs on GJS, libsoup 3 and
+GdkPixbuf, which GNOME Shell itself depends on.
 
 ## Privacy and network
 
@@ -122,9 +144,10 @@ make install
 Log out and back in (a Wayland session cannot load an extension it has never seen),
 then `gnome-extensions enable library@jackicus`.
 
-The library is empty until it has folders. Open the preferences
+TV Shows and Films are empty until they have folders. Open the preferences
 (`gnome-extensions prefs library@jackicus`), and on the **TV Shows** and **Films**
-pages add your folders and press **Rescan**:
+pages add your folders and press **Rescan**. Games need nothing: press **Find Games** on
+the empty Games tab, or **Rescan** on its page.
 
 - **TV Shows:** one folder per show. Seasons can be subfolders (`Season 2`) or
   `S02E05` in the file names.
@@ -144,15 +167,22 @@ library on the desktop.
 
 <table>
   <tr>
-    <td width="33%"><img src="docs/screenshots/prefs-general.png" alt="The General page: where the library and a picked item open, playing on a new workspace, the keyboard shortcut, and the rows, columns and other appearance settings"></td>
-    <td width="33%"><img src="docs/screenshots/prefs-tv-shows.png" alt="The TV Shows page: the switch for the TV Shows tab, no folder yet, and the information sources tried in order: TVmaze, TMDB and Wikipedia"></td>
-    <td width="33%"><img src="docs/screenshots/prefs-controls.png" alt="The Controls page: the keys a remote sends for Up, Down, Left, Right, Select, Back, Home and a page each way"></td>
+    <td width="50%"><img src="docs/screenshots/prefs-general.png" alt="The General page: where the library and a picked item open, playing on a new workspace, the keyboard shortcut, and the rows setting"></td>
+    <td width="50%"><img src="docs/screenshots/prefs-tv-shows.png" alt="The TV Shows page: the switch for the TV Shows tab, no folder yet, and the information sources tried in order: TVmaze, TMDB and Wikipedia"></td>
   </tr>
   <tr>
     <td valign="top"><b>General</b>: where things open, the keyboard shortcut (none
     to begin with), the grid's size and shape, watched marks, and Rescan everything.</td>
     <td valign="top"><b>TV Shows</b> and <b>Films</b>: folders, the information
     sources and their keys, and the player command.</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/prefs-games.png" alt="The Games page: the switch for the Games tab, the Steam library and PCSX2 configuration folders, both auto-detected, and the sources Steam and IGDB"></td>
+    <td width="50%"><img src="docs/screenshots/prefs-controls.png" alt="The Controls page: the keys a remote sends for Up, Down, Left, Right, Select, Back, Home and a page each way"></td>
+  </tr>
+  <tr>
+    <td valign="top"><b>Games</b>: where Steam and PCSX2 are, if not where they usually
+    are, and IGDB's keys for PS2 discs.</td>
     <td valign="top"><b>Controls</b>: remote keys and controller buttons for browsing
     from the sofa.</td>
   </tr>
@@ -175,9 +205,14 @@ journalctl -f -o cat SYSLOG_IDENTIFIER=org.gnome.Shell.Extensions
 From a clone, `make status` says whether it is installed and running, and `make logs`
 follows the first of those.
 
-- **A tab says "No films yet" or "No tv shows yet".** The section has no folder, or
-  has not been scanned: its Open Settings button opens the preferences, where you add
-  a folder on its page and press Rescan.
+- **A tab says "Nothing in Films yet".** The section has no folder, or has not been
+  scanned: its Open Settings button opens the preferences, where you add a folder on its
+  page and press Rescan.
+- **Find Games finds nothing.** Steam or PCSX2 is installed somewhere other than its
+  usual place: set the folder on the Games page and press Rescan. PCSX2 writes the file
+  that names its disc folders the first time it runs.
+- **A PS2 game has no Play button.** PCSX2 itself was not found (its binary, an
+  AppImage in `~/Applications`, or the Flatpak).
 - **Rescan says "Failed — see logs".** The reason is in the preferences' journal above,
   after `Scan failed`.
 - **No posters.** Check the section's online switch and its sources. TMDB is skipped
