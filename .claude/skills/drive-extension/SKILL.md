@@ -99,8 +99,9 @@ after opening or closing an item.
 - **The look beside Dash to Panel, Blur my Shell and app folders** (`panel.js`
   `folderLook`) needs them enabled in the nested session's own settings (`run timeout
   5 gsettings set org.gnome.shell enabled-extensions "['library-menu@jackicus',
-  'dash-to-panel@jderose9.github.com', 'blur-my-shell@aunetx']"`, then `stop` +
-  `start`); not under `--stand-in`, whose home has none of the user's extensions.
+  'dash-to-panel@jderose9.github.com', 'blur-my-shell@aunetx']"` and
+  `dash-to-panel` true in this extension's schema, then `stop` + `start`); not under
+  `--stand-in`, whose home has none of the user's extensions.
 
 ## Screenshots for the README
 

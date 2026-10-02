@@ -103,11 +103,13 @@ No `disable()` is async, which 51 now rejects.
    pane claimed: it travels with its workspace in the slide and in the
    overview's thumbnails.
 7. Lock and unlock with the library open.
-8. With Dash to Panel on and off: the button beside Show Apps in both; with
+8. With Dash to Panel on and off, and **Work with Dash to Panel** on: the button
+   beside Show Apps in both; with the setting off, Dash to Panel's panel as it
+   is without Library Menu; with
    Blur my Shell on and off: the pop-up's shade follows a folder's.
 9. Under `make link`, disable and enable ten times: no errors, and one
    `lib-<checksum>` directory left under
-   `$XDG_RUNTIME_DIR/library/shell-<pid>/`, the shell's own.
+   `$XDG_RUNTIME_DIR/library-menu/shell-<pid>/`, the shell's own.
 10. With Dash to Dock or Dash to Panel enabled too, disable each in turn: the
     other's button and the folded workspace row stay.
 11. Then add the version to `shell-version`.

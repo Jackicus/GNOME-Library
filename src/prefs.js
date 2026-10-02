@@ -249,6 +249,12 @@ export default class LibraryPreferences extends ExtensionPreferences {
         });
         settings.bind('play-on-new-workspace', play, 'active', Gio.SettingsBindFlags.DEFAULT);
         view.add(play);
+        const dashToPanel = new Adw.SwitchRow({
+            title: 'Work with Dash to Panel',
+            subtitle: 'Puts the library button beside Show Apps in Dash to Panel\'s panel',
+        });
+        settings.bind('dash-to-panel', dashToPanel, 'active', Gio.SettingsBindFlags.DEFAULT);
+        view.add(dashToPanel);
         const held = new Adw.ActionRow({
             title: 'Workspaces the library is using stay open',
             subtitle: 'A workspace opened for the library or for a picked item is held until you close ' +
