@@ -14,8 +14,8 @@
 // directory per edit reloads without a shell restart, while an unlock
 // re-enables into the same stage and the same module graph. GNOME Shell names a
 // GObject class after the path of the module that registers it, so a class in a
-// new stage registers under a new name; a fixed GTypeName in lib/ would not,
-// and must be made apart per load.
+// new stage registers under a new name; a GTypeName set in lib/ would not, so
+// none is.
 //
 // Each shell stages under a directory of its own, named for its process id, and
 // removes only its own old stages and those of shells that are gone. A nested
