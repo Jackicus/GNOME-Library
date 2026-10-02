@@ -21,21 +21,18 @@ settings and credentials come from.
   not fetched again, and dropping that source refetches on the next scan.
 - **Folders.** Every folder of a section is walked into one list (a name found in
   two folders gets a `~2` id); the flags repeat to match (`--films-path A
-  --films-path B`). `<prefix>-path` is the single folder earlier releases kept: the
-  prefs move it into the list when they open, and the scanner reads it only while
-  the list is empty. A section switched on and named in the run but with no folder
+  --films-path B`). A section switched on and named in the run but with no folder
   is written out empty, so removing its last folder clears it. A folder out of
   reach (a share offline, a drive unplugged, a failed mount), or a show or film
   folder unreadable this time, keeps what the last scan found, artwork included.
   Each section's folders are kept out of the other's walk whichever a run scans: a
   TV folder inside the films folder is not a film when the Films page rescans alone.
 - **The artwork cache.** The scanner scales on the way in, copies a cover image
-  found beside the media (`mediaScanner.js` `COVER_NAMES`) in with the rest, and sweeps and prunes the cache on each
+  found beside the media (`mediaScanner.js` `COVER_NAMES`) in with the rest, and prunes the cache on each
   scan, but only when writing the shared `library.json`: a run sent elsewhere with
   `--out` is merged onto that file's sections and would prune artwork the real
   library still names.
-- **`metadata/index.json`** holds every cached record; the per-item files the first
-  release wrote are read once (`_record`) and folded in.
+- **`metadata/index.json`** holds every cached record.
 - **A credential is one slotted value.** `credential()` returns one string per slot
   (`tmdb@1`, `tmdb@2`, …); TMDB is the only source that needs one. Where they come
   from is the root `CLAUDE.md`'s. Never print one.
@@ -59,12 +56,6 @@ settings and credentials come from.
 - **The cached record is read for every listed source, usable or not.** A
   TMDB key blanked in the preferences must not throw away what TMDB fetched
   while it was set; only the online loop is filtered by `_usable`.
-- **An install upgrading from a release with music, photos or games cleans
-  its cache up on its first scan since, not before.** `_loadIndex` drops any
-  `album_`/`game_`-prefixed record from the metadata index on load, and
-  `pruneArt` removes a leftover `thumbs/` folder under the cache. Both are
-  one-shot sweeps: once a machine has scanned since upgrading, there is
-  nothing left to drop, so don't mistake either for dead code.
 - **An id is the cache's key, so how one is made does not change.** `slug`
   keeps letters and numbers of every script — JavaScript's `\w` and `\b` are
   ASCII-only, which is why it spells out `\p{L}\p{N}_` — and a scan reuses a

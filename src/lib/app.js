@@ -12,7 +12,7 @@ import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 
 import {Duration, Ease, POP_SCALE, allocateNow, fadeTo, flyClone, rectIn} from './anim.js';
-import {SECTIONS, loadLibrary, libraryPath, migrateOpenCommand, openCommandKey, sectionByKey} from './library.js';
+import {SECTIONS, loadLibrary, libraryPath, openCommandKey, sectionByKey} from './library.js';
 import {createHeader, createIconButton} from './widgets.js';
 import {setCornerRadius} from './shape.js';
 import {setGridAlign} from './mediaGrid.js';
@@ -156,7 +156,6 @@ export class VideoLibraryApp {
     }
 
     _enable() {
-        migrateOpenCommand(this._settings);
         this._controls.enable();
         this._tracker.enable();
         this._playback.enable();

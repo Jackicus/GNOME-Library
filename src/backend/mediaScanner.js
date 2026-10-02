@@ -10,7 +10,7 @@ import {cacheLocalArt} from './metadata.js';
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.mkv', '.avi', '.webm', '.m4v', '.mov', '.wmv']);
 const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.heic', '.avif', '.tiff', '.bmp']);
 const SUBTITLE_EXTENSIONS = new Set(['.srt', '.vtt', '.ass', '.ssa', '.sub']);
-const COVER_NAMES = ['cover', 'folder', 'front', 'album', 'poster', 'artwork'];
+const COVER_NAMES = ['cover', 'folder', 'front', 'poster', 'artwork'];
 
 const YEAR = /\s*[([](\p{Nd}{4})[)\]]\s*$/u;
 const NOT_WORD = /[^\p{L}\p{N}_]/gu;

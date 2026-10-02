@@ -8,7 +8,7 @@ import System from 'system';
 import {SECTIONS, libraryPath} from '../lib/library.js';
 import {scanFilms, scanTv} from './mediaScanner.js';
 import {
-    CACHE_DIR, ENRICH_WORKERS, PROVIDERS, MetadataService, fitCachedArt, localiseArt,
+    CACHE_DIR, ENRICH_WORKERS, PROVIDERS, MetadataService, localiseArt,
     pathKey, pruneArt, sourceId,
 } from './metadata.js';
 import {join, readJson, writeJson} from './files.js';
@@ -102,13 +102,7 @@ function openSettings() {
 }
 
 function sectionFolders(settings, prefix) {
-    const folders = settings.get_strv(`${prefix}-folders`).filter(Boolean);
-    if (!folders.length) {
-        const legacy = settings.get_string(`${prefix}-path`);
-        if (legacy)
-            folders.push(legacy);
-    }
-    return folders;
+    return settings.get_strv(`${prefix}-folders`).filter(Boolean);
 }
 
 function applySettings(args) {
@@ -173,11 +167,8 @@ async function holdLock() {
     }
 }
 
-// version 1 was a bare list of TV shows.
 function loadExisting(path) {
     const data = readJson(path);
-    if (Array.isArray(data))
-        return {tv: data};
     if (!data || typeof data !== 'object')
         return {};
     const sections = data.sections ?? {};
@@ -334,7 +325,6 @@ async function main(argv) {
         credentials: args.credentials,
         offlineKinds: args.offlineKinds,
     });
-    const fitted = await fitCachedArt();
     const run = {sections: loadExisting(args.out), scanned: {}, meta, exclude, force: args.force};
     for (const [key, paths] of Object.entries(requested)) {
         if (paths !== null)
@@ -358,8 +348,8 @@ async function main(argv) {
     let dropped = 0;
     if (Gio.File.new_for_path(args.out).equal(Gio.File.new_for_path(LIBRARY_PATH)))
         dropped = pruneArt(library.sections);
-    if (fitted || moved || dropped)
-        print(`Artwork cache: ${fitted} scaled down, ${moved} copied in, ${dropped} removed`);
+    if (moved || dropped)
+        print(`Artwork cache: ${moved} copied in, ${dropped} removed`);
     return 0;
 }
 

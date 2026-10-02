@@ -247,10 +247,9 @@ export class DetailView {
         side.add_child(this.hero);
 
         if (item.playPath) {
-            const opensFolder = item.playLabel === 'Open folder';
             const play = createActionButton({
                 label: item.playLabel,
-                icon: opensFolder ? 'folder-open-symbolic' : 'media-playback-start-symbolic',
+                icon: 'media-playback-start-symbolic',
             });
             play.set_x_expand(true);
             play.connect('clicked', () => this._open(this._playPath ?? item.playPath));

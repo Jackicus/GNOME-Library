@@ -5,18 +5,10 @@
         <!-- Media sections. Each looks in an ordered list of folders,
              <prefix>-folders. There is no default: the Videos folder cannot
              serve both TV shows and films, so a section stays off until
-             pointed at one. <prefix>-path is a single folder, superseded by
-             the list: the preferences move its value into the list the first
-             time they open, and the scanner reads <prefix>-path only while
-             the list is still empty. -->
+             pointed at one. -->
         <key name="tv-shows-enabled" type="b">
             <default>true</default>
             <summary>Show TV shows</summary>
-        </key>
-        <key name="tv-shows-path" type="s">
-            <default>""</default>
-            <summary>TV shows folder (legacy)</summary>
-            <description>Superseded by tv-shows-folders; read only while that list is empty. One subfolder per show, optionally split into Season N subfolders.</description>
         </key>
         <key name="tv-shows-folders" type="as">
             <default>[]</default>
@@ -43,11 +35,6 @@
         <key name="films-enabled" type="b">
             <default>true</default>
             <summary>Show films</summary>
-        </key>
-        <key name="films-path" type="s">
-            <default>""</default>
-            <summary>Films folder (legacy)</summary>
-            <description>Superseded by films-folders; read only while that list is empty. One subfolder or file per film, named "Title (Year)".</description>
         </key>
         <key name="films-folders" type="as">
             <default>[]</default>
@@ -286,14 +273,5 @@
             <description>How many seconds before where it stopped playback picks up again, so the moment it was left at is seen again.</description>
         </key>
 
-        <!-- The one player command, superseded by a command per section. The
-             preferences and the extension move it into tv-shows-open-command
-             and films-open-command the first time either runs, and nothing
-             reads it after that. -->
-        <key name="player-command" type="s">
-            <default>""</default>
-            <summary>Video player command (legacy)</summary>
-            <description>Superseded by the per-section open commands; kept only so an upgrade carries the value over.</description>
-        </key>
     </schema>
 </schemalist>
