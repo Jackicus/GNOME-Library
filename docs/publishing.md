@@ -57,8 +57,7 @@ development install back.
 - **Initialisation holds only static resources.** Module scope under `lib/` is
   imports, constants, classes and plain values: `let` module state in
   `log.js`, `shape.js`, `mediaGrid.js`, `controls.js` and `overviewPreview.js`,
-  a `Set` in `controls.js`, two `Cogl.Color`s in `panel.js`, an
-  `InjectionManager` in `overviewPreview.js` (inert until used) and
+  a `Set` in `controls.js`, two `Cogl.Color`s in `panel.js` and
   `shape.js`'s `setCornerRadius(DEFAULT_RADIUS)`, which fills a table of
   strings. No GObject instance, signal or source exists before `enable()`.
 - **`disable()` undoes `enable()`.** `VideoLibraryApp.disable()` removes the
@@ -66,7 +65,7 @@ development install back.
   calls `_teardown()` (previews, browser, pane, pop-up, focus group,
   container), removes the slide hook, detaches the button, releases the
   workspaces it held and disables the playback watcher, tracker and controls, each of which drops its own
-  subscriptions, cancellables and sources. The two wraps of methods it does
+  subscriptions, cancellables and sources. The three wraps of methods it does
   not own come off chain-safely ([private-api.md](private-api.md#chain-safe-wraps-beside-games-library)).
 - **No deprecated modules** (`ByteArray`, `Mainloop`, `Lang`), **no GTK in the
   shell, no shell in the preferences**: `prefs.js` imports Adw, Gtk, Gdk, Gio,
