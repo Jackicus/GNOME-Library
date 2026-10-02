@@ -38,19 +38,14 @@ const TMDB_IMAGE = 'https://image.tmdb.org/t/p';
 const TMDB_POSTER_SIZE = 'w780';
 const TMDB_BACKDROP_SIZE = 'w1280';
 
-export const PROVIDERS = {
+const PROVIDERS = {
     tv: ['tvmaze', 'tmdb', 'wikipedia'],
     film: ['tmdb', 'wikipedia'],
-};
-// The schema's defaults, for a standalone run with no preferences.
-const DEFAULT_SOURCES = {
-    tv: ['tvmaze', 'tmdb@1', 'wikipedia'],
-    film: ['tmdb@1', 'wikipedia'],
 };
 const CREDENTIAL_NEEDED = new Set(['tmdb']);
 const CACHED_FIELDS = ['summary', 'genres', 'rating', 'runtime', 'year', 'tagline', 'seasons'];
 
-export function sourceId(entry) {
+function sourceId(entry) {
     return entry.split('@')[0];
 }
 
@@ -74,7 +69,7 @@ function now() {
     return GLib.get_real_time() / 1e6;
 }
 
-export function ensureCacheDirs() {
+function ensureCacheDirs() {
     for (const directory of [POSTER_CACHE_DIR, BACKDROP_CACHE_DIR, METADATA_CACHE_DIR])
         GLib.mkdir_with_parents(directory, 0o755);
 }
@@ -350,21 +345,16 @@ function describe(error) {
 }
 
 export class MetadataService {
-    constructor({online = true, sources = {}, credentials = {}, offlineKinds = []} = {}) {
-        this.online = online;
-        this._offlineKinds = new Set(offlineKinds);
+    constructor({sources, credentials, offlineKinds}) {
+        this._offlineKinds = offlineKinds;
         this.sources = {};
-        for (const [kind, entries] of Object.entries(DEFAULT_SOURCES))
-            this.sources[kind] = entries.map(normaliseEntry);
         for (const [kind, entries] of Object.entries(sources)) {
-            if (kind in this.sources && entries) {
-                this.sources[kind] = entries
-                    .filter(e => PROVIDERS[kind].includes(sourceId(e)))
-                    .map(normaliseEntry);
-            }
+            this.sources[kind] = entries
+                .filter(e => PROVIDERS[kind].includes(sourceId(e)))
+                .map(normaliseEntry);
         }
         this._credentials = {...credentials};
-        // A standalone run's key, for slot 1.
+        // For an empty slot 1.
         this._envCredentials = {tmdb: (GLib.getenv('VIDEO_LIBRARY_TMDB_KEY') ?? '').trim()};
         this._warned = new Set();
         this._refused = new Set();
@@ -404,7 +394,7 @@ export class MetadataService {
     }
 
     onlineFor(kind) {
-        return this.online && !this._offlineKinds.has(kind);
+        return !this._offlineKinds.has(kind);
     }
 
     _loadIndex() {

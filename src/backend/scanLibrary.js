@@ -8,8 +8,7 @@ import System from 'system';
 import {SECTIONS, libraryPath} from '../lib/library.js';
 import {scanFilms, scanTv} from './mediaScanner.js';
 import {
-    CACHE_DIR, ENRICH_WORKERS, PROVIDERS, MetadataService, localiseArt,
-    pathKey, pruneArt, sourceId,
+    CACHE_DIR, ENRICH_WORKERS, MetadataService, localiseArt, pathKey, pruneArt,
 } from './metadata.js';
 import {join, readJson, writeJson} from './files.js';
 
@@ -23,69 +22,37 @@ const SCHEMA_DIR = join(GLib.path_get_dirname(HERE), 'schemas');
 const LIBRARY_PATH = libraryPath();
 
 const SECTION_KINDS = {tv: 'tv', films: 'film'};
-const SCANNERS = {
-    tv: (path, previous, exclude) => scanTv(path, previous, exclude.films ?? []),
-    films: (path, previous, exclude) => scanFilms(path, exclude.tv ?? [], previous),
-};
+const SCANNERS = {tv: scanTv, films: scanFilms};
 
-const USAGE = `usage: gjs -m scanLibrary.js [-h] [--tv-path FOLDER] [--films-path FOLDER]
-                        [--source KIND=A,B] [--offline] [--from-settings]
-                        [--only SECTION] [--force] [--out OUT]
+const USAGE = `usage: gjs -m scanLibrary.js [-h] [--only SECTION] [--force]
 
-Scan media folders and cache metadata.
+Scan the folders the preferences list, cache their metadata and artwork, and
+write library.json.
 
 options:
   -h, --help          show this help message and exit
-  --tv-path FOLDER    A TV shows folder (repeatable)
-  --films-path FOLDER A films folder (repeatable)
-  --source KIND=A,B   Sources for one kind, in the order they are tried (tv,
-                      film). Repeatable. Keys come from the preferences or the
-                      environment, never from here.
-  --offline           Skip online metadata and artwork
-  --from-settings     Take the folders, sources, keys and online switches from
-                      the preferences
-  --only SECTION      With --from-settings, scan just this section (repeatable)
+  --only SECTION      Scan just this section (repeatable)
   --force             Re-read every folder instead of reusing the entries of
-                      unchanged ones
-  --out OUT`;
+                      unchanged ones`;
 
 class UsageError extends Error {}
 
 function parseArgs(argv) {
-    const args = {
-        tv_path: null, films_path: null, source: [], offline: false,
-        from_settings: false, only: null, force: false, out: LIBRARY_PATH,
-    };
-    const valued = {
-        '--tv-path': value => (args.tv_path ??= []).push(value),
-        '--films-path': value => (args.films_path ??= []).push(value),
-        '--source': value => args.source.push(value),
-        '--only': value => {
+    const args = {only: null, force: false};
+    for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i];
+        if (arg === '-h' || arg === '--help') {
+            print(USAGE);
+            System.exit(0);
+        } else if (arg === '--force') {
+            args.force = true;
+        } else if (arg === '--only' && i + 1 < argv.length) {
+            const value = argv[++i];
             if (!SECTIONS.some(s => s.key === value)) {
                 const choices = SECTIONS.map(s => `'${s.key}'`).join(', ');
                 throw new UsageError(`argument --only: invalid choice: '${value}' (choose from ${choices})`);
             }
             (args.only ??= []).push(value);
-        },
-        '--out': value => {
-            args.out = value;
-        },
-    };
-    const flags = {'--offline': 'offline', '--from-settings': 'from_settings', '--force': 'force'};
-    for (let i = 0; i < argv.length; i++) {
-        const [name, inline] = argv[i].startsWith('--') && argv[i].includes('=')
-            ? [argv[i].slice(0, argv[i].indexOf('=')), argv[i].slice(argv[i].indexOf('=') + 1)]
-            : [argv[i], null];
-        if (name === '-h' || name === '--help') {
-            print(USAGE);
-            System.exit(0);
-        } else if (name in flags && inline === null) {
-            args[flags[name]] = true;
-        } else if (name in valued) {
-            const value = inline ?? argv[++i];
-            if (value === undefined)
-                throw new UsageError(`argument ${name}: expected one argument`);
-            valued[name](value);
         } else {
             throw new UsageError(`unrecognized arguments: ${argv.slice(i).join(' ')}`);
         }
@@ -99,43 +66,6 @@ function openSettings() {
         source = Gio.SettingsSchemaSource.new_from_directory(SCHEMA_DIR, source, false);
     const schema = source?.lookup(SCHEMA, true);
     return schema ? new Gio.Settings({settings_schema: schema}) : null;
-}
-
-function sectionFolders(settings, prefix) {
-    return settings.get_strv(`${prefix}-folders`).filter(Boolean);
-}
-
-function applySettings(args) {
-    const settings = openSettings();
-    if (!settings) {
-        throw new UsageError(
-            '--from-settings could not read the Video Library settings. Compile the ' +
-            `schemas (${SCHEMA_DIR}) or pass the folders explicitly.`);
-    }
-
-    const only = new Set(args.only ?? SECTIONS.map(s => s.key));
-    for (const {key, prefix} of SECTIONS) {
-        const folders = sectionFolders(settings, prefix);
-        // Kept out of the other's walk even when this section is not scanned.
-        args.exclude[key] = folders;
-        if (!only.has(key) || !settings.get_boolean(`${prefix}-enabled`))
-            continue;
-        // An empty list, so removing a section's last folder clears it.
-        args[`${key}_path`] = folders;
-        if (!folders.length)
-            print(`${key}: no folder set, clearing it`);
-    }
-
-    for (const key of only) {
-        const {prefix} = SECTIONS.find(s => s.key === key);
-        const kind = SECTION_KINDS[key];
-        if (!(kind in args.sources))
-            args.sources[kind] = settings.get_strv(`${prefix}-sources`);
-        if (!settings.get_boolean(`${prefix}-online`))
-            args.offlineKinds.add(kind);
-    }
-
-    args.credentials = settings.get_value('credentials').deep_unpack();
 }
 
 // A session-bus name, freed however the scan ends (backend/CLAUDE.md).
@@ -215,25 +145,6 @@ function expandUser(path) {
     return path;
 }
 
-function parseSources(specs) {
-    const sources = {};
-    for (const spec of specs) {
-        const at = spec.indexOf('=');
-        const kind = (at < 0 ? spec : spec.slice(0, at)).trim();
-        const listed = at < 0 ? '' : spec.slice(at + 1);
-        if (!(kind in PROVIDERS)) {
-            throw new UsageError(
-                `--source: unknown kind '${kind}'; expected one of ${Object.keys(PROVIDERS).join(', ')}`);
-        }
-        const entries = listed.split(',').map(e => e.trim()).filter(Boolean);
-        const unknown = entries.filter(e => !PROVIDERS[kind].includes(sourceId(e)));
-        if (unknown.length)
-            throw new UsageError(`--source ${kind}: ${unknown.join(', ')} cannot answer for ${kind}`);
-        sources[kind] = entries;
-    }
-    return sources;
-}
-
 function previousItems(items, force) {
     const previous = new Map();
     if (force || !Array.isArray(items))
@@ -262,7 +173,7 @@ async function scanSection(key, paths, {sections, scanned, meta, exclude, force}
         let found = null;
         if (GLib.file_test(path, GLib.FileTest.IS_DIR))
             // eslint-disable-next-line no-await-in-loop -- a folder at a time, in the order they are listed
-            found = await SCANNERS[key](path, previous, exclude);
+            found = await SCANNERS[key](path, previous, exclude[key]);
         else
             print(`${key}: ${path} is not a folder, skipping it`);
         if (found) {
@@ -291,46 +202,47 @@ async function scanSection(key, paths, {sections, scanned, meta, exclude, force}
 
 async function main(argv) {
     const args = parseArgs(argv);
-    args.sources = parseSources(args.source);
-    args.offlineKinds = new Set();
-    args.credentials = {};
-    args.exclude = {};
-    if (args.from_settings)
-        applySettings(args);
-    else if (args.only)
-        throw new UsageError('--only is only meaningful with --from-settings');
+    const settings = openSettings();
+    if (!settings)
+        throw new UsageError(`could not read the Video Library settings. Compile the schemas (${SCHEMA_DIR}).`);
 
     // null leaves a section as it is, [] clears it.
-    const expand = folders => folders ? folders.map(expandUser) : null;
-    const requested = Object.fromEntries(SECTIONS.map(({key}) => [key, expand(args[`${key}_path`])]));
-    if (Object.values(requested).every(v => v === null)) {
-        if (args.from_settings)
-            throw new UsageError('nothing to scan: no section is switched on. Set one in the preferences.');
-        throw new UsageError('give at least one of --tv-path, --films-path, --from-settings');
+    const only = new Set(args.only ?? SECTIONS.map(s => s.key));
+    const requested = {};
+    const folders = {};
+    const sources = {};
+    const offlineKinds = new Set();
+    for (const {key, prefix} of SECTIONS) {
+        folders[key] = settings.get_strv(`${prefix}-folders`).filter(Boolean).map(expandUser);
+        if (!only.has(key))
+            continue;
+        sources[SECTION_KINDS[key]] = settings.get_strv(`${prefix}-sources`);
+        if (!settings.get_boolean(`${prefix}-online`))
+            offlineKinds.add(SECTION_KINDS[key]);
+        if (!settings.get_boolean(`${prefix}-enabled`))
+            continue;
+        requested[key] = folders[key];
+        if (!folders[key].length)
+            print(`${key}: no folder set, clearing it`);
     }
-    const exclude = {};
-    for (const [key, folders] of Object.entries(args.exclude))
-        exclude[key] = expand(folders) ?? [];
-    for (const [key, folders] of Object.entries(requested)) {
-        if (folders?.length)
-            exclude[key] = [...new Set([...(exclude[key] ?? []), ...folders])];
-    }
+    if (!Object.keys(requested).length)
+        throw new UsageError('nothing to scan: no section is switched on. Set one in the preferences.');
+    // Each section's folders are kept out of the others' walks, scanned this run or not.
+    const exclude = Object.fromEntries(SECTIONS.map(({key}) => [key,
+        SECTIONS.filter(other => other.key !== key).flatMap(other => folders[other.key])]));
 
-    GLib.mkdir_with_parents(GLib.path_get_dirname(args.out), 0o755);
+    GLib.mkdir_with_parents(GLib.path_get_dirname(LIBRARY_PATH), 0o755);
     await holdLock();
     // Under the lock: it reads the record index another scan may be writing.
     const meta = new MetadataService({
-        online: !args.offline,
-        sources: args.sources,
-        credentials: args.credentials,
-        offlineKinds: args.offlineKinds,
+        sources,
+        credentials: settings.get_value('credentials').deep_unpack(),
+        offlineKinds,
     });
-    const run = {sections: loadExisting(args.out), scanned: {}, meta, exclude, force: args.force};
-    for (const [key, paths] of Object.entries(requested)) {
-        if (paths !== null)
-            // eslint-disable-next-line no-await-in-loop -- one section at a time
-            await scanSection(key, paths, run);
-    }
+    const run = {sections: loadExisting(LIBRARY_PATH), scanned: {}, meta, exclude, force: args.force};
+    for (const [key, paths] of Object.entries(requested))
+        // eslint-disable-next-line no-await-in-loop -- one section at a time
+        await scanSection(key, paths, run);
 
     meta.flush();
     const written = Object.fromEntries(SECTIONS.map(({key}) => [key, run.sections[key] ?? []]));
@@ -341,13 +253,9 @@ async function main(argv) {
         sections: written,
         scanned: run.scanned,
     };
-    writeJson(args.out, library, 1);
-    print(`Wrote ${args.out}`);
-    // Only for the real library: a run written elsewhere was merged onto its
-    // sections, and pruning against it would delete artwork still in use.
-    let dropped = 0;
-    if (Gio.File.new_for_path(args.out).equal(Gio.File.new_for_path(LIBRARY_PATH)))
-        dropped = pruneArt(library.sections);
+    writeJson(LIBRARY_PATH, library, 1);
+    print(`Wrote ${LIBRARY_PATH}`);
+    const dropped = pruneArt(library.sections);
     if (moved || dropped)
         print(`Artwork cache: ${moved} copied in, ${dropped} removed`);
     return 0;

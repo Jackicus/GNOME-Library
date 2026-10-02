@@ -57,17 +57,17 @@ lists the two artwork folders once per load rather than stat a poster each.
    process of its own, never in the shell or the preferences: its folder walk is
    synchronous, and a share that has idled out takes seconds to answer. It needs
    only Gio, Soup 3 and GdkPixbuf, and imports only `SECTIONS` and `libraryPath`
-   from `lib/library.js`. It reads the preferences itself under `--from-settings`
-   (`--only <section>` narrows it), so the prefs' Rescan buttons and `make scan`
-   both just run it. Each section has an ordered list of folders
+   from `lib/library.js`. It reads the preferences itself, its only input
+   (`--only <section>` narrows it, `--force` re-reads every folder), so the prefs'
+   Rescan buttons and `make scan` both just run it. Each section has an ordered list of folders
    (`<prefix>-folders`) and of sources (`<prefix>-sources`: TV tries TVmaze, TMDB,
    Wikipedia; films TMDB, Wikipedia), and its own `<prefix>-online` switch.
    Neither section has a default folder, so both are off until pointed at one.
 2. **Credentials** are slots in one `credentials` setting (`a{ss}`): a source entry
    `tmdb@2` is a second TMDB key to fall back on, and the slot TV and films name is
    the same key. An empty slot makes its source skip itself. The scanner reads them
-   out of GSettings; only a standalone run falls back to `$VIDEO_LIBRARY_TMDB_KEY`
-   for slot 1. Each key row's Import button reads `~/Documents/keys/<SERVICE>/`, the
+   out of GSettings, falling back to `$VIDEO_LIBRARY_TMDB_KEY` for an
+   empty slot 1. Each key row's Import button reads `~/Documents/keys/<SERVICE>/`, the
    user's key drop shared with other projects.
 3. `extension.js` builds a `VideoLibraryApp` (`lib/app.js`) and enables it. The app
    reads `library.json` and builds whichever places the two "opens in" settings name.
