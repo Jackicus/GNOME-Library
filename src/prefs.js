@@ -9,16 +9,7 @@ import Pango from 'gi://Pango';
 import {SECTIONS as LIBRARY_SECTIONS, migrateOpenCommand, openCommandKey, readSections} from './lib/library.js';
 import {ACTIONS, NATIVE_KEYS, padLabel} from './lib/actions.js';
 
-// Everything a source is, in one place: what it is called, what it is good
-// for and where its key comes from.
-//
-// `key` is what the credential is, one field: a title for its entry row and
-// the file its value is read from in the key drop. A source with no `key`
-// needs none, and still gets a row of the same shape with the entry greyed
-// out.
-//
-// `service` is the folder the key drop is read from (~/Documents/keys/TMDB/),
-// shared with other projects; `key.file` is the file inside it.
+// A key's Import reads ~/Documents/keys/<service>/<key.file>.
 const SOURCES = {
     tvmaze: {
         title: 'TVmaze',
@@ -42,20 +33,6 @@ const SOURCES = {
     },
 };
 
-// One page per media section, plus General.
-//
-// What a section *is* — its key, its GSettings prefix, its title, its icon and
-// the order the pages come in — is lib/library.js's SECTIONS, imported above,
-// so adding or renaming a section is one edit there rather than two that can
-// drift. What is added here is only what the preferences themselves need to
-// say about it.
-//
-// `sources` is what that section's Add menu offers, not what it uses: the
-// ordered list in use is <prefix>-sources, and the same source may appear in
-// it more than once with a different key.
-//
-// A section looks in a list of folders, <prefix>-folders, added and removed
-// on its Files group as sources are on the sources group.
 const VIDEO_OPENER = {
     title: 'Video player command',
     hint: 'The default plays in VLC full screen and closes it at the end. For example "mpv --fullscreen" instead; watched marks and resuming need a player that shows up in the media controls, which for mpv means mpv-mpris.',
@@ -80,12 +57,9 @@ const PAGES = {
 
 const SECTIONS = LIBRARY_SECTIONS.map(section => ({...section, ...PAGES[section.key]}));
 
-// The one shortcut: the library's button, pressed from the keyboard.
 const SHORTCUT_KEY = 'library-shortcut';
 
-// Where the system's own shortcuts are kept, for a new one to be checked
-// against: the window manager's, the shell's, mutter's and the media keys,
-// whose `custom-keybindings` also lists the ones made in GNOME Settings.
+// The media keys' `custom-keybindings` also lists the shortcuts made in GNOME Settings.
 const SYSTEM_KEYBINDINGS = [
     'org.gnome.desktop.wm.keybindings',
     'org.gnome.shell.keybindings',
@@ -121,9 +95,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
             window,
             settings,
             counts: this._readCounts(),
-            // Every row that shows a count of the library, refreshed together
-            // when any Rescan finishes: a section's own row after "Rescan
-            // everything" as much as after its own button.
             refreshCounts: [],
             padMonitor: null,
         };
@@ -143,12 +114,7 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         });
     }
 
-    // ------------------------------------------------------------------
-    // Credentials
-    // ------------------------------------------------------------------
-    // A slot id ("tmdb@1") is the unit of sharing: two sections naming the
-    // same slot are looking at one key, so editing it on either page edits it
-    // on both. A second slot ("tmdb@2") is a second key to fall back to.
+    // A slot ("tmdb@1") is one key: sections naming the same slot share it.
     _credentials(settings) {
         return settings.get_value('credentials').deep_unpack();
     }
@@ -166,14 +132,10 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         settings.set_value('credentials', new GLib.Variant('a{ss}', all));
     }
 
-    // A slot is usable when its credential is filled; a source whose slot is
-    // not usable is skipped by the scanner.
     _credentialReady(settings, slot) {
         return this._credential(settings, slot).trim() !== '';
     }
 
-    // Slots no list names any more are keys nobody can reach, so removing the
-    // last row that used one removes the key with it.
     _pruneCredentials(settings) {
         const used = new Set();
         for (const section of SECTIONS) {
@@ -189,8 +151,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         settings.set_value('credentials', new GLib.Variant('a{ss}', all));
     }
 
-    // The other sections whose list names this exact slot — what the row says
-    // so that editing a shared key is never a surprise.
     _sharedWith(settings, section, entry) {
         if (!entry.includes('@'))
             return [];
@@ -200,20 +160,13 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
             .map(other => other.title);
     }
 
-    // ------------------------------------------------------------------
-    // General
-    // ------------------------------------------------------------------
     _generalPage(state) {
         const {settings} = state;
         const page = new Adw.PreferencesPage({title: 'General', icon_name: 'preferences-system-symbolic'});
 
-        // One way of browsing at a time, and one way of opening what is
-        // picked, each chosen on its own.
         const view = new Adw.PreferencesGroup({title: 'View'});
         page.add(view);
 
-        // One vocabulary, offered twice: the same four places for the library
-        // and for a picked item, each read without reference to the other.
         const PLACES = [
             ['menu', 'Menu'],
             ['desktop', 'Desktop'],
@@ -221,8 +174,7 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
             ['modal', 'Modal'],
         ];
         const toggles = () => {
-            // `can_shrink` off so a label is never ellipsized to fit the row; the
-            // two titles are kept short and parallel so both groups sit the same.
+            // `can_shrink` off, so a label is never ellipsized to fit the row.
             const group = new Adw.ToggleGroup({valign: Gtk.Align.CENTER, homogeneous: true, can_shrink: false});
             for (const [name, label] of PLACES)
                 group.add(new Adw.Toggle({name, label}));
@@ -245,7 +197,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         settings.bind('play-on-new-workspace', playRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         view.add(playRow);
 
-        // Shown for whichever of the two is set to claim one.
         const workspaces = new Adw.ActionRow({
             title: 'Workspaces Video Library is using stay open',
             subtitle: 'A workspace opened for the library or for a picked item is held until you close it or go back from it, so GNOME does not fold it away. With a fixed number of workspaces, set enough in Settings → Multitasking.',
@@ -258,9 +209,7 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         const appearance = new Adw.PreferencesGroup({title: 'Appearance'});
         page.add(appearance);
 
-        // A slider with a tick at the schema's own default, read from the
-        // schema rather than repeated here, so dragging back to the line is
-        // dragging back to the default.
+        // The tick marks the schema's default.
         const slider = (key, min, max) => {
             const scale = new Gtk.Scale({
                 orientation: Gtk.Orientation.HORIZONTAL,
@@ -296,8 +245,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         columnsRow.add_suffix(slider('columns', 4, 10));
         appearance.add(columnsRow);
 
-        // Where a row that is not full sits: centred under the full ones, as
-        // the app grid does, or against the leading edge.
         const align = new Adw.ToggleGroup({valign: Gtk.Align.CENTER, homogeneous: true, can_shrink: false});
         align.add(new Adw.Toggle({name: 'center', label: 'Centre'}));
         align.add(new Adw.Toggle({name: 'start', label: 'Left'}));
@@ -351,7 +298,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
             // Under the heading, not in the rows, where it would squeeze the toggles.
             view.description = `${VIEWS[mode]} ${DETAILS[detail]}`;
             workspaces.visible = mode === 'workspaces' || detail === 'workspaces';
-            // The pop-up panel only exists for the two places that are one.
             detailSizeRow.sensitive = detail === 'menu' || detail === 'modal';
         };
         for (const [group, key] of [[modes, 'library-opens-in'], [details, 'detail-opens-in']]) {
@@ -378,7 +324,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         });
         appearance.add(accent);
 
-        // Where the watched marks go: lib/tracking.js.
         const tracking = new Adw.PreferencesGroup({title: 'Watched'});
         page.add(tracking);
         const TRACKING = {
@@ -406,7 +351,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         settings.connect('changed::tracking', syncTracking);
         syncTracking();
 
-        // Playback is followed over MPRIS: lib/playback.js.
         const thresholdRow = new Adw.ActionRow({
             title: 'Watched after',
             subtitle: 'How far through an episode or film playback has to get, as a percentage. Works with any player that shows up in the media controls, VLC included.',
@@ -429,7 +373,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         settings.bind('resume-playback', rewindRow, 'sensitive', Gio.SettingsBindFlags.GET);
         tracking.add(rewindRow);
 
-        // With tracking off there is nothing for either to write to.
         const syncPlayback = () => {
             const on = settings.get_string('tracking') !== 'none';
             thresholdRow.sensitive = on;
@@ -438,8 +381,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         settings.connect('changed::tracking', syncPlayback);
         syncPlayback();
 
-        // Sources, keys, the online switch and what files open with are each
-        // section's own; all that is left here is the one button that runs the lot.
         const library = new Adw.PreferencesGroup({
             title: 'Library',
             description: 'Folders, sources and API keys are on each section\'s own page.',
@@ -450,8 +391,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
             title: 'Rescan everything',
             subtitle: this._lastScanText(),
         });
-        // Every section: which of them are switched on is read when the
-        // button is pressed, not when the page was built.
         rescan.add_suffix(this._scanButton(state, SECTIONS));
         state.refreshCounts.push(() => rescan.set_subtitle(this._lastScanText()));
         library.add(rescan);
@@ -459,13 +398,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         return page;
     }
 
-    // ------------------------------------------------------------------
-    // Shortcuts
-    // ------------------------------------------------------------------
-    // The library's shortcut, set by pressing it, as GNOME Settings sets its
-    // own. The extension grabs whatever `library-shortcut` holds (lib/app.js)
-    // and follows it as it changes, so nothing is registered here — writing
-    // the setting is the whole of it.
     _shortcutsGroup(state) {
         const {settings} = state;
         const group = new Adw.PreferencesGroup({title: 'Keyboard Shortcut'});
@@ -494,11 +426,7 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         return group;
     }
 
-    // GNOME Settings' own rules (cc-keyboard-shortcut-editor.c) — Escape
-    // cancels, Backspace removes it, and a key with no modifier is only taken
-    // when it types nothing, a function key or a media key. What the system
-    // already answers to is refused, not taken over: this is the extension's
-    // setting, not the system's.
+    // GNOME Settings' rules, from cc-keyboard-shortcut-editor.c.
     _captureShortcut(state) {
         const {settings} = state;
         this._keyDialog(state, {
@@ -512,10 +440,8 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
                     return true;
                 }
                 const shown = keyLabel(keyval, mods);
-                // On its own, only a function key or one of the XF86 range —
-                // the media keys, and everything a remote sends, which sits
-                // at 0x10081xxx below XF86HomePage's 0x1008ffxx — is a
-                // shortcut; anything else would be taken from every app.
+                // Unmodified, only a function key or the XF86 range (media keys, and a
+                // remote's 0x10081xxx) may be a shortcut.
                 const bare = !(mods & ~Gdk.ModifierType.SHIFT_MASK) &&
                     !(keyval >= Gdk.KEY_F1 && keyval <= Gdk.KEY_F35) && (keyval >>> 16) !== 0x1008;
                 if (bare)
@@ -530,13 +456,8 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         });
     }
 
-    // The dialog GNOME Settings listens for a key in. `onKey` is handed each
-    // key pressed, lowered the way Settings lowers it (Shift kept only where
-    // it changed the key), and answers true to close, or a line saying why
-    // the key will not do. A modifier on its own is waited past; so, for a
-    // shortcut, is a bare arrow, Tab, Home, End or Page key, which GTK holds
-    // to be navigation — `anyKey` takes those too, since they are exactly
-    // what a remote or a Pico may send.
+    // `onKey` answers true to close, or a line saying why the key will not do.
+    // `anyKey` also takes the bare navigation keys GTK refuses, which a remote sends.
     _keyDialog(state, {heading = 'Set Shortcut', title, description, onKey, anyKey = false}) {
         const {window} = state;
         const status = new Adw.StatusPage({
@@ -565,14 +486,10 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
                 status.description = answer;
             return Gdk.EVENT_STOP;
         });
-        // On the dialog, not the window: a dialog's keys never pass through
-        // the window's capture phase.
+        // On the dialog: its keys never pass through the window's capture phase.
         dialog.add_controller(keys);
 
-        // As GNOME Settings does while it listens: a key the system has taken
-        // reaches the dialog instead of doing what it does, so it can be said
-        // to be taken. The shell asks once whether this app may; refused, a
-        // taken key goes on doing its own thing and only the rest are heard.
+        // As GNOME Settings does: a key the system has taken reaches the dialog.
         const surface = window.get_surface();
         surface?.inhibit_system_shortcuts?.(null);
         dialog.connect('closed', () => surface?.restore_system_shortcuts?.());
@@ -580,13 +497,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         return dialog;
     }
 
-    // ------------------------------------------------------------------
-    // Controls
-    // ------------------------------------------------------------------
-    // What a remote, a controller or keys of the user's own do in a library
-    // (lib/controls.js). Every action is two lists, `keys-<action>` and
-    // `pad-<action>`; a row shows one, adds to it by pressing the thing to
-    // add, and empties it.
     _controlsPage(state) {
         const {settings} = state;
         const page = new Adw.PreferencesPage({title: 'Controls', icon_name: 'input-gaming-symbolic'});
@@ -621,8 +531,7 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         for (const action of ACTIONS) {
             padRows.push(this._bindingRow(settings, action, {
                 key: `pad-${action.key}`,
-                // A mapped pad's D-pad is four buttons, an unmapped one's a
-                // hat, and both are bound, under the one name.
+                // A mapped pad's D-pad is buttons, an unmapped one's a hat: one name for both.
                 labels: () => [...new Set(settings.get_strv(`pad-${action.key}`).map(padLabel))],
                 subtitle: action.subtitle ?? null,
                 add: () => this._capturePad(state, action),
@@ -640,8 +549,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         return page;
     }
 
-    // One action's list: what is in it, a button to add to it, and one to
-    // empty it. Rebuilt from the setting on every change.
     _bindingRow(settings, action, {key, labels, add, addTip, subtitle = action.subtitle ?? 'Besides the arrow key'}) {
         const row = new Adw.ActionRow({title: action.title});
         if (subtitle)
@@ -686,9 +593,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         return row;
     }
 
-    // A key for `action`, pressed. It is added to the others, not in place of
-    // them; one the library already knows, one another action has, and one
-    // the system takes before the library can see it are refused.
     _captureNavKey(state, action) {
         const {settings} = state;
         const key = `keys-${action.key}`;
@@ -720,10 +624,7 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         });
     }
 
-    // A controller input for `action`: the first button pressed, or stick
-    // or D-pad pushed, on any controller. A stick is only taken once it has
-    // been seen at rest, so one that was already over (a trigger resting at
-    // one end) is not mistaken for the press.
+    // An axis counts only once seen at rest, so a trigger resting at one end is not a press.
     async _capturePad(state, action) {
         const {settings, window} = state;
         const key = `pad-${action.key}`;
@@ -801,9 +702,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         });
     }
 
-    // Which controllers libmanette can see, kept up to date while the window
-    // is open — the quickest way to tell a pad that is not being read from a
-    // binding that is wrong.
     async _watchPads(state, row) {
         const Manette = await loadManette();
         if (!Manette) {
@@ -831,9 +729,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         sync();
     }
 
-    // ------------------------------------------------------------------
-    // One media section
-    // ------------------------------------------------------------------
     _sectionPage(state, section) {
         const {settings} = state;
         const page = new Adw.PreferencesPage({title: section.title, icon_name: section.icon});
@@ -841,7 +736,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         const files = new Adw.PreferencesGroup({title: 'Files', description: section.layout});
         page.add(files);
 
-        // A section switched off is a tab the library does not have.
         const enabled = new Adw.SwitchRow({
             title: `Show ${section.lower} in the library`,
             subtitle: `The ${section.title} tab, wherever the library opens`,
@@ -869,11 +763,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         return page;
     }
 
-    // ------------------------------------------------------------------
-    // Opening
-    // ------------------------------------------------------------------
-    // What a section's files open with: a command of the user's own, with the
-    // file's path appended, or the system default when left empty.
     _openerGroup(state, section) {
         const {settings} = state;
         const key = openCommandKey(section);
@@ -899,14 +788,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         return group;
     }
 
-    // ------------------------------------------------------------------
-    // Sources
-    // ------------------------------------------------------------------
-    // The ordered list of where a section's artwork and facts come from, and
-    // the keys that go with them. Everything in it lives in two settings —
-    // <prefix>-sources for the order and `credentials` for the keys — so the
-    // rows are torn down and rebuilt from those rather than kept in step by
-    // hand; that is also how a slot edited on one page updates on the other.
     _sourcesGroup(state, section) {
         const {settings} = state;
         const key = `${section.prefix}-sources`;
@@ -924,8 +805,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         settings.bind(`${section.prefix}-online`, online, 'active', Gio.SettingsBindFlags.DEFAULT);
         group.add(online);
 
-        // The Add menu. An action group rather than a callback per item so the
-        // menu is a plain Gio.Menu and the popover comes from GTK.
         const actions = new Gio.SimpleActionGroup();
         const add = new Gio.SimpleAction({name: 'add', parameter_type: new GLib.VariantType('s')});
         add.connect('activate', (_action, param) => this._addSource(state, section, param.unpack()));
@@ -971,10 +850,7 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
 
         const refresh = () => syncers.forEach(sync => sync());
         settings.connect(`changed::${key}`, rebuild);
-        // A key edited on another section's page is the same key here, and
-        // "shared with Films" is read off that section's list. Both are
-        // refreshed rather than rebuilt, so an entry being typed into on this
-        // page is not pulled out from under the cursor.
+        // Refreshed, not rebuilt, so an entry being typed into keeps its cursor.
         settings.connect('changed::credentials', refresh);
         for (const other of SECTIONS) {
             if (other.key !== section.key)
@@ -984,10 +860,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         return group;
     }
 
-    // One source: its name, what state its key is in, and — expanded — the key
-    // itself. The shape is the same whether or not it takes one; a source that
-    // needs no key shows the entry greyed out rather than hiding it, so the
-    // rows line up and nothing looks missing.
     _sourceRow(state, section, entry, index, list) {
         const {settings} = state;
         const id = sourceId(entry);
@@ -1057,8 +929,7 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
             help.connect('clicked', () => Gtk.show_uri(state.window, spec.help, Gdk.CURRENT_TIME));
         }
 
-        // An expander row packs each suffix ahead of the last, so they go on
-        // back to front to read help, sooner, later, remove from the left.
+        // An expander row packs each suffix ahead of the last: added back to front.
         for (const button of [remove, down, up, help]) {
             if (button)
                 row.add_suffix(button);
@@ -1106,10 +977,7 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
             row,
             sync: () => {
                 const current = this._credential(settings, slot);
-                // Never over an entry being typed into: the edit in front of
-                // the user beats the one that landed from elsewhere. The
-                // keyboard is in the row's own text widget, so it is the
-                // row's focus-within that says so, not its focus.
+                // Not while typed into: the keys are in the row's text widget, so focus-within.
                 const typing = value.get_state_flags() & Gtk.StateFlags.FOCUS_WITHIN;
                 if (!typing && value.get_text() !== current)
                     value.set_text(current);
@@ -1118,8 +986,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         };
     }
 
-    // Adding a source picks the lowest slot this section is not already using,
-    // so the first TMDB row shares films' key and a second one is a second key.
     _addSource(state, section, id) {
         const {settings} = state;
         const key = `${section.prefix}-sources`;
@@ -1157,15 +1023,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         return GLib.file_test(path, GLib.FileTest.IS_REGULAR) ? path : null;
     }
 
-    // ------------------------------------------------------------------
-    // Folders
-    // ------------------------------------------------------------------
-    // The ordered list of folders a section is scanned from, on the Files
-    // group: one row per folder with a remove button, and a "+" in the group's
-    // header that opens the chooser and appends. The rows are rebuilt from
-    // <prefix>-folders whenever it changes, as the sources rows are. With the
-    // list empty the group shows that nothing is scanned yet — TV shows and
-    // films have no default folder to fall back to.
     _foldersGroup(state, section, group) {
         const {settings} = state;
         const key = `${section.prefix}-folders`;
@@ -1217,7 +1074,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
                     settings.set_strv(key, settings.get_strv(key).filter((_, i) => i !== index));
                 });
                 row.add_suffix(remove);
-                // Activating a row points it somewhere else, in place.
                 row.connect('activated', () => {
                     this._pickFolder(state.window, `Choose ${section.title} folder`, path, chosen => {
                         const next = settings.get_strv(key);
@@ -1233,9 +1089,7 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         rebuild();
     }
 
-    // Earlier releases kept one folder per section in <prefix>-path. It is
-    // moved into the list once, here, so a desktop that upgrades keeps its
-    // folders and the scanner never has to read the old key again.
+    // <prefix>-path held a section's one folder before <prefix>-folders.
     _migrateFolders(settings) {
         migrateOpenCommand(settings);
         for (const section of SECTIONS) {
@@ -1248,11 +1102,7 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         }
     }
 
-    // Find out whether `path` is there and mark the row if not. The answer is
-    // never waited for: a folder on a share or an automount that has idled
-    // out takes as long to stat as the share takes to come back, and asked
-    // synchronously that is how long the window takes to open. `stillCurrent`
-    // says whether the row is still about this path when the answer lands.
+    // Asynchronous: a share that has idled out takes seconds to stat.
     _checkFolder(row, path, stillCurrent) {
         const text = row.get_subtitle();
         Gio.File.new_for_path(path).query_info_async(
@@ -1288,11 +1138,6 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         });
     }
 
-    // ------------------------------------------------------------------
-    // Helpers
-    // ------------------------------------------------------------------
-    // How many items the last scan found per section, read the same way the
-    // desktop reads it.
     _readCounts() {
         const {sections, generated} = readSections();
         const counts = {generated};
@@ -1316,15 +1161,7 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
         return `Last scanned ${when.format('%-d %b %H:%M')}`;
     }
 
-    // A button that runs backend/scanLibrary.js for `sections`, then
-    // re-reads the counts. The desktop picks the new library up on its own.
-    //
-    // The scanner reads the folders, sources, credentials and online switches
-    // out of GSettings itself, so nothing here has to turn a setting into a
-    // flag or hand it a key — `--only` just narrows it to the section whose
-    // page this button is on. Two buttons pressed at once are two scans, and
-    // the second waits for the first: the scanner holds a lock on the
-    // library while it writes.
+    // The scanner reads its settings itself; `--only` narrows it to `sections`.
     _scanButton(state, sections) {
         const content = new Adw.ButtonContent({label: 'Rescan', icon_name: 'view-refresh-symbolic'});
         const button = new Gtk.Button({child: content, valign: Gtk.Align.CENTER, css_classes: ['flat']});
@@ -1335,9 +1172,7 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
                 content.set_label('Nothing enabled');
                 return;
             }
-            // A section needs a folder before it is worth running — unless
-            // it has items from a folder it no longer names, which the
-            // scanner clears.
+            // One with no folder still runs if it has items left to clear.
             const ready = enabled.filter(s =>
                 state.settings.get_strv(`${s.prefix}-folders`).length || state.counts[s.key]);
             if (!ready.length) {
@@ -1387,10 +1222,7 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
     }
 }
 
-// "tmdb@2" names the second TMDB key; "wikipedia" names a source that has none.
-// What already answers to `accel`, by the name its setting gives it, or null:
-// the system's own shortcuts, the custom ones made in GNOME Settings, and
-// another section of ours. Accelerators are compared as GTK parses them, so
+// What already answers to `accel`, or null. Compared as GTK parses them, so
 // "<Primary>" and "<Control>" are one modifier.
 function shortcutClash(settings, accel, ownKey) {
     const normal = text => {
@@ -1402,8 +1234,7 @@ function shortcutClash(settings, accel, ownKey) {
 
     if (SHORTCUT_KEY !== ownKey && settings.get_strv(SHORTCUT_KEY).some(a => normal(a) === wanted))
         return 'Open the library';
-    // A shortcut is grabbed everywhere, so it would swallow a remote's key
-    // before a library ever saw it.
+    // A shortcut is grabbed everywhere, so it would swallow a remote's key.
     for (const action of ACTIONS) {
         const pairs = settings.get_value(`keys-${action.key}`).deep_unpack();
         if (pairs.some(([keyval, mods]) => normal(Gtk.accelerator_name(keyval, mods)) === wanted))
@@ -1433,8 +1264,6 @@ function shortcutClash(settings, accel, ownKey) {
     return null;
 }
 
-// A key as the preferences show it: GTK's name for it, or ours for a remote's
-// keys, which GTK shows as numbers.
 function keyLabel(keyval, mods) {
     const named = REMOTE_KEYS[keyval];
     if (!named)
@@ -1443,9 +1272,7 @@ function keyLabel(keyval, mods) {
     return mods ? Gtk.accelerator_get_label(Gdk.KEY_a, mods).slice(0, -1) + named : named;
 }
 
-// The gjs these preferences are running in, which is certain to be there
-// wherever they are, whatever PATH says; "gjs" off PATH where /proc cannot
-// tell.
+// The gjs running these preferences, whatever PATH says.
 function gjsPath() {
     try {
         return GLib.file_read_link('/proc/self/exe');
@@ -1454,13 +1281,13 @@ function gjsPath() {
     }
 }
 
-// libmanette, if it is installed; loaded once, when first wanted.
 let manette = null;
 function loadManette() {
     manette ??= import('gi://Manette').then(module => module.default, () => null);
     return manette;
 }
 
+// "tmdb@2" is the second TMDB key's slot; "wikipedia" takes none.
 function sourceId(entry) {
     return entry.split('@')[0];
 }
