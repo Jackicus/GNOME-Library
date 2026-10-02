@@ -343,7 +343,7 @@ export function createRow({index, title, subtitle, badges = [], size, icon = 'me
     return row;
 }
 
-export function createEmptyState({icon, title, hint, actionLabel, onAction}) {
+export function createEmptyState({icon, title, hint, actionLabel, actionIcon, onAction}) {
     const box = new St.BoxLayout({
         orientation: Clutter.Orientation.VERTICAL,
         style_class: 'ml-empty',
@@ -356,9 +356,9 @@ export function createEmptyState({icon, title, hint, actionLabel, onAction}) {
     box.add_child(new St.Label({text: title, style_class: 'ml-empty-title', x_align: Clutter.ActorAlign.CENTER}));
     box.add_child(new St.Label({text: hint, style_class: 'ml-empty-hint', x_align: Clutter.ActorAlign.CENTER}));
     if (actionLabel) {
-        const button = createActionButton({label: actionLabel, icon: 'preferences-system-symbolic', styleClass: 'button ml-action-secondary'});
+        const button = createActionButton({label: actionLabel, icon: actionIcon, styleClass: 'button ml-action-secondary'});
         button.x_align = Clutter.ActorAlign.CENTER;
-        button.connect('clicked', () => onAction());
+        button.connect('clicked', () => onAction(button));
         box.add_child(button);
     }
     return box;

@@ -12,7 +12,7 @@ export const HEADER_ALLOWANCE = 76;
 
 export class LibraryView {
     // width and height are the whole view, header included, in physical px.
-    constructor({sections, itemsFor, active, width, height, columns, rows, onActivate, onSwitch, onBack, end, onOpenSettings}) {
+    constructor({sections, itemsFor, active, width, height, columns, rows, onActivate, onSwitch, onBack, end, onEmpty}) {
         this._sections = sections;
         this._itemsFor = itemsFor;
         this._width = width;
@@ -21,7 +21,7 @@ export class LibraryView {
         this._rows = rows;
         this._onActivate = onActivate;
         this._onSwitch = onSwitch;
-        this._onOpenSettings = onOpenSettings;
+        this._onEmpty = onEmpty;
         this._pages = new Map();
         this._prebuildIdle = 0;
         this._key = this._sectionFor(active)?.key ?? null;
@@ -131,12 +131,14 @@ export class LibraryView {
                 onActivate: this._onActivate,
             });
         } else {
+            // A launchers' section needs no setting first, so it offers the scan itself.
             actor = createEmptyState({
                 icon: section.icon,
-                title: `No ${section.title.toLowerCase()} yet`,
+                title: `Nothing in ${section.title} yet`,
                 hint: section.emptyHint,
-                actionLabel: 'Open Settings',
-                onAction: this._onOpenSettings,
+                actionLabel: section.launchers ? `Find ${section.title}` : 'Open Settings',
+                actionIcon: section.launchers ? 'system-search-symbolic' : 'preferences-system-symbolic',
+                onAction: button => this._onEmpty(section, button),
             });
         }
         this.stack.add_child(actor);

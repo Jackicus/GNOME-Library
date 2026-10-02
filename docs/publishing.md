@@ -84,8 +84,9 @@ development install back.
   `api.tvmaze.com`, `api.themoviedb.org`, `en.wikipedia.org`, and for games
   `store.steampowered.com`, Steam's CDN, `id.twitch.tv` and `api.igdb.com`, over Soup 3
   and writes `~/.cache/library@jackicus/`; the extension watches the file it
-  writes. Only a Rescan button starts it (`prefs.js` `_scanButton`; it reads
-  the keys from the settings, so no key is ever on a command line), and each source can
+  writes. Only a Rescan button (`prefs.js` `_scanButton`) or an empty Games tab's
+  Find Games (`app.js` `_scan`) starts it, and it reads the keys from the settings,
+  so no key is ever on a command line; each source can
   be switched off per section (`<prefix>-online`). The preferences also start
   `gnome-control-center background` from the Accent colour row.
 - **Spawning a player.** `lib/app.js` runs the section's
