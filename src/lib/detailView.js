@@ -29,7 +29,7 @@ const ROWS_PER_BATCH = 16;
 
 export class DetailView {
     // `frame` 'bare' draws no surface of its own, inside the pop-up's panel.
-    constructor({onOpen, tracker = null, frame = 'pane'}) {
+    constructor({onOpen, tracker, frame = 'pane'}) {
         this._onOpen = onOpen;
         this._tracker = tracker;
         this._section = null;
@@ -59,7 +59,7 @@ export class DetailView {
             x_expand: true,
             y_expand: true,
         });
-        tracker?.connectObject('changed', (_tracker, path, watched) => {
+        tracker.connectObject('changed', (_tracker, path, watched) => {
             this._watchRows.get(path)?.setWatched(watched);
             if (this._play && this._playable.has(path))
                 this._syncPlay();
@@ -88,7 +88,7 @@ export class DetailView {
     }
 
     get padding() {
-        return (PADDING[this._frame] ?? PADDING.pane) * this._scale;
+        return PADDING[this._frame] * this._scale;
     }
 
     get _scale() {
@@ -114,7 +114,7 @@ export class DetailView {
         this._playPath = item.playPath;
         this._playable = new Set();
         let label = item.playLabel;
-        if (this._tracker?.enabled && Tracker.tracks(this._section)) {
+        if (this._tracker.enabled && Tracker.tracks(this._section)) {
             const groups = this._groups;
             const inRun = groups.filter(g => g.season).flatMap(g => g.entries);
             const order = inRun.length ? inRun.map(e => e.path) : [item.playPath];
@@ -142,7 +142,7 @@ export class DetailView {
         this.actor.destroy_all_children();
         this.item = item;
         this._section = section;
-        this._groups = item.groups ?? [];
+        this._groups = item.groups;
         this._groupIndex = 0;
         this._list = null;
         this._listHost = null;
@@ -325,7 +325,6 @@ export class DetailView {
                 style_class: 'button ml-tab',
                 label: group.name,
                 toggle_mode: true,
-                reactive: true,
                 can_focus: true,
                 track_hover: true,
             });
@@ -369,7 +368,7 @@ export class DetailView {
         scroll.set_child(box);
 
         const entries = group.entries;
-        const tracker = this._tracker?.enabled && Tracker.tracks(this._section) ? this._tracker : null;
+        const tracker = this._tracker.enabled && Tracker.tracks(this._section) ? this._tracker : null;
         const watchRows = this._watchRows = new Map();
         let next = 0;
         let first = true;

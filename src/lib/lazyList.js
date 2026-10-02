@@ -6,12 +6,7 @@ const MARGIN = 600;
 
 // `buildBatch()` appends the next batch and returns false when nothing is left.
 export function fillOnScroll(scroll, buildBatch, {margin = MARGIN} = {}) {
-    const adjustment = scroll.vadjustment ?? scroll.get_vadjustment?.() ?? null;
-    if (!adjustment) {
-        buildBatch();
-        return;
-    }
-
+    const adjustment = scroll.vadjustment;
     let more = buildBatch();
     let pending = 0;
 

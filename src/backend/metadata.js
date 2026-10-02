@@ -265,8 +265,6 @@ async function fetch(url, timeout) {
         throw new Error('the network is unreachable, not asking');
     for (let attempt = 0; ; attempt++) {
         const message = Soup.Message.new('GET', url);
-        if (!message)
-            throw new Error('not a URL Soup can parse');
         let bytes;
         try {
             // eslint-disable-next-line no-await-in-loop -- a retry waits for the answer before it

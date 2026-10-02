@@ -327,7 +327,7 @@ export class MediaMenu {
             onActivate: this._onActivate,
             onSwitch: key => {
                 this._key = key;
-                this._onSwitch?.(key);
+                this._onSwitch(key);
             },
             onOpenSettings: this._onOpenSettings,
         });

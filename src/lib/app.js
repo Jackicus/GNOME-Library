@@ -202,19 +202,15 @@ export class VideoLibraryApp {
             Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW | Shell.ActionMode.POPUP,
             () => this._onShortcut());
 
-        try {
-            const file = Gio.File.new_for_path(libraryPath());
-            this._monitor = file.monitor_file(Gio.FileMonitorFlags.NONE, null);
-            this._monitor.connect('changed', (_m, _f, _o, event) => {
-                if (event === Gio.FileMonitorEvent.CHANGES_DONE_HINT ||
-                    event === Gio.FileMonitorEvent.CREATED ||
-                    event === Gio.FileMonitorEvent.RENAMED ||
-                    event === Gio.FileMonitorEvent.MOVED_IN)
-                    this._scheduleRebuild({reload: true, delay: 400});
-            });
-        } catch (e) {
-            console.warn(`[Video Library] Could not watch library.json: ${e}`);
-        }
+        const file = Gio.File.new_for_path(libraryPath());
+        this._monitor = file.monitor_file(Gio.FileMonitorFlags.NONE, null);
+        this._monitor.connect('changed', (_m, _f, _o, event) => {
+            if (event === Gio.FileMonitorEvent.CHANGES_DONE_HINT ||
+                event === Gio.FileMonitorEvent.CREATED ||
+                event === Gio.FileMonitorEvent.RENAMED ||
+                event === Gio.FileMonitorEvent.MOVED_IN)
+                this._scheduleRebuild({reload: true, delay: 400});
+        });
 
         this._syncVisibility(false);
     }

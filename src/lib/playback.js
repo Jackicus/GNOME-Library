@@ -24,11 +24,7 @@ function isCancelled(e) {
 function pathOf(url) {
     if (typeof url !== 'string' || !url.startsWith('file://'))
         return null;
-    try {
-        return Gio.File.new_for_uri(url).get_path();
-    } catch {
-        return null;
-    }
+    return Gio.File.new_for_uri(url).get_path();
 }
 
 class Player {
