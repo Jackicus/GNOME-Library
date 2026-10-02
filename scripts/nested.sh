@@ -52,11 +52,14 @@
 # copy of this checkout's src/ as the extension (nested_stand_in_stage may
 # adjust it, at every stage) and whatever the repository's nested_stand_in hook
 # puts there once per start (a demo library, stand-in logins); PATH is the
-# system's only; settings start fresh, in GNOME's stock look. Commands named in
-# EXT_STAND_IN_BINS are stand-ins overlaid on /usr/bin, in a user and mount
-# namespace of the session's own. Variables named in EXT_STAND_IN_UNSET (one
-# that points the extension at a real login, say) are removed from the
-# session's environment, which otherwise is the caller's.
+# system's only, and so are XDG_DATA_DIRS and XDG_CONFIG_DIRS (none of the
+# owner's Flatpak apps); settings start fresh, in GNOME's stock look, the dash
+# with the system schema's favourites. Commands named in EXT_STAND_IN_BINS are
+# stand-ins overlaid on /usr/bin, in a user and mount namespace of the
+# session's own. Variables named in EXT_STAND_IN_UNSET (one
+# that points the extension at a real login, say), and every variable whose
+# value is a path in the real home, are removed from the session's environment,
+# which otherwise is the caller's; the shell starts in the scratch home.
 #
 # Nothing is left behind: a shell started from a Claude Code session stops
 # itself after NESTED_IDLE seconds (default 600, 0 = never) without a command
@@ -155,11 +158,12 @@ config_dir() {
 }
 
 # The environment of the nested session: its bus, its displays, its settings,
-# and under --stand-in its home, without EXT_STAND_IN_UNSET (env -u
-# SESSION_UNSET). DISPLAY is the nested Xwayland's, or unset, never the real
-# desktop's.
+# and under --stand-in its home and the system's data and config directories
+# only (no per-user Flatpak exports in the app grid), without EXT_STAND_IN_UNSET
+# or any other variable whose value is in the real home (env -u SESSION_UNSET).
+# DISPLAY is the nested Xwayland's, or unset, never the real desktop's.
 session_vars() {
-    local name
+    local name entry
     SESSION_UNSET=()
     SESSION_VARS=(
         XDG_CONFIG_HOME="$(config_dir)" GSETTINGS_BACKEND=keyfile DCONF_PROFILE="$DCONF_NONE"
@@ -167,10 +171,16 @@ session_vars() {
     )
     if stand_in; then
         for name in "${EXT_STAND_IN_UNSET[@]}"; do SESSION_UNSET+=(-u "$name"); done
+        while IFS= read -r -d '' entry; do
+            if [[ "${entry#*=}" == "$HOME" || "${entry#*=}" == *"$HOME/"* ]]; then
+                SESSION_UNSET+=(-u "${entry%%=*}")
+            fi
+        done < <(env -0)
         SESSION_VARS+=(
             HOME="$STAND_IN_HOME" PATH=/usr/local/bin:/usr/bin
             XDG_CACHE_HOME="$STAND_IN_HOME/.cache" XDG_DATA_HOME="$STAND_IN_HOME/.local/share"
             XDG_STATE_HOME="$STAND_IN_HOME/.local/state"
+            XDG_DATA_DIRS=/usr/local/share:/usr/share XDG_CONFIG_DIRS=/etc/xdg
         )
     fi
 }
@@ -364,11 +374,13 @@ cmd_start() {
         [[ -s "$KEPT_CONFIG/glib-2.0/settings/keyfile" ]] || seed_settings "$KEPT_CONFIG"
     fi
 
-    local mode_args=(--wayland --wayland-display "$WL_DISPLAY" --headless) i
+    local mode_args=(--wayland --wayland-display "$WL_DISPLAY" --headless) i chdir=()
     for (( i = 0; i < monitors; i++ )); do mode_args+=(--virtual-monitor "$geometry"); done
+    # A stand-in session starts in its own home, not in this checkout.
+    (( standin )) && chdir=(-C "$STAND_IN_HOME")
     session_vars
     # shellcheck disable=SC2016  # expanded by the inner shell
-    local launch=(env -u DISPLAY "${SESSION_UNSET[@]}" "${SESSION_VARS[@]}" dbus-run-session -- bash -c '
+    local launch=(env -u DISPLAY "${chdir[@]}" "${SESSION_UNSET[@]}" "${SESSION_VARS[@]}" dbus-run-session -- bash -c '
         echo "$DBUS_SESSION_BUS_ADDRESS" > "$1"
         exec gnome-shell "${@:2}"
     ' _ "$BUS_FILE" "${mode_args[@]}")
