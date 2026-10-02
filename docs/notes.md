@@ -47,3 +47,15 @@ Design reasoning that the code keeps to one line or none.
   builds them before it animates in, so the clones are there from the first frame.
 - `icons/library-symbolic.svg` is the television the TV Shows group has in Slider
   Overlay. Its `-symbolic` name makes St recolour it to the theme's foreground.
+
+## Scanner
+
+- **Artwork sizes** (`backend/metadata.js` `POSTER_BOX` 512×768, `BACKDROP_BOX` 960×540).
+  St decodes an image whole on the compositor thread and keeps it: a 2830×4000 poster
+  costs tens of megabytes to draw a 320 px tile. 768 tall covers the detail hero
+  (`detailView.js` `HERO_MAX_HEIGHT`, 560) at scale 1, or a grid cover up to 384 at
+  scale 2; a larger cover is drawn scaled up rather than every poster paying for a
+  larger decode. The backdrop is the detail pane's dimmed backing.
+- **Six lookups at once** (`ENRICH_WORKERS`): the providers are free, and Wikipedia
+  answers bursts with HTTP 429.
+- The GdkPixbuf and offline measurements are in `src/backend/CLAUDE.md`.

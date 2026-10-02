@@ -1,16 +1,5 @@
-// Walks media folders and turns them into plain objects for library.json. One
-// scanner per section; they know nothing about the network, and metadata.js
-// enriches what they return.
-//
-// Every scanner takes the section's previous items keyed by id. Walking a
-// folder and stat'ing each file in it is the bulk of a rescan, and almost
-// nothing has changed between one scan and the next, so an item whose folder
-// still carries the signature recorded last time reuses the file list it
-// already had. The metadata fields are never carried over from the last
-// scan, so a change of sources takes effect at the next one.
-//
-// Each item's folder is walked once: the signature, the file list and the
-// cover all come out of the same walk.
+// An item whose folder still carries last scan's signature reuses its file
+// list: stat'ing every file is the bulk of a rescan (backend/CLAUDE.md).
 
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -23,26 +12,20 @@ const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.he
 const SUBTITLE_EXTENSIONS = new Set(['.srt', '.vtt', '.ass', '.ssa', '.sub']);
 const COVER_NAMES = ['cover', 'folder', 'front', 'album', 'poster', 'artwork'];
 
-// "Title (2016)" or "Title [2016]", the year in the digits of any script.
 const YEAR = /\s*[([](\p{Nd}{4})[)\]]\s*$/u;
 const NOT_WORD = /[^\p{L}\p{N}_]/gu;
 const DIGIT_RUNS = /(\p{Nd}+)/u;
 
-// A folder name as an id. Letters and digits of any script stay: folding them
-// all down to ASCII would turn two titles in, say, Japanese and Cyrillic into
-// the same run of underscores, told apart only by their place in the list, so
-// the cached record and poster of one would skid onto the other's title as
-// the list changes. Punctuation and spaces go.
+// Letters of every script stay: folded to ASCII, two non-Latin titles would
+// share an id and swap posters.
 function slug(name) {
     return name.toLowerCase().replace(NOT_WORD, '_');
 }
 
-// A run of digits as the number it spells, in whichever script it is written.
 function digitsValue(digits) {
     return [...digits].reduce((n, digit) => n * 10 + GLib.unichar_digit_value(digit), 0);
 }
 
-// 'Doctor Strange (2016)' -> ['Doctor Strange', 2016].
 function splitYear(name) {
     const m = YEAR.exec(name);
     if (!m)
@@ -50,10 +33,7 @@ function splitYear(name) {
     return [name.slice(0, m.index).trim(), digitsValue(m[1])];
 }
 
-// --------------------------------------------------------------------------
-// Natural order: case aside, and each run of digits compared as the number it
-// is, so "Episode 2" comes before "Episode 10".
-// --------------------------------------------------------------------------
+// "Episode 2" before "Episode 10".
 function naturalKey(text) {
     return text.split(DIGIT_RUNS).map((part, i) => i % 2
         ? [...part].map(d => GLib.unichar_digit_value(d)).join('').replace(/^0+(?=\d)/, '')
@@ -62,8 +42,7 @@ function naturalKey(text) {
 
 function compareKeys(a, b) {
     for (let i = 0; i < Math.min(a.length, b.length); i++) {
-        // Text and numbers alternate; a number without its leading zeros
-        // compares by length first.
+        // Odd parts are numbers without leading zeros: the longer is larger.
         const x = a[i];
         const y = b[i];
         const order = i % 2 && x.length !== y.length ? x.length - y.length : (x > y) - (x < y);
@@ -73,8 +52,6 @@ function compareKeys(a, b) {
     return a.length - b.length;
 }
 
-// `items` in natural order of what `keys` gives each: one string, or several
-// compared in turn. Equal ones keep the order they came in.
 function sortNatural(items, keys) {
     return items
         .map(item => ({item, key: [keys(item)].flat().map(naturalKey)}))
@@ -89,11 +66,7 @@ function sortNatural(items, keys) {
         .map(({item}) => item);
 }
 
-// --------------------------------------------------------------------------
-// The filesystem
-// --------------------------------------------------------------------------
-// A stat that is refused comes back as an info without the attribute rather
-// than as an error, hence the has_attribute before each read.
+// A refused stat returns an info without the attribute, not an error.
 function sizeMb(path) {
     try {
         const info = Gio.File.new_for_path(path).query_info('standard::size', Gio.FileQueryInfoFlags.NONE, null);
@@ -114,16 +87,8 @@ function followedType(path) {
     }
 }
 
-// A folder's entries: each name, whether it is a link, and whether it is a
-// folder or a file once a link is followed. Asking for the name and type
-// alone is what lets Gio take the type from the listing itself rather than
-// stat every name — on a share, a round trip each — so only a link, or a
-// filesystem that does not say, costs a stat. Null when the folder cannot be
-// read, whole.
-//
-// A name that is not UTF-8 — a share written from an old system in Latin-1 —
-// cannot be held in a JavaScript string, and so cannot be opened from here
-// either. It is skipped, and said so, rather than taking its folder with it.
+// Name and type only, so the type comes from readdir with no stat per name.
+// A name that is not UTF-8 is skipped rather than losing the folder.
 function list(path, quiet = false) {
     let entries = null;
     let unreadable = 0;
@@ -163,8 +128,7 @@ function list(path, quiet = false) {
     return entries;
 }
 
-// Dot-files are nobody's media: a share written to from a Mac carries a
-// ._Episode.mkv beside every Episode.mkv.
+// A share written from a Mac has a ._Episode.mkv beside every Episode.mkv.
 function visible(entries) {
     return entries.filter(e => !e.name.startsWith('.'));
 }
@@ -179,8 +143,6 @@ function filesWithExt(entries, extensions) {
         e => e.name).map(e => e.name);
 }
 
-// A path with every link on the way resolved, and whatever does not exist
-// kept as written.
 function realpath(path) {
     const rest = (path.startsWith('/') ? path : join(GLib.get_current_dir(), path)).split('/').reverse();
     let resolved = '';
@@ -199,7 +161,7 @@ function realpath(path) {
             try {
                 target = GLib.file_read_link(next);
             } catch {
-                // gone since it was tested: kept as written
+                // gone since it was tested
             }
         }
         if (target === null) {
@@ -214,11 +176,7 @@ function realpath(path) {
     return resolved || '/';
 }
 
-// The other section's folders, resolved, and a test of whether one of
-// `root`'s entries is one of them — the films folder inside the TV folder, or
-// the other way about, which would otherwise be read as a show or a film. An
-// entry that is not a link resolves to the resolved root plus its name, so
-// only a link costs a lookup of its own.
+// Keeps the other section's folders (films inside the TV folder) out of the walk.
 function exclusions(root, exclude) {
     const skip = new Set(exclude.filter(Boolean).map(realpath));
     if (!skip.size)
@@ -227,11 +185,7 @@ function exclusions(root, exclude) {
     return entry => skip.has(entry.link ? realpath(join(root, entry.name)) : join(resolvedRoot, entry.name));
 }
 
-// Everything the scan wants of an item's folder, in one walk: how many
-// folders there are and the newest of their mtimes (the signature), each
-// folder's files (the file list) and the top folder's own listing (the
-// cover). Hidden folders are left out, and a link to a folder is listed but
-// not followed; a folder that cannot be read is not counted.
+// One walk gives the signature, the file list and the cover.
 function walk(folder) {
     const tree = {seen: 0, newest: 0, top: null, dirs: []};
     const visit = (root, rel) => {
@@ -255,30 +209,18 @@ function walk(folder) {
     return tree;
 }
 
-// A string that changes when what is in the folder changes. A directory's
-// mtime moves whenever a name is added, removed or renamed inside it, so the
-// newest mtime across the folder and its subfolders stands in for "something
-// appeared or went away in here". The one edit it cannot see is a file
-// rewritten in place under the same name, which leaves a stale size behind
-// until --force re-reads everything.
-//
-// The folder's own path is part of it. What is reused on a match is the file
-// list, and every entry in it is an absolute path — so a tree that moved
-// unchanged (a drive renamed, a share remounted somewhere else) has to read as
-// changed, or every file in it is looked for where it used to be.
+// A file rewritten in place under the same name goes unseen until --force.
+// The path is in it because the reused file list holds absolute paths.
 function signature(folder, tree) {
     return `${tree.seen}:${tree.newest.toFixed(3)}:${folder}`;
 }
 
-// The previous item from `folder`, kept as it was when the folder cannot be
-// read this time — a share dropping out mid-scan — rather than letting it,
-// and its artwork, go until the next scan finds it again.
+// A folder unreadable this time keeps what the last scan found.
 function unread(previous, id, folder) {
     const entry = previous?.get(id);
     return entry?.folder_path === folder ? entry : null;
 }
 
-// The cached `field` of a previous item whose folder has not changed.
 function reusable(previous, id, sig, field) {
     if (!previous?.size || !sig)
         return null;
@@ -288,9 +230,7 @@ function reusable(previous, id, sig, field) {
     return entry[field] ?? null;
 }
 
-// A cover image kept beside the media (cover.jpg, folder.png, ...), as the
-// scaled copy of it in the artwork cache: the shell reads artwork on the
-// compositor thread and must never be sent into a media folder to do it.
+// Copied into the cache: the shell must never read from a media folder.
 async function findLocalCover(folder, entries) {
     for (const name of filesWithExt(entries ?? [], IMAGE_EXTENSIONS)) {
         const lower = stem(name).toLowerCase();
@@ -300,7 +240,6 @@ async function findLocalCover(folder, entries) {
     return null;
 }
 
-// Every video under the folder, with subtitle and size info.
 function videoEntries(tree) {
     const entries = [];
     for (const {root, rel, names} of tree.dirs) {
@@ -313,7 +252,7 @@ function videoEntries(tree) {
             const path = join(root, filename);
             const title = stem(filename);
             const lower = title.toLowerCase();
-            // Its own name, or its own name and a language ("Episode.en").
+            // "Episode.srt" or "Episode.en.srt".
             const hasSub = subStems.has(lower) || [...subStems].some(s => s.startsWith(`${lower}.`));
             entries.push({
                 filename,
@@ -328,12 +267,7 @@ function videoEntries(tree) {
     return sortNatural(entries, e => [e.group ?? '', e.filename]);
 }
 
-// --------------------------------------------------------------------------
-// TV shows: <root>/<Show>/[Season N/]<episode>.mkv
-//
-// Both scanners return null when `root` itself cannot be listed, which is
-// out of reach, not empty.
-// --------------------------------------------------------------------------
+// <root>/<Show>/[Season N/]<episode>.mkv; null when root is out of reach.
 export async function scanTv(root, previous = null, exclude = []) {
     const entries = list(root);
     if (!entries)
@@ -357,10 +291,7 @@ export async function scanTv(root, previous = null, exclude = []) {
         if (episodes === null) {
             episodes = videoEntries(tree);
             for (const ep of episodes) {
-                // The display form the UI groups by: "[Extras] OP01 - ..." for
-                // named subfolders; plain for season folders (grouped by
-                // SxxEyy). Only ever applied to a freshly walked list: a
-                // reused one carries its prefixes already.
+                // A reused list carries its prefix already.
                 const group = ep.group;
                 const prefix = group && !group.toLowerCase().startsWith('season') ? `[${group}] ` : '';
                 ep.title = `${prefix}${ep.title}`;
@@ -388,9 +319,7 @@ export async function scanTv(root, previous = null, exclude = []) {
     return shows;
 }
 
-// --------------------------------------------------------------------------
-// Films: <root>/<Film (Year)>/<file>.mkv  or  <root>/<Film (Year)>.mkv
-// --------------------------------------------------------------------------
+// <root>/<Film (Year)>/<file>.mkv or <root>/<Film (Year)>.mkv
 export async function scanFilms(root, exclude = [], previous = null) {
     const entries = list(root);
     if (!entries)
@@ -418,9 +347,7 @@ export async function scanFilms(root, exclude = [], previous = null) {
         films.push(filmEntry(entry.name, title, year, folder, files, sig, cover));
     }
 
-    // A film that is one loose file has nothing to walk, so it is always read
-    // afresh; no signature means nothing ever reuses it either. Nor has it a
-    // cover of its own: one in the root would be every loose film's.
+    // A loose file has no signature and no cover: one in root would be every film's.
     for (const filename of filesWithExt(entries, VIDEO_EXTENSIONS)) {
         const name = stem(filename);
         const [title, year] = splitYear(name);

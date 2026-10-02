@@ -1,6 +1,4 @@
-// The small file helpers both halves of the scanner use. Everything here is
-// synchronous: the scanner runs in a process of its own, so a slow disk holds
-// up only the scan.
+// Synchronous on purpose: the scanner runs in a process of its own.
 
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -9,7 +7,6 @@ export function join(folder, name) {
     return GLib.build_filenamev([folder, name]);
 }
 
-// The extension, dot and all, of a name that does not start with its dot.
 export function extension(name) {
     const dot = name.lastIndexOf('.');
     return dot > name.lastIndexOf('/') + 1 ? name.slice(dot) : '';
@@ -24,10 +21,8 @@ export function exists(path) {
     return GLib.file_test(path, GLib.FileTest.EXISTS);
 }
 
-// A file's modification time in seconds, nanoseconds and all, following a
-// link; null if it cannot be read. The seconds come by way of a GDateTime:
-// Gio keeps them as an unsigned attribute, which turns a time before 1970
-// into a number past anything a folder could be touched to since.
+// Seconds by way of a GDateTime: Gio's unsigned attribute turns a time before
+// 1970 into one far in the future.
 const MODIFIED = 'time::modified,time::modified-usec,time::modified-nsec';
 
 export function modified(path) {
@@ -46,7 +41,6 @@ export function modified(path) {
     }
 }
 
-// Put in place in one move: the shell may be reading the file it replaces.
 export function rename(from, to) {
     Gio.File.new_for_path(from).move(Gio.File.new_for_path(to), Gio.FileCopyFlags.OVERWRITE, null, null);
 }
@@ -60,7 +54,6 @@ export function remove(path) {
     }
 }
 
-// The names in a folder, hidden ones included.
 export function names(folder) {
     const found = [];
     const enumerator = Gio.File.new_for_path(folder).enumerate_children(
@@ -71,7 +64,6 @@ export function names(folder) {
     return found;
 }
 
-// A folder and everything in it, links deleted rather than followed.
 export function removeTree(path) {
     const type = Gio.File.new_for_path(path).query_file_type(Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS, null);
     if (type === Gio.FileType.DIRECTORY) {
@@ -88,7 +80,6 @@ export function decode(bytes) {
     return decoder.decode(bytes);
 }
 
-// Parsed JSON, or null for a file that is missing or is not JSON.
 export function readJson(path) {
     try {
         return JSON.parse(decode(GLib.file_get_contents(path)[1]));
@@ -97,8 +88,7 @@ export function readJson(path) {
     }
 }
 
-// Written to a temporary file and renamed over the old one, so the shell's
-// file monitor, and the next scan, only ever see a whole file.
+// file_set_contents renames over the old file, so a reader sees a whole one.
 export function writeJson(path, value, indent) {
     GLib.file_set_contents(path, encoder.encode(JSON.stringify(value, null, indent)));
 }

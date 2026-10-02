@@ -1,11 +1,5 @@
-// Character references decoded out of the markup TVmaze writes its summaries
-// in (`&amp;`, `&#39;`, `&eacute;`), as a browser decodes them. GJS has no DOM
-// to hand the job to.
-//
-// The names are HTML 4's, with the values HTML5 gives them: everything a
-// summary is ever likely to hold. A name outside them is left as written. The
-// ones up to U+00FF also match without their semicolon, as HTML5 has it —
-// all but &apos;, which never did.
+// TVmaze summaries' character references, decoded as a browser would. The
+// names are HTML 4's; those up to U+00FF also match without the semicolon.
 
 const NAMED = new Map();
 const BARE = new Map();
@@ -19,9 +13,7 @@ const BARE = new Map();
     }
 }
 
-// A numeric reference to one of these reads as what Windows-1252 has there,
-// as browsers read it; the rest are what HTML5 makes of the code points it
-// calls invalid.
+// Numeric references HTML5 reads as Windows-1252 or replaces.
 const WINDOWS_1252 = {
     0x00: '�', 0x0d: '\r', 0x80: '€', 0x81: '\x81', 0x82: '‚', 0x83: 'ƒ',
     0x84: '„', 0x85: '…', 0x86: '†', 0x87: '‡', 0x88: 'ˆ', 0x89: '‰',
@@ -54,7 +46,6 @@ export function unescapeHtml(text) {
             return NAMED.get(ref);
         if (BARE.has(ref))
             return BARE.get(ref);
-        // The longest name without its semicolon that starts it:
         // "&copy2024" is "©2024".
         const chars = [...ref];
         for (let n = chars.length - 1; n > 1; n--) {

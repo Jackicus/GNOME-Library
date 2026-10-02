@@ -1,27 +1,5 @@
-// Index the media library and write the library.json Video Library reads.
-//
-// Each section is scanned only when a folder is given for it, and the result
-// is merged into the existing library.json so a rescan of one section keeps
-// the other. A section can have several folders — repeat its flag — and they
-// are walked in order into one list.
-//
-//     gjs -m scanLibrary.js --tv-path "$HOME/Videos/TV Shows" --films-path ~/Videos/Films
-//     gjs -m scanLibrary.js --films-path ~/Videos/Films --offline
-//     gjs -m scanLibrary.js --films-path ~/Videos/Films --source film=tmdb,wikipedia
-//     gjs -m scanLibrary.js --from-settings
-//     gjs -m scanLibrary.js --from-settings --only films
-//
-// `--from-settings` fills all of that in from GSettings instead, optionally
-// narrowed with `--only`, so the Rescan buttons in the preferences and
-// ./scripts/dev.sh both just run this rather than each rebuilding the same
-// command line.
-//
-// It runs in a process of its own rather than inside the preferences: the
-// folder walk — synchronous, and seconds long on a share that has to be woken
-// first — never holds up the preferences window, and a scan finishes even
-// when that window is closed halfway through. It needs nothing but GJS and
-// the libraries GNOME Shell itself runs on — GLib, Gio, Soup and GdkPixbuf —
-// and imports nothing from the shell.
+// A process of its own: the folder walk is synchronous, and a scan outlives
+// the preferences window that started it.
 
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -39,18 +17,11 @@ const LIBRARY_VERSION = 2;
 const DBUS_NAME_FLAG_DO_NOT_QUEUE = 4;
 const DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER = 1;
 const SCHEMA = 'org.gnome.shell.extensions.video-library';
-// This file's own folder. It is never run from the staged copy of lib/ the
-// dev entry point makes, so import.meta.url is where it really is.
+// Never run from the staged lib/, so import.meta.url is where it really is.
 const HERE = GLib.path_get_dirname(GLib.filename_from_uri(import.meta.url)[0]);
-// The schemas ship one folder up, so they are found from the installed
-// copy as readily as from the repo.
 const SCHEMA_DIR = join(GLib.path_get_dirname(HERE), 'schemas');
-// The library the extension reads. A run with --out somewhere else writes a
-// library of its own, but shares this machine's one artwork cache.
 const LIBRARY_PATH = libraryPath();
 
-// A section is a page in the preferences; a kind is what metadata.js calls the
-// items on it. They differ for films.
 const SECTION_KINDS = {tv: 'tv', films: 'film'};
 const SCANNERS = {
     tv: (path, previous, exclude) => scanTv(path, previous, exclude.films ?? []),
@@ -78,8 +49,6 @@ options:
                       unchanged ones
   --out OUT`;
 
-// A mistake on the command line, which ends the run with the usage and the
-// complaint on stderr, and status 2.
 class UsageError extends Error {}
 
 function parseArgs(argv) {
@@ -124,11 +93,6 @@ function parseArgs(argv) {
     return args;
 }
 
-// --------------------------------------------------------------------------
-// Reading the preferences
-// --------------------------------------------------------------------------
-// The extension's settings, from the schemas beside it when they have been
-// compiled there and the system's otherwise; null if they cannot be found.
 function openSettings() {
     let source = Gio.SettingsSchemaSource.get_default();
     if (GLib.file_test(join(SCHEMA_DIR, 'gschemas.compiled'), GLib.FileTest.EXISTS))
@@ -137,9 +101,6 @@ function openSettings() {
     return schema ? new Gio.Settings({settings_schema: schema}) : null;
 }
 
-// The folders a section is pointed at, in order, as the preferences see them:
-// <prefix>-folders, or while that is empty the single <prefix>-path earlier
-// releases kept.
 function sectionFolders(settings, prefix) {
     const folders = settings.get_strv(`${prefix}-folders`).filter(Boolean);
     if (!folders.length) {
@@ -150,9 +111,6 @@ function sectionFolders(settings, prefix) {
     return folders;
 }
 
-// Fill the command line in from the preferences. This is the only place that
-// knows how a setting becomes a scanner flag, so the preferences and dev.sh
-// cannot drift from it or from each other.
 function applySettings(args) {
     const settings = openSettings();
     if (!settings) {
@@ -164,21 +122,16 @@ function applySettings(args) {
     const only = new Set(args.only ?? SECTIONS.map(s => s.key));
     for (const {key, prefix} of SECTIONS) {
         const folders = sectionFolders(settings, prefix);
-        // Every section's folders are kept out of the other's walk whether
-        // or not it is being scanned now, so a TV folder inside the films
-        // folder is not read as one film when films are scanned alone.
+        // Kept out of the other's walk even when this section is not scanned.
         args.exclude[key] = folders;
         if (!only.has(key) || !settings.get_boolean(`${prefix}-enabled`))
             continue;
-        // An empty list, not nothing: a section switched on and pointed at no
-        // folder is written out empty, so removing a section's last folder
-        // takes its items off the desktop at the next scan.
+        // An empty list, so removing a section's last folder clears it.
         args[`${key}_path`] = folders;
         if (!folders.length)
             print(`${key}: no folder set, clearing it`);
     }
 
-    // A section left out of --only keeps whatever its items already had.
     for (const key of only) {
         const {prefix} = SECTIONS.find(s => s.key === key);
         const kind = SECTION_KINDS[key];
@@ -188,26 +141,10 @@ function applySettings(args) {
             args.offlineKinds.add(kind);
     }
 
-    // Read here rather than taken from the environment, so neither the
-    // preferences nor dev.sh has to hand the scanner a key.
     args.credentials = settings.get_value('credentials').deep_unpack();
 }
 
-// --------------------------------------------------------------------------
-// The lock
-// --------------------------------------------------------------------------
-// Every scan reads the whole library.json, replaces the sections it was asked
-// for and writes all of them back, so two at once would each write the
-// other's sections back as they were — easily done, since the preferences
-// offer a Rescan button per section and one for the lot — and both share the
-// record index and the artwork cache besides.
-//
-// The lock is a name on the session bus, one per cache: asking for it is
-// refused while another scan holds it, and the bus lets it go the moment that
-// scan's process ends, however it ends, so nothing is left behind to go
-// stale. The bus is the user's own, and a sandboxed app cannot take a name
-// outside its own, so nothing else can hold it. Without a session bus at all
-// — a scan run over ssh — the scan goes ahead unlocked.
+// A session-bus name, freed however the scan ends (backend/CLAUDE.md).
 async function holdLock() {
     let bus;
     try {
@@ -236,9 +173,6 @@ async function holdLock() {
     }
 }
 
-// --------------------------------------------------------------------------
-// Scanning
-// --------------------------------------------------------------------------
 // version 1 was a bare list of TV shows.
 function loadExisting(path) {
     const data = readJson(path);
@@ -250,13 +184,11 @@ function loadExisting(path) {
     return sections && typeof sections === 'object' ? sections : {};
 }
 
-// Fill in metadata and artwork for `items`, several at a time. A section
-// that is not going online has nothing to wait for, so it is done in turn.
 async function enrichAll(meta, items) {
     const one = async item => {
         try {
             await meta.enrich(item);
-        } catch (e) { // one bad item must never abort the scan
+        } catch (e) {
             print(`Metadata failed for '${item.title}': ${e.message}`);
         }
     };
@@ -270,8 +202,7 @@ async function enrichAll(meta, items) {
     await Promise.all(Array.from({length: workers}, worker));
 }
 
-// Make every id distinct, in place: a section walked from several folders can
-// hold the same name twice, and the second gets a numbered suffix.
+// Several folders can hold the same name twice.
 function uniqueIds(items) {
     const seen = new Set();
     for (const item of items) {
@@ -287,14 +218,12 @@ function unchanged(items, previous) {
     return items.filter(item => item.scan_sig && previous.get(item.id)?.scan_sig === item.scan_sig).length;
 }
 
-// The home folder for ~ and ~/... (not ~user).
 function expandUser(path) {
     if (path === '~' || path.startsWith('~/'))
         return GLib.get_home_dir() + path.slice(1);
     return path;
 }
 
-// --source KIND=A,B: the sources for one kind, in the order they are tried.
 function parseSources(specs) {
     const sources = {};
     for (const spec of specs) {
@@ -314,8 +243,6 @@ function parseSources(specs) {
     return sources;
 }
 
-// A section's items as they were, by id, for a rescan to reuse; none under
-// --force, which re-reads every folder.
 function previousItems(items, force) {
     const previous = new Map();
     if (force || !Array.isArray(items))
@@ -327,21 +254,13 @@ function previousItems(items, force) {
     return previous;
 }
 
-// Whether `folder` is `root` or somewhere under it.
 function within(folder, root) {
     const trim = path => String(path ?? '').replace(/\/+$/, '');
     const [inner, outer] = [trim(folder), trim(root)];
     return inner === outer || inner.startsWith(`${outer}/`);
 }
 
-// Scan one section's folders into `sections[key]` and say what was found in
-// `scanned[key]`.
-//
-// A folder out of reach — a share that is offline, a drive not plugged in, a
-// mount that fails — is not an empty one: what the last scan found in it is
-// kept, artwork and all, rather than dropped and pruned, to be fetched all
-// over again when it comes back. Only a folder that is reached and found
-// empty, or taken out of the list, loses what it had.
+// A folder out of reach keeps what the last scan found in it, artwork and all.
 async function scanSection(key, paths, {sections, scanned, meta, exclude, force}) {
     const t0 = GLib.get_monotonic_time();
     const last = Array.isArray(sections[key]) ? sections[key] : [];
@@ -384,15 +303,13 @@ async function main(argv) {
     args.sources = parseSources(args.source);
     args.offlineKinds = new Set();
     args.credentials = {};
-    // section -> its folders, kept out of the other section's walk.
     args.exclude = {};
     if (args.from_settings)
         applySettings(args);
     else if (args.only)
         throw new UsageError('--only is only meaningful with --from-settings');
 
-    // A section's folders, expanded once; null for a section this run leaves
-    // as it is, [] for one it clears.
+    // null leaves a section as it is, [] clears it.
     const expand = folders => folders ? folders.map(expandUser) : null;
     const requested = Object.fromEntries(SECTIONS.map(({key}) => [key, expand(args[`${key}_path`])]));
     if (Object.values(requested).every(v => v === null)) {
@@ -410,17 +327,13 @@ async function main(argv) {
 
     GLib.mkdir_with_parents(GLib.path_get_dirname(args.out), 0o755);
     await holdLock();
-    // Under the lock, since it reads the record index another scan may be
-    // writing. Keys come from the preferences, or from the environment
-    // (VIDEO_LIBRARY_TMDB_KEY) for a standalone run. Never argv.
+    // Under the lock: it reads the record index another scan may be writing.
     const meta = new MetadataService({
         online: !args.offline,
         sources: args.sources,
         credentials: args.credentials,
         offlineKinds: args.offlineKinds,
     });
-    // Every artwork path the shell is given has to be a file in the cache,
-    // no larger than the desktop draws it.
     const fitted = await fitCachedArt();
     const run = {sections: loadExisting(args.out), scanned: {}, meta, exclude, force: args.force};
     for (const [key, paths] of Object.entries(requested)) {
@@ -430,8 +343,6 @@ async function main(argv) {
     }
 
     meta.flush();
-    // Only what this run knows about: a section an older library.json
-    // still has is dropped rather than carried forward.
     const written = Object.fromEntries(SECTIONS.map(({key}) => [key, run.sections[key] ?? []]));
     const moved = await localiseArt(written);
     const library = {
@@ -442,10 +353,8 @@ async function main(argv) {
     };
     writeJson(args.out, library, 1);
     print(`Wrote ${args.out}`);
-    // Pruned after the write and against every section at once, and only
-    // for the real library: a run written elsewhere was merged onto that
-    // file's sections, and pruning against it would delete the artwork
-    // the extension is still pointing at.
+    // Only for the real library: a run written elsewhere was merged onto its
+    // sections, and pruning against it would delete artwork still in use.
     let dropped = 0;
     if (Gio.File.new_for_path(args.out).equal(Gio.File.new_for_path(LIBRARY_PATH)))
         dropped = pruneArt(library.sections);
