@@ -13,42 +13,22 @@ import {PANE_INSET, radiusStyle} from './shape.js';
 import {Tracker} from './tracking.js';
 import {adjustAnimationTime, ensureActorVisibleInScrollView} from 'resource:///org/gnome/shell/misc/animationUtils.js';
 
-// What the pane keeps around its content, per frame; the stylesheet carries
-// the same numbers. Sizes are worked out here rather than read back off an
-// allocation, because the popup has to know how wide the side column will be
-// before anything is on screen.
-//
-// Everything below is logical pixels, as the stylesheet's are: each is
-// multiplied by the scale factor where it meets an allocation, and left alone
-// where it goes into a CSS string, which St scales itself.
-// The bare frame keeps less than the pane's own, because the panel around it
-// adds `shape.js` PANE_INSET on top: what shows between the panel's edge and
-// the artwork is the two together, and it comes to the same 32 either way.
+// Logical pixels; the stylesheet's .ml-pane-content padding must agree. The
+// bare frame plus the panel's PANE_INSET comes to the same 32.
 const PADDING = {pane: 28, bare: 32 - PANE_INSET};
 
-// The hero fills the pane's height, less its padding and the two action
-// buttons beneath it, up to this cap. It stops well short of a big screen:
-// the popup is a panel the size of a folder's, not the work area, and the
-// desktop pane keeps to the same proportions.
 const HERO_MAX_HEIGHT = 560;
 const HERO_RESERVED = 2 * 52 + 28;         // two action buttons and the gaps
 const HERO_MAX_WIDTH_FRACTION = 0.34;      // of the pane width
-// The hero's floor on a small work area — see `_heroSize`.
 const HERO_MIN = 132;
-// About one line of the summary's type (0.95em of the stage font) at Pango's
-// own line height; St has no line-height property to set it by.
+// One line of the summary's 0.95em type; St has no line-height to set.
 const SUMMARY_LINE = 21;
 const SUMMARY_LINES = 5;
-// A season runs to a couple of dozen episodes, a film's files to a handful.
-// The first batch is a screenful — and the one that is staggered in — and the
-// rest follow as the list scrolls.
 const FIRST_ROWS = 24;
 const ROWS_PER_BATCH = 16;
 
 export class DetailView {
-    // `frame` is what the pane draws around itself: its own rounded, bordered
-    // surface ('pane'), or nothing ('bare') when what holds it is the surface —
-    // the shell's folder panel, in the popup.
+    // `frame` 'bare' draws no surface of its own, inside the pop-up's panel.
     constructor({onOpen, tracker = null, frame = 'pane'}) {
         this._onOpen = onOpen;
         this._tracker = tracker;
@@ -58,10 +38,7 @@ export class DetailView {
         this._groupIndex = 0;
         this._list = null;
         this._listHost = null;
-        // The rows of the list showing, by path, for a mark made elsewhere.
         this._watchRows = new Map();
-        // The primary button, what it plays now, and every path of the item
-        // shown whose mark or position could move it on.
         this._play = null;
         this._playPath = null;
         this._playable = new Set();
@@ -82,7 +59,6 @@ export class DetailView {
             x_expand: true,
             y_expand: true,
         });
-        // Playing a file marks it: the row for it may be right there.
         tracker?.connectObject('changed', (_tracker, path, watched) => {
             this._watchRows.get(path)?.setWatched(watched);
             if (this._play && this._playable.has(path))
@@ -100,8 +76,6 @@ export class DetailView {
         this._height = height;
     }
 
-    // Whatever is still to be built — the second column on the next idle,
-    // the list once the pane has landed — is not: for a pane on its way out.
     cancelDeferred() {
         if (this._deferredList) {
             GLib.source_remove(this._deferredList);
@@ -113,10 +87,6 @@ export class DetailView {
         }
     }
 
-    // What the pane keeps between its frame and its columns, in physical
-    // pixels — St has already scaled the stylesheet's copy of it. Public
-    // because the popup sizes its panel around the side column and has to add
-    // it back.
     get padding() {
         return (PADDING[this._frame] ?? PADDING.pane) * this._scale;
     }
@@ -125,32 +95,20 @@ export class DetailView {
         return St.ThemeContext.get_for_stage(global.stage).scale_factor;
     }
 
-    // The corner the pane and everything that fills it to the edge — the
-    // backdrop, its veil — are cut to. Inside the popup's panel that is the
-    // panel's own curve less the frame it keeps, so the two stay concentric.
     get _paneRadius() {
         return this._frame === 'bare' ? 'paneInner' : 'pane';
     }
 
-    // Hero size for this screen: as tall as the pane allows, capped so the
-    // text column keeps its share of the width.
     _heroSize(aspect) {
         const scale = this._scale;
         const room = this._height - 2 * this.padding - HERO_RESERVED * scale;
         const byHeight = Math.min(HERO_MAX_HEIGHT * scale, room);
         const byWidth = Math.round(this._width * HERO_MAX_WIDTH_FRACTION * aspect);
-        // A small screen at the smallest `detail-size` leaves less room than
-        // the buttons under the artwork take, and the artwork would come out
-        // at nothing or below it. HERO_MIN is the floor; the panel grows
-        // around it, since it is sized from the column's own height.
         const height = Math.max(HERO_MIN * scale, Math.min(byHeight, byWidth));
         return {width: Math.round(height / aspect), height};
     }
 
-    // The primary button carries on from where the tracker says this was
-    // left — the episode partway through, or the one after the last watched
-    // — and says so; with nothing touched, or all of it watched, it plays
-    // what the scan put there. A film has the one file to carry on with.
+    // Continue from where the tracker says this was left, else play what the scan chose.
     _syncPlay() {
         const item = this.item;
         this._playPath = item.playPath;
@@ -174,16 +132,11 @@ export class DetailView {
         this._play.setLabel(label);
     }
 
-    // Everything the pane opens goes out with the section it was shown for,
-    // since what a file opens with is that section's setting.
     _open(path) {
         this._onOpen(path, this._section);
     }
 
-    // `mainColumn` is when the second column — the title, the facts and the
-    // list — joins the first: 'auto' as soon as the frame it was built on is
-    // free, 'held' when whatever is opening the pane will call `revealMain()`
-    // itself (the popup does, as it starts to widen onto it).
+    // `mainColumn` 'held': the caller reveals the second column itself.
     populate(item, section, {mainColumn = 'auto'} = {}) {
         this.cancelDeferred();
         this.actor.destroy_all_children();
@@ -200,8 +153,6 @@ export class DetailView {
         this._main = null;
         this._tabButtons = [];
 
-        // The pane stacks an optional backdrop (TMDB's wide artwork, dimmed)
-        // beneath the two-column content, both clipped to the pane's corners.
         const radius = this._paneRadius;
         const pane = new St.Widget({
             style_class: this._frame === 'bare' ? 'ml-pane ml-pane-bare' : 'ml-pane',
@@ -217,7 +168,6 @@ export class DetailView {
             const backdrop = new St.Widget({style_class: 'ml-backdrop', x_expand: true, y_expand: true});
             backdrop.set_style(artworkStyle(item.backdrop, radius));
             pane.add_child(backdrop);
-            // A dark veil keeps the text readable over bright artwork.
             pane.add_child(new St.Widget({
                 style_class: 'ml-backdrop-veil',
                 x_expand: true,
@@ -232,23 +182,17 @@ export class DetailView {
         this.side = this._buildSide(item, section);
         columns.add_child(this.side);
 
-        // Only the artwork and its buttons are built now. The rest is built on
-        // the next idle, off the frames of the flight or the zoom that is
-        // opening the pane, and the list inside it later still as it scrolls.
+        // The second column waits for an idle, off the frames of the opening move.
         this._buildPendingMain = () => this._buildMain(item);
         this._deferredMain = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
             this._deferredMain = 0;
             this._addMain();
-            // The list waits out the flight that brought the pane in, which
-            // is the slow one; the popup's own call times the list to its
-            // widen instead.
             if (mainColumn === 'auto')
                 this.revealMain({settle: Duration.SLOW});
             return GLib.SOURCE_REMOVE;
         });
     }
 
-    // Build the second column, hidden, if it is not there yet.
     _addMain() {
         if (!this._buildPendingMain)
             return;
@@ -263,23 +207,14 @@ export class DetailView {
         this._columns.add_child(this._main);
     }
 
-    // Fade the second column in — as the popup's panel opens out onto it, or
-    // on its own once built when the pane is already the width it will be.
-    // The list under it follows the fade rather than joining it, and comes
-    // once whatever is moving the pane has landed (`settle`): see _fillList.
     revealMain({delay = 0, settle = Duration.NORMAL} = {}) {
         this._addMain();
         this._main?.ease({opacity: 255, delay, duration: Duration.NORMAL, mode: Ease.OUT});
         this._fillList(delay + settle);
     }
 
-    // The first screenful of the group list, once the pane has stopped moving.
-    // It is the one piece of building left that would be felt — two dozen rows
-    // at once, where everything above it is a handful of actors — so the zoom
-    // and the widen that opened the pane, or the hero flight into it, get
-    // every frame before this to themselves. A timer and not an idle: an idle
-    // falls in the middle of an animation, which is the whole of what this
-    // avoids. Whatever fills it afterwards is `lazyList` as it scrolls.
+    // A timer, not an idle: an idle can fall mid-animation, and the first rows
+    // are the one build here that would be felt.
     _fillList(after) {
         if (this._deferredList || this._list || !this._listHost)
             return;
@@ -291,16 +226,12 @@ export class DetailView {
             });
     }
 
-    // And back out, as the panel closes back down to its artwork.
     hideMain({duration = Duration.FAST} = {}) {
         this._main?.ease({opacity: 0, duration, mode: Ease.OUT});
     }
 
-    // Left: artwork, primary action, folder shortcut.
     _buildSide(item, section) {
-        // x_expand is set explicitly to false: Clutter otherwise treats a parent
-        // as expanding when any descendant expands (the buttons do), and the
-        // side column would swallow half of the free width.
+        // Clutter would otherwise inherit x_expand from the buttons inside.
         const side = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, style_class: 'ml-detail-side', x_expand: false, y_expand: true});
 
         const {width: heroW, height: heroH} = this._heroSize(section.aspect);
@@ -342,7 +273,6 @@ export class DetailView {
         return side;
     }
 
-    // Right: title, facts, synopsis, group tabs, list.
     _buildMain(item) {
         const main = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true, y_expand: true, style_class: 'ml-detail-main'});
 
@@ -369,14 +299,11 @@ export class DetailView {
             summary.clutter_text.line_wrap = true;
             summary.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
             summary.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-            // Height bounds the text so Pango ellipsises the last visible line.
             summary.height = SUMMARY_LINE * this._scale * SUMMARY_LINES;
             summary.y_expand = false;
             main.add_child(summary);
         }
 
-        // A season is a tab even when it is the only one, so a one-season
-        // show reads like the rest; a film's lone group of files is a heading.
         if (this._groups.length > 1 || this._groups[0]?.season)
             main.add_child(this._buildTabs());
         else if (this._groups.length === 1)
@@ -389,8 +316,6 @@ export class DetailView {
             clip_to_allocation: true,
         });
         main.add_child(this._listHost);
-        // The list itself is `revealMain`'s to start, once the pane has
-        // landed (_fillList).
         return main;
     }
 
@@ -398,7 +323,6 @@ export class DetailView {
         const tabs = new St.BoxLayout({style_class: 'ml-tabs', x_expand: true});
         this._groups.forEach((group, i) => {
             const tab = new St.Button({
-                // The theme's button: `:checked` is what marks the open tab.
                 style_class: 'button ml-tab',
                 label: group.name,
                 toggle_mode: true,
@@ -446,7 +370,6 @@ export class DetailView {
         scroll.set_child(box);
 
         const entries = group.entries;
-        // An episode or a film's file can be ticked off as watched.
         const tracker = this._tracker?.enabled && Tracker.tracks(this._section) ? this._tracker : null;
         const watchRows = this._watchRows = new Map();
         let next = 0;
@@ -468,14 +391,11 @@ export class DetailView {
                 });
                 if (tracker && entry.path)
                     watchRows.set(entry.path, row);
-                // Keyboard focus has to drag the view after it, or a Tab past
-                // the fold never scrolls and so never tops the list up.
+                // Tab past the fold must scroll, or the list is never topped up.
                 row.connect('key-focus-in', () => ensureActorVisibleInScrollView(scroll, row));
                 batch.push(row);
                 box.add_child(row);
             }
-            // Only the arriving screenful is staggered; the rest are appended
-            // below the fold, where an animation would go unseen.
             if (first)
                 staggerIn(batch, {step: 12, cap: 160, fromY: 8});
             first = false;
