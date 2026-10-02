@@ -34,7 +34,9 @@ throughout: `metadata.json`'s `name`, the UUID, the schema
   `stalls`, the `scanner` check, the cache and library `status` lines) and
   `nested.d/library.sh` (the made-up library under `start --stand-in`);
   `demo_library.py` (that library); `stallwatch.py` (`make stalls`, logging to
-  `dist/stalls.log`); `vpad.py` (a virtual game controller).
+  `dist/stalls.log`); `vpad.py` (a virtual game controller); `import_settings.py`
+  (`./scripts/dev.sh import-settings`: the owner's one-off carry of Video Library's and
+  Games Library's settings, cache and watched marks into Library's, never shipped).
 
 Runtime data is `~/.cache/library@jackicus/` (`GLib.get_user_cache_dir()` on both sides,
 which is how `start --stand-in` points the extension and the scanner at a cache of
