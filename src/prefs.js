@@ -52,36 +52,34 @@ const SOURCES = {
 };
 const FIELD_SEP = '\t';
 
-const VIDEO_OPENER = {
-    title: 'Video player command',
-    hint: 'The default plays in VLC full screen and closes it at the end. For example ' +
-        '"mpv --fullscreen" instead; watched marks and resuming need a player that shows up ' +
-        'in the media controls, which for mpv means mpv-mpris.',
-};
+const OPENER_HINT = 'The default plays in VLC full screen and closes it at the end. For example ' +
+    '"mpv --fullscreen" instead; watched marks and resuming need a player that shows up ' +
+    'in the media controls, which for mpv means mpv-mpris.';
 
 const PAGES = {
     tv: {
-        lower: 'TV shows', noun: 'shows',
+        lower: 'TV shows', noun: 'shows', opener: true,
         layout: 'One folder per show. Seasons can be subfolders ("Season 2") or SxxEyy in the file names.',
         online: 'Where artwork, synopsis, genres and ratings come from.',
         sources: ['tvmaze', 'tmdb', 'wikipedia'],
-        opener: VIDEO_OPENER,
     },
     films: {
-        lower: 'films', noun: 'films',
+        lower: 'films', noun: 'films', opener: true,
         layout: 'One folder or file per film, named "Title (Year)". The largest video in a folder is the feature.',
         online: 'Where posters, synopses, genres and ratings come from.',
         sources: ['tmdb', 'wikipedia'],
-        opener: VIDEO_OPENER,
     },
     games: {
         lower: 'games', noun: 'games',
-        layout: 'Installed Steam games come from Steam\'s own library files, libraries on other drives included. PS2 games come from the folders PCSX2.ini points at, and their covers from its covers folder.',
+        layout: 'Installed Steam games come from Steam\'s own library files, libraries on other ' +
+            'drives included. PS2 games come from the folders PCSX2.ini points at, and their ' +
+            'covers from its covers folder.',
         paths: [
             {key: 'games-steam-path', title: 'Steam library', hint: 'Auto-detected — ~/.steam/steam, ~/.local/share/Steam or the flatpak install'},
             {key: 'games-pcsx2-path', title: 'PCSX2 configuration', hint: 'Auto-detected — ~/.config/PCSX2 or the flatpak install'},
         ],
-        online: 'A game\'s source follows its platform: Steam games use Steam, PS2 discs use IGDB. The order decides which IGDB key is tried first.',
+        online: 'A game\'s source follows its platform: Steam games use Steam, PS2 discs use IGDB. ' +
+            'The order decides which IGDB key is tried first.',
         sources: ['steam', 'igdb'],
     },
 };
@@ -89,6 +87,25 @@ const PAGES = {
 const SECTIONS = LIBRARY_SECTIONS.map(section => ({...section, ...PAGES[section.key]}));
 
 const SHORTCUT_KEY = 'library-shortcut';
+
+const PLACES = [['menu', 'Menu'], ['desktop', 'Desktop'], ['workspaces', 'Workspaces'], ['modal', 'Modal']];
+const VIEWS = {
+    desktop: 'Drawn straight onto the wallpaper of the workspace you are on, brought up by the button next to Show Apps and put away by it, Escape or its close button.',
+    workspaces: 'Drawn straight onto the wallpaper of a workspace of its own, slid to by the button next to Show Apps and given up again when you close it.',
+    menu: 'In the overview, beside your applications, opened from the button next to Show Apps.',
+    modal: 'A panel over the desktop, opened from the button next to Show Apps. Escape, a click away, or the button again closes it.',
+};
+const DETAILS = {
+    desktop: 'What you pick opens on the workspace you are already on.',
+    workspaces: 'What you pick opens on a workspace of its own.',
+    menu: 'What you pick pops up where you picked it, the way an app folder opens.',
+    modal: 'What you pick opens in a panel over the desktop and stays up until Escape or a click away closes it.',
+};
+const TRACKING = {
+    source: 'Every mark is kept on this computer, and each library folder also gets a copy of its own marks, so another computer using the same folder picks them up.',
+    local: 'Marks are kept on this computer only. Switching from Folders removes the copies from the folders; switching back puts them back.',
+    none: 'Nothing is marked as watched. What was marked before is kept, for when this is turned back on.',
+};
 
 // The media keys' `custom-keybindings` also lists the shortcuts made in GNOME Settings.
 const SYSTEM_KEYBINDINGS = [
@@ -100,11 +117,8 @@ const SYSTEM_KEYBINDINGS = [
 ];
 const MEDIA_KEYS = 'org.gnome.settings-daemon.plugins.media-keys';
 const CUSTOM_KEYBINDING = 'org.gnome.settings-daemon.plugins.media-keys.custom-keybinding';
-// Libadwaita's from 1.8 (GNOME 49); GTK's, deprecated since, before that.
-const ShortcutLabel = Adw.ShortcutLabel ?? Gtk.ShortcutLabel;
 
-// What a remote's keys are called. GTK's table predates the keys xkbcommon
-// gives a remote's evdev codes (0x10081xxx) and shows those as numbers.
+// GTK's table predates the keys xkbcommon gives a remote's evdev codes (0x10081xxx).
 const REMOTE_KEYS = {
     0x10081160: 'OK',
     0x1008ffa0: 'Select',
@@ -116,48 +130,82 @@ const REMOTE_KEYS = {
     0x100811b6: 'Context Menu',
 };
 
+function iconButton(icon, tooltip) {
+    return new Gtk.Button({icon_name: icon, tooltip_text: tooltip, valign: Gtk.Align.CENTER, css_classes: ['flat']});
+}
+
+function toggles(settings, key, options) {
+    const group = new Adw.ToggleGroup({valign: Gtk.Align.CENTER, homogeneous: true, can_shrink: false});
+    for (const [name, label] of options)
+        group.add(new Adw.Toggle({name, label}));
+    settings.bind(key, group, 'active-name', Gio.SettingsBindFlags.DEFAULT);
+    return group;
+}
+
+// The tick marks the schema's default.
+function slider(settings, key, min, max) {
+    const scale = new Gtk.Scale({
+        adjustment: new Gtk.Adjustment({lower: min, upper: max, step_increment: 1}),
+        digits: 0,
+        round_digits: 0,
+        draw_value: true,
+        value_pos: Gtk.PositionType.RIGHT,
+        hexpand: true,
+        width_request: 220,
+        valign: Gtk.Align.CENTER,
+    });
+    scale.add_mark(settings.get_default_value(key).deep_unpack(), Gtk.PositionType.BOTTOM, null);
+    settings.bind(key, scale.adjustment, 'value', Gio.SettingsBindFlags.DEFAULT);
+    return scale;
+}
+
+function row(title, subtitle, ...suffixes) {
+    const built = new Adw.ActionRow({title, subtitle: subtitle ?? ''});
+    suffixes.forEach(suffix => built.add_suffix(suffix));
+    return built;
+}
+
+// Rows rebuilt from a list-valued setting, or one insensitive row when it is empty.
+function listRows(group, settings, key, build, empty) {
+    const rows = [];
+    const rebuild = () => {
+        rows.splice(0).forEach(old => group.remove(old));
+        const list = settings.get_strv(key);
+        const fresh = list.length
+            ? list.map((value, index) => build(value, index, list))
+            : [new Adw.ActionRow({...empty, sensitive: false})];
+        fresh.forEach(r => group.add(r));
+        rows.push(...fresh);
+    };
+    settings.connect(`changed::${key}`, rebuild);
+    rebuild();
+}
+
 export default class LibraryPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const settings = this.getSettings();
         window.set_default_size(720, 640);
         window.set_search_enabled(true);
 
-        const state = {
-            window,
-            settings,
-            counts: this._readCounts(),
-            refreshCounts: [],
-            padMonitor: null,
-            padHandlers: [],
-        };
-
+        const state = {window, settings, counts: this._readCounts(), refreshCounts: [], padHandlers: []};
         window.add(this._generalPage(state));
         window.add(this._controlsPage(state));
         for (const section of SECTIONS)
             window.add(this._sectionPage(state, section));
 
-        // The Extensions app outlives its windows: no handler of a closed one
-        // may stay connected to a controller.
+        // The Extensions app outlives its windows: none of theirs may stay on a controller.
         window.connect('close-request', () => {
-            for (const [object, id] of state.padHandlers)
-                object.disconnect(id);
-            state.padHandlers = [];
-            state.padMonitor = null;
+            state.padHandlers.splice(0).forEach(([object, id]) => object.disconnect(id));
             return false;
         });
     }
 
-    // A slot ("tmdb@1") is one key: sections naming the same slot share it.
-    _credentials(settings) {
-        return settings.get_value('credentials').deep_unpack();
-    }
-
     _credential(settings, slot) {
-        return this._credentials(settings)[slot] ?? '';
+        return settings.get_value('credentials').deep_unpack()[slot] ?? '';
     }
 
     _setCredential(settings, slot, value) {
-        const all = this._credentials(settings);
+        const all = settings.get_value('credentials').deep_unpack();
         if (value)
             all[slot] = value;
         else
@@ -176,33 +224,15 @@ export default class LibraryPreferences extends ExtensionPreferences {
         this._setCredential(settings, slot, parts.some(Boolean) ? parts.join(FIELD_SEP) : '');
     }
 
-    // The scanner skips a slot with any field empty.
-    _credentialReady(settings, slot, count) {
-        return this._fields(settings, slot, count).every(value => value.trim() !== '');
-    }
-
+    // A slot no list names is unreachable, so its key goes with the last row naming it.
     _pruneCredentials(settings) {
-        const used = new Set();
-        for (const section of SECTIONS) {
-            for (const entry of settings.get_strv(`${section.prefix}-sources`))
-                used.add(entry);
-        }
-        const all = this._credentials(settings);
+        const used = new Set(SECTIONS.flatMap(s => settings.get_strv(`${s.prefix}-sources`)));
+        const all = settings.get_value('credentials').deep_unpack();
         const orphans = Object.keys(all).filter(slot => !used.has(slot));
         if (!orphans.length)
             return;
-        for (const slot of orphans)
-            delete all[slot];
+        orphans.forEach(slot => delete all[slot]);
         settings.set_value('credentials', new GLib.Variant('a{ss}', all));
-    }
-
-    _sharedWith(settings, section, entry) {
-        if (!entry.includes('@'))
-            return [];
-        return SECTIONS
-            .filter(other => other.key !== section.key &&
-                settings.get_strv(`${other.prefix}-sources`).includes(entry))
-            .map(other => other.title);
     }
 
     _generalPage(state) {
@@ -211,151 +241,38 @@ export default class LibraryPreferences extends ExtensionPreferences {
 
         const view = new Adw.PreferencesGroup({title: 'View'});
         page.add(view);
-
-        const PLACES = [
-            ['menu', 'Menu'],
-            ['desktop', 'Desktop'],
-            ['workspaces', 'Workspaces'],
-            ['modal', 'Modal'],
-        ];
-        const toggles = () => {
-            // `can_shrink` off, so a label is never ellipsized to fit the row.
-            const group = new Adw.ToggleGroup({valign: Gtk.Align.CENTER, homogeneous: true, can_shrink: false});
-            for (const [name, label] of PLACES)
-                group.add(new Adw.Toggle({name, label}));
-            return group;
-        };
-        const modes = toggles();
-        const viewRow = new Adw.ActionRow({title: 'Library opens in'});
-        viewRow.add_suffix(modes);
-        view.add(viewRow);
-
-        const details = toggles();
-        const detailRow = new Adw.ActionRow({title: 'Items open in'});
-        detailRow.add_suffix(details);
-        view.add(detailRow);
-
-        const playRow = new Adw.SwitchRow({
+        view.add(row('Library opens in', null, toggles(settings, 'library-opens-in', PLACES)));
+        view.add(row('Items open in', null, toggles(settings, 'detail-opens-in', PLACES)));
+        const play = new Adw.SwitchRow({
             title: 'Play on a new workspace',
             subtitle: 'The player opens on an empty workspace of its own, leaving the one you picked from as it was',
         });
-        settings.bind('play-on-new-workspace', playRow, 'active', Gio.SettingsBindFlags.DEFAULT);
-        view.add(playRow);
-
-        const workspaces = new Adw.ActionRow({
+        settings.bind('play-on-new-workspace', play, 'active', Gio.SettingsBindFlags.DEFAULT);
+        view.add(play);
+        const held = new Adw.ActionRow({
             title: 'Workspaces the library is using stay open',
             subtitle: 'A workspace opened for the library or for a picked item is held until you close ' +
                 'it or go back from it, so GNOME does not fold it away. With a fixed number of ' +
                 'workspaces, set enough in Settings → Multitasking.',
             sensitive: false,
         });
-        view.add(workspaces);
+        view.add(held);
 
-        page.add(this._shortcutsGroup(state));
+        page.add(this._shortcutGroup(state));
 
         const appearance = new Adw.PreferencesGroup({title: 'Appearance'});
         page.add(appearance);
-
-        // The tick marks the schema's default.
-        const slider = (key, min, max) => {
-            const scale = new Gtk.Scale({
-                orientation: Gtk.Orientation.HORIZONTAL,
-                adjustment: new Gtk.Adjustment({lower: min, upper: max, step_increment: 1}),
-                digits: 0,
-                draw_value: true,
-                value_pos: Gtk.PositionType.RIGHT,
-                hexpand: true,
-                width_request: 220,
-                valign: Gtk.Align.CENTER,
-            });
-            scale.add_mark(settings.get_default_value(key).deep_unpack(), Gtk.PositionType.BOTTOM, null);
-            scale.set_value(settings.get_int(key));
-            scale.connect('value-changed', () => settings.set_int(key, Math.round(scale.get_value())));
-            settings.connect(`changed::${key}`, () => {
-                if (Math.round(scale.get_value()) !== settings.get_int(key))
-                    scale.set_value(settings.get_int(key));
-            });
-            return scale;
-        };
-
-        const rowsRow = new Adw.ActionRow({
-            title: 'Rows',
-            subtitle: 'Covers down a page. Fewer means larger covers.',
-        });
-        rowsRow.add_suffix(slider('rows', 1, 3));
-        appearance.add(rowsRow);
-
-        const columnsRow = new Adw.ActionRow({
-            title: 'Columns',
-            subtitle: 'Covers across a page. Fewer means larger covers. A small space — the grid in the overview, a small screen — fits fewer of either.',
-        });
-        columnsRow.add_suffix(slider('columns', 4, 10));
-        appearance.add(columnsRow);
-
-        const align = new Adw.ToggleGroup({valign: Gtk.Align.CENTER, homogeneous: true, can_shrink: false});
-        align.add(new Adw.Toggle({name: 'center', label: 'Centre'}));
-        align.add(new Adw.Toggle({name: 'start', label: 'Left'}));
-        align.set_active_name(settings.get_string('grid-align'));
-        align.connect('notify::active-name', () => settings.set_string('grid-align', align.get_active_name()));
-        settings.connect('changed::grid-align', () => {
-            if (align.get_active_name() !== settings.get_string('grid-align'))
-                align.set_active_name(settings.get_string('grid-align'));
-        });
-        const alignRow = new Adw.ActionRow({
-            title: 'Align covers',
-            subtitle: 'Where a row that is not full sits',
-        });
-        alignRow.add_suffix(align);
-        appearance.add(alignRow);
-
-        const radiusRow = new Adw.ActionRow({
-            title: 'Corner radius',
-            subtitle: 'How rounded covers, tiles and the detail pane are, in pixels. 0 is square.',
-        });
-        radiusRow.add_suffix(slider('corner-radius', 0, 40));
-        appearance.add(radiusRow);
-
-        const detailSizeRow = new Adw.ActionRow({
-            title: 'Detail pop-up size',
-            subtitle: 'How much of the available room the pop-up fills, as a percentage',
-        });
-        detailSizeRow.add_suffix(slider('detail-size', 80, 120));
-        appearance.add(detailSizeRow);
-
-        const VIEWS = {
-            desktop: 'Drawn straight onto the wallpaper of the workspace you are on, brought up by the button next to Show Apps and put away by it, Escape or its close button.',
-            workspaces: 'Drawn straight onto the wallpaper of a workspace of its own, slid to by the button next to Show Apps and given up again when you close it.',
-            menu: 'In the overview, beside your applications, opened from the button next to Show Apps.',
-            modal: 'A panel over the desktop, opened from the button next to Show Apps. Escape, a click away, or the button again closes it.',
-        };
-        const DETAILS = {
-            desktop: 'What you pick opens on the workspace you are already on.',
-            workspaces: 'What you pick opens on a workspace of its own.',
-            menu: 'What you pick pops up where you picked it, the way an app folder opens.',
-            modal: 'What you pick opens in a panel over the desktop and stays up until Escape or a click away closes it.',
-        };
-        const chosen = key => settings.get_string(key);
-        const syncView = () => {
-            const mode = chosen('library-opens-in');
-            const detail = chosen('detail-opens-in');
-            if (modes.active_name !== mode)
-                modes.active_name = mode;
-            if (details.active_name !== detail)
-                details.active_name = detail;
-            // Under the heading, not in the rows, where it would squeeze the toggles.
-            view.description = `${VIEWS[mode]} ${DETAILS[detail]}`;
-            workspaces.visible = mode === 'workspaces' || detail === 'workspaces';
-            detailSizeRow.sensitive = detail === 'menu' || detail === 'modal';
-        };
-        for (const [group, key] of [[modes, 'library-opens-in'], [details, 'detail-opens-in']]) {
-            group.connect('notify::active-name', () => {
-                if (group.active_name && group.active_name !== settings.get_string(key))
-                    settings.set_string(key, group.active_name);
-            });
-            settings.connect(`changed::${key}`, syncView);
-        }
-        syncView();
-
+        appearance.add(row('Rows', 'Covers down a page. Fewer means larger covers.', slider(settings, 'rows', 1, 3)));
+        appearance.add(row('Columns',
+            'Covers across a page. Fewer means larger covers. A small space — the grid in the overview, a small screen — fits fewer of either.',
+            slider(settings, 'columns', 4, 10)));
+        appearance.add(row('Align covers', 'Where a row that is not full sits',
+            toggles(settings, 'grid-align', [['center', 'Centre'], ['start', 'Left']])));
+        appearance.add(row('Corner radius', 'How rounded covers, tiles and the detail pane are, in pixels. 0 is square.',
+            slider(settings, 'corner-radius', 0, 40)));
+        const detailSize = row('Detail pop-up size', 'How much of the available room the pop-up fills, as a percentage',
+            slider(settings, 'detail-size', 80, 120));
+        appearance.add(detailSize);
         const accent = new Adw.ActionRow({
             title: 'Accent colour',
             subtitle: 'Follows Settings → Appearance → Accent Color',
@@ -371,105 +288,78 @@ export default class LibraryPreferences extends ExtensionPreferences {
         });
         appearance.add(accent);
 
-        const tracking = new Adw.PreferencesGroup({title: 'Watched'});
-        page.add(tracking);
-        const TRACKING = {
-            source: 'Every mark is kept on this computer, and each library folder also gets a copy of its own marks, so another computer using the same folder picks them up.',
-            local: 'Marks are kept on this computer only. Switching from Folders removes the copies from the folders; switching back puts them back.',
-            none: 'Nothing is marked as watched. What was marked before is kept, for when this is turned back on.',
+        // Under the group's heading rather than in the rows, which would squeeze the toggles.
+        const syncView = () => {
+            const mode = settings.get_string('library-opens-in');
+            const detail = settings.get_string('detail-opens-in');
+            view.description = `${VIEWS[mode]} ${DETAILS[detail]}`;
+            held.visible = mode === 'workspaces' || detail === 'workspaces';
+            detailSize.sensitive = detail === 'menu' || detail === 'modal';
         };
-        const where = new Adw.ToggleGroup({valign: Gtk.Align.CENTER, homogeneous: true, can_shrink: false});
-        where.add(new Adw.Toggle({name: 'source', label: 'Folders'}));
-        where.add(new Adw.Toggle({name: 'local', label: 'Local'}));
-        where.add(new Adw.Toggle({name: 'none', label: 'Off'}));
-        const trackingRow = new Adw.ActionRow({title: 'Keep marks in'});
-        trackingRow.add_suffix(where);
-        tracking.add(trackingRow);
-        const syncTracking = () => {
-            const mode = settings.get_string('tracking');
-            if (where.active_name !== mode)
-                where.active_name = mode;
-            tracking.description = TRACKING[mode];
-        };
-        where.connect('notify::active-name', () => {
-            if (where.active_name && where.active_name !== settings.get_string('tracking'))
-                settings.set_string('tracking', where.active_name);
-        });
-        settings.connect('changed::tracking', syncTracking);
-        syncTracking();
+        settings.connect('changed::library-opens-in', syncView);
+        settings.connect('changed::detail-opens-in', syncView);
+        syncView();
 
-        const thresholdRow = new Adw.ActionRow({
-            title: 'Watched after',
-            subtitle: 'How far through an episode or film playback has to get, as a percentage. Works with any player that shows up in the media controls, VLC included.',
-        });
-        thresholdRow.add_suffix(slider('watched-threshold', 50, 100));
-        tracking.add(thresholdRow);
-
-        const resumeRow = new Adw.SwitchRow({
-            title: 'Continue where you left off',
-            subtitle: 'Playing something again from the library picks up where it stopped. Something marked watched starts from the beginning.',
-        });
-        settings.bind('resume-playback', resumeRow, 'active', Gio.SettingsBindFlags.DEFAULT);
-        tracking.add(resumeRow);
-
-        const rewindRow = new Adw.ActionRow({
-            title: 'Rewind on resume',
-            subtitle: 'Seconds before where it stopped, so the moment it was left at is seen again',
-        });
-        rewindRow.add_suffix(slider('resume-rewind', 0, 60));
-        settings.bind('resume-playback', rewindRow, 'sensitive', Gio.SettingsBindFlags.GET);
-        tracking.add(rewindRow);
-
-        const syncPlayback = () => {
-            const on = settings.get_string('tracking') !== 'none';
-            thresholdRow.sensitive = on;
-            resumeRow.sensitive = on;
-        };
-        settings.connect('changed::tracking', syncPlayback);
-        syncPlayback();
+        page.add(this._watchedGroup(settings));
 
         const library = new Adw.PreferencesGroup({
             title: 'Library',
             description: 'Folders, sources and API keys are on each section\'s own page.',
         });
         page.add(library);
-
-        const rescan = new Adw.ActionRow({
-            title: 'Rescan everything',
-            subtitle: this._lastScanText(),
-        });
-        rescan.add_suffix(this._scanButton(state, SECTIONS));
+        const rescan = row('Rescan everything', this._lastScanText(), this._scanButton(state, SECTIONS));
         state.refreshCounts.push(() => rescan.set_subtitle(this._lastScanText()));
         library.add(rescan);
-
         return page;
     }
 
-    _shortcutsGroup(state) {
+    _watchedGroup(settings) {
+        const group = new Adw.PreferencesGroup({title: 'Watched'});
+        group.add(row('Keep marks in', null,
+            toggles(settings, 'tracking', [['source', 'Folders'], ['local', 'Local'], ['none', 'Off']])));
+        const threshold = row('Watched after',
+            'How far through an episode or film playback has to get, as a percentage. Works with any player that shows up in the media controls, VLC included.',
+            slider(settings, 'watched-threshold', 50, 100));
+        group.add(threshold);
+        const resume = new Adw.SwitchRow({
+            title: 'Continue where you left off',
+            subtitle: 'Playing something again from the library picks up where it stopped. Something marked watched starts from the beginning.',
+        });
+        settings.bind('resume-playback', resume, 'active', Gio.SettingsBindFlags.DEFAULT);
+        group.add(resume);
+        const rewind = row('Rewind on resume', 'Seconds before where it stopped, so the moment it was left at is seen again',
+            slider(settings, 'resume-rewind', 0, 60));
+        settings.bind('resume-playback', rewind, 'sensitive', Gio.SettingsBindFlags.GET);
+        group.add(rewind);
+        const sync = () => {
+            const mode = settings.get_string('tracking');
+            group.description = TRACKING[mode];
+            threshold.sensitive = mode !== 'none';
+            resume.sensitive = mode !== 'none';
+        };
+        settings.connect('changed::tracking', sync);
+        sync();
+        return group;
+    }
+
+    _shortcutGroup(state) {
         const {settings} = state;
         const group = new Adw.PreferencesGroup({title: 'Keyboard Shortcut'});
-        const row = new Adw.ActionRow({
-            title: 'Open the library',
-            subtitle: 'From anywhere, wherever the library opens; the same shortcut again closes it. None is set to begin with.',
-            activatable: true,
-        });
-        const label = new ShortcutLabel({disabled_text: 'Disabled', valign: Gtk.Align.CENTER});
-        const clear = new Gtk.Button({
-            icon_name: 'edit-clear-symbolic', valign: Gtk.Align.CENTER,
-            tooltip_text: 'Remove this shortcut', css_classes: ['flat'],
-        });
+        const label = new Adw.ShortcutLabel({disabled_text: 'Disabled', valign: Gtk.Align.CENTER});
+        const clear = iconButton('edit-clear-symbolic', 'Remove this shortcut');
         clear.connect('clicked', () => settings.set_strv(SHORTCUT_KEY, []));
-        row.add_suffix(label);
-        row.add_suffix(clear);
+        const shortcut = row('Open the library',
+            'From anywhere, wherever the library opens; the same shortcut again closes it. None is set to begin with.',
+            label, clear);
+        shortcut.activatable = true;
+        shortcut.connect('activated', () => this._captureShortcut(state));
         const sync = () => {
-            const accel = settings.get_strv(SHORTCUT_KEY)[0] ?? '';
-            label.accelerator = accel;
-            clear.visible = accel !== '';
+            label.accelerator = settings.get_strv(SHORTCUT_KEY)[0] ?? '';
+            clear.visible = label.accelerator !== '';
         };
         settings.connect(`changed::${SHORTCUT_KEY}`, sync);
         sync();
-        row.connect('activated', () => this._captureShortcut(state));
-        group.add(row);
+        group.add(shortcut);
         return group;
     }
 
@@ -487,8 +377,7 @@ export default class LibraryPreferences extends ExtensionPreferences {
                     return true;
                 }
                 const shown = keyLabel(keyval, mods);
-                // Unmodified, only a function key or the XF86 range (media keys, and a
-                // remote's 0x10081xxx) may be a shortcut.
+                // Unmodified, only a function key or the XF86 range (media keys, a remote's) will do.
                 const bare = !(mods & ~Gdk.ModifierType.SHIFT_MASK) &&
                     !(keyval >= Gdk.KEY_F1 && keyval <= Gdk.KEY_F35) && (keyval >>> 16) !== 0x1008;
                 if (bare)
@@ -507,11 +396,7 @@ export default class LibraryPreferences extends ExtensionPreferences {
     // `anyKey` also takes the bare navigation keys GTK refuses, which a remote sends.
     _keyDialog(state, {heading = 'Set Shortcut', title, description, onKey, anyKey = false}) {
         const {window} = state;
-        const status = new Adw.StatusPage({
-            icon_name: 'preferences-desktop-keyboard-shortcuts-symbolic',
-            title,
-            description,
-        });
+        const status = new Adw.StatusPage({icon_name: 'preferences-desktop-keyboard-shortcuts-symbolic', title, description});
         const toolbar = new Adw.ToolbarView({content: status});
         toolbar.add_top_bar(new Adw.HeaderBar());
         const dialog = new Adw.Dialog({title: heading, content_width: 440, child: toolbar});
@@ -536,7 +421,7 @@ export default class LibraryPreferences extends ExtensionPreferences {
         // On the dialog: its keys never pass through the window's capture phase.
         dialog.add_controller(keys);
 
-        // As GNOME Settings does: a key the system has taken reaches the dialog.
+        // As GNOME Settings does, so a key the system has taken still reaches the dialog.
         const surface = window.get_surface();
         surface.inhibit_system_shortcuts(null);
         dialog.connect('closed', () => surface.restore_system_shortcuts());
@@ -555,11 +440,10 @@ export default class LibraryPreferences extends ExtensionPreferences {
                 'library is on screen, and what they always did everywhere else.',
         });
         page.add(keys);
-        const pairs = action => settings.get_value(`keys-${action.key}`).deep_unpack();
         for (const action of ACTIONS) {
             keys.add(this._bindingRow(settings, action, {
                 key: `keys-${action.key}`,
-                labels: () => pairs(action).map(([keyval, mods]) => keyLabel(keyval, mods)),
+                labels: () => settings.get_value(`keys-${action.key}`).deep_unpack().map(([k, m]) => keyLabel(k, m)),
                 add: () => this._captureNavKey(state, action),
                 addTip: 'Add a key',
             }));
@@ -577,55 +461,37 @@ export default class LibraryPreferences extends ExtensionPreferences {
         const use = new Adw.SwitchRow({title: 'Use game controllers'});
         settings.bind('gamepad-enabled', use, 'active', Gio.SettingsBindFlags.DEFAULT);
         pads.add(use);
-        const connected = new Adw.ActionRow({title: 'Connected', subtitle: 'Looking…'});
-        pads.add(connected);
-        const padRows = [connected];
-        for (const action of ACTIONS) {
-            padRows.push(this._bindingRow(settings, action, {
-                key: `pad-${action.key}`,
-                // A mapped pad's D-pad is buttons, an unmapped one's a hat: one name for both.
-                labels: () => [...new Set(settings.get_strv(`pad-${action.key}`).map(padLabel))],
-                subtitle: action.subtitle ?? null,
-                add: () => this._capturePad(state, action),
-                addTip: 'Add a button',
-            }));
-        }
-        padRows.push(this._resetRow(settings, ACTIONS.map(a => `pad-${a.key}`)));
-        for (const row of padRows) {
-            settings.bind('gamepad-enabled', row, 'sensitive', Gio.SettingsBindFlags.GET);
-            if (row !== connected)
-                pads.add(row);
+        const connected = row('Connected', 'Looking…');
+        const padRows = [connected, ...ACTIONS.map(action => this._bindingRow(settings, action, {
+            key: `pad-${action.key}`,
+            // A mapped pad's D-pad is buttons, an unmapped one's a hat: one name for both.
+            labels: () => [...new Set(settings.get_strv(`pad-${action.key}`).map(padLabel))],
+            subtitle: action.subtitle ?? null,
+            add: () => this._capturePad(state, action),
+            addTip: 'Add a button',
+        })), this._resetRow(settings, ACTIONS.map(a => `pad-${a.key}`))];
+        for (const padRow of padRows) {
+            settings.bind('gamepad-enabled', padRow, 'sensitive', Gio.SettingsBindFlags.GET);
+            pads.add(padRow);
         }
         this._watchPads(state, connected);
-
         return page;
     }
 
     _bindingRow(settings, action, {key, labels, add, addTip, subtitle = action.subtitle ?? 'Besides the arrow key'}) {
-        const row = new Adw.ActionRow({title: action.title});
-        if (subtitle)
-            row.subtitle = subtitle;
         const shown = new Gtk.Label({
             css_classes: ['dim-label'],
             ellipsize: Pango.EllipsizeMode.END,
             max_width_chars: 22,
             valign: Gtk.Align.CENTER,
         });
-        const addButton = new Gtk.Button({
-            icon_name: 'list-add-symbolic', valign: Gtk.Align.CENTER,
-            tooltip_text: addTip, css_classes: ['flat'],
-        });
-        const clear = new Gtk.Button({
-            icon_name: 'edit-clear-symbolic', valign: Gtk.Align.CENTER,
-            tooltip_text: 'Remove them all', css_classes: ['flat'],
-        });
+        const addButton = iconButton('list-add-symbolic', addTip);
+        const clear = iconButton('edit-clear-symbolic', 'Remove them all');
         addButton.connect('clicked', add);
         clear.connect('clicked', () => settings.set_value(key,
             new GLib.Variant(settings.get_value(key).get_type_string(), [])));
-        row.add_suffix(shown);
-        row.add_suffix(addButton);
-        row.add_suffix(clear);
-        row.activatable_widget = addButton;
+        const binding = row(action.title, subtitle, shown, addButton, clear);
+        binding.activatable_widget = addButton;
         const sync = () => {
             const names = labels();
             shown.label = names.length ? names.join(', ') : 'None';
@@ -634,15 +500,13 @@ export default class LibraryPreferences extends ExtensionPreferences {
         };
         settings.connect(`changed::${key}`, sync);
         sync();
-        return row;
+        return binding;
     }
 
     _resetRow(settings, keys) {
-        const row = new Adw.ActionRow({title: 'Put back the defaults'});
         const button = new Gtk.Button({label: 'Reset', valign: Gtk.Align.CENTER});
         button.connect('clicked', () => keys.forEach(key => settings.reset(key)));
-        row.add_suffix(button);
-        return row;
+        return row('Put back the defaults', null, button);
     }
 
     _captureNavKey(state, action) {
@@ -690,14 +554,8 @@ export default class LibraryPreferences extends ExtensionPreferences {
         const dialog = new Adw.Dialog({title: 'Set Controller Input', content_width: 440, child: toolbar});
         dialog.present(window);
 
-        const Manette = await loadManette();
-        if (!Manette) {
-            status.description = 'libmanette is not installed, so controllers cannot be read.';
-            return;
-        }
-        const monitor = new Manette.Monitor();
         const handlers = [];
-        const listen = (object, signal, handler) => handlers.push([object, object.connect(signal, handler)]);
+        dialog.connect('closed', () => handlers.splice(0).forEach(([object, id]) => object.disconnect(id)));
         const rest = new Map();
         const take = input => {
             const bound = settings.get_strv(key);
@@ -705,8 +563,7 @@ export default class LibraryPreferences extends ExtensionPreferences {
                 dialog.close();
                 return;
             }
-            const owner = ACTIONS.find(other => other !== action &&
-                settings.get_strv(`pad-${other.key}`).includes(input));
+            const owner = ACTIONS.find(other => other !== action && settings.get_strv(`pad-${other.key}`).includes(input));
             if (owner) {
                 status.description = `${padLabel(input)} is already ${owner.title}. Press another, or Esc to cancel.`;
                 return;
@@ -721,7 +578,7 @@ export default class LibraryPreferences extends ExtensionPreferences {
             if (Math.abs(value) >= 0.7 && was !== undefined && was < 0.3)
                 take(`axis:${code}${value < 0 ? '-' : '+'}`);
         };
-        const watch = device => {
+        const count = await watchDevices(handlers, (device, listen) => {
             listen(device, 'button-press-event', (_d, event) => {
                 const [ok, button] = event.get_button();
                 take(`button:${ok ? button : event.get_hardware_code()}`);
@@ -736,50 +593,28 @@ export default class LibraryPreferences extends ExtensionPreferences {
                 if (ok)
                     axis(device, code, value, true);
             });
-        };
-        listen(monitor, 'device-connected', (_m, device) => watch(device));
-        const devices = monitor.iterate();
-        let device, count = 0;
-        while (([, device] = devices.next()) && device) {
-            watch(device);
-            count++;
-        }
-        if (!count)
-            status.description = 'No controller is connected. Connect one and press a button on it, or Esc to cancel.';
-        dialog.connect('closed', () => {
-            for (const [object, id] of handlers)
-                object.disconnect(id);
-            handlers.length = 0;
         });
+        if (count === null)
+            status.description = 'libmanette is not installed, so controllers cannot be read.';
+        else if (!count)
+            status.description = 'No controller is connected. Connect one and press a button on it, or Esc to cancel.';
     }
 
-    async _watchPads(state, row) {
-        const Manette = await loadManette();
-        if (!Manette) {
-            row.subtitle = 'libmanette is not installed, so controllers cannot be read.';
-            return;
-        }
-        const monitor = state.padMonitor = new Manette.Monitor();
-        const listen = (object, signal, handler) =>
-            state.padHandlers.push([object, object.connect(signal, handler)]);
+    async _watchPads(state, connected) {
         const names = new Map();
-        const sync = () => {
-            row.subtitle = names.size ? [...names.values()].join(', ') : 'None';
-        };
-        const add = device => {
+        const sync = () => (connected.subtitle = names.size ? [...names.values()].join(', ') : 'None');
+        const count = await watchDevices(state.padHandlers, (device, listen) => {
             names.set(device, device.get_name());
             listen(device, 'disconnected', () => {
                 names.delete(device);
                 sync();
             });
             sync();
-        };
-        listen(monitor, 'device-connected', (_m, device) => add(device));
-        const devices = monitor.iterate();
-        let device;
-        while (([, device] = devices.next()) && device)
-            add(device);
-        sync();
+        });
+        if (count === null)
+            connected.subtitle = 'libmanette is not installed, so controllers cannot be read.';
+        else
+            sync();
     }
 
     _sectionPage(state, section) {
@@ -788,37 +623,26 @@ export default class LibraryPreferences extends ExtensionPreferences {
 
         const files = new Adw.PreferencesGroup({title: 'Files', description: section.layout});
         page.add(files);
-
         const enabled = new Adw.SwitchRow({
             title: `Show ${section.lower} in the library`,
             subtitle: `The ${section.title} tab, wherever the library opens`,
         });
         settings.bind(`${section.prefix}-enabled`, enabled, 'active', Gio.SettingsBindFlags.DEFAULT);
         files.add(enabled);
-
-        if (section.paths) {
-            for (const spec of section.paths)
-                files.add(this._pathRow(state, section, spec));
-        } else {
+        if (section.paths)
+            section.paths.forEach(spec => files.add(this._pathRow(state, spec)));
+        else
             this._foldersGroup(state, section, files);
-        }
 
         page.add(this._sourcesGroup(state, section));
-
         if (section.opener)
             page.add(this._openerGroup(state, section));
 
         const library = new Adw.PreferencesGroup({title: 'Library'});
         page.add(library);
-
-        const status = new Adw.ActionRow({
-            title: 'Indexed',
-            subtitle: this._countText(state.counts, section),
-        });
-        status.add_suffix(this._scanButton(state, [section]));
+        const status = row('Indexed', this._countText(state.counts, section), this._scanButton(state, [section]));
         state.refreshCounts.push(() => status.set_subtitle(this._countText(state.counts, section)));
         library.add(status);
-
         return page;
     }
 
@@ -826,22 +650,12 @@ export default class LibraryPreferences extends ExtensionPreferences {
         const {settings} = state;
         const key = openCommandKey(section);
         const group = new Adw.PreferencesGroup({title: 'Opening'});
-
-        const command = new Adw.EntryRow({
-            title: section.opener.title,
-            text: settings.get_string(key),
-            show_apply_button: true,
-        });
+        const command = new Adw.EntryRow({title: 'Video player command', text: settings.get_string(key), show_apply_button: true});
         command.connect('apply', () => settings.set_string(key, command.get_text().trim()));
-        settings.connect(`changed::${key}`, () => {
-            const value = settings.get_string(key);
-            if (command.get_text().trim() !== value)
-                command.set_text(value);
-        });
         group.add(command);
         group.add(new Adw.ActionRow({
             title: 'Leave empty for the system default',
-            subtitle: `${section.opener.hint} The file's path is added to the end. A program that is not installed falls back to the system default.`,
+            subtitle: `${OPENER_HINT} The file's path is added to the end. A program that is not installed falls back to the system default.`,
             sensitive: false,
         }));
         return group;
@@ -850,12 +664,7 @@ export default class LibraryPreferences extends ExtensionPreferences {
     _sourcesGroup(state, section) {
         const {settings} = state;
         const key = `${section.prefix}-sources`;
-        const offered = section.sources;
-
-        const group = new Adw.PreferencesGroup({
-            title: 'Information sources',
-            description: section.online,
-        });
+        const group = new Adw.PreferencesGroup({title: 'Information sources', description: section.online});
 
         const online = new Adw.SwitchRow({
             title: 'Fetch artwork and descriptions online',
@@ -869,10 +678,8 @@ export default class LibraryPreferences extends ExtensionPreferences {
         add.connect('activate', (_action, param) => this._addSource(state, section, param.unpack()));
         actions.add_action(add);
         group.insert_action_group('sources', actions);
-
         const menu = new Gio.Menu();
-        for (const id of offered)
-            menu.append(SOURCES[id].title, `sources.add('${id}')`);
+        section.sources.forEach(id => menu.append(SOURCES[id].title, `sources.add('${id}')`));
         group.set_header_suffix(new Gtk.MenuButton({
             icon_name: 'list-add-symbolic',
             valign: Gtk.Align.CENTER,
@@ -881,125 +688,72 @@ export default class LibraryPreferences extends ExtensionPreferences {
             menu_model: menu,
         }));
 
-        const rows = [];
+        // Refreshed rather than rebuilt for a key, so an entry being typed into keeps its cursor.
         const syncers = [];
-        const rebuild = () => {
-            for (const row of rows.splice(0))
-                group.remove(row);
-            syncers.length = 0;
-            const list = settings.get_strv(key);
-            if (!list.length) {
-                const empty = new Adw.ActionRow({
-                    title: 'No sources',
-                    subtitle: `Nothing is looked up for ${section.lower}. Add one above.`,
-                    sensitive: false,
-                });
-                group.add(empty);
-                rows.push(empty);
-                return;
-            }
-            list.forEach((entry, index) => {
-                const built = this._sourceRow(state, section, entry, index, list);
-                group.add(built.row);
-                rows.push(built.row);
-                if (built.sync)
-                    syncers.push(built.sync);
-            });
-        };
-
+        listRows(group, settings, key, (entry, index, list) => {
+            if (index === 0)
+                syncers.length = 0;
+            const built = this._sourceRow(state, section, entry, index, list);
+            syncers.push(built.sync);
+            return built.row;
+        }, {title: 'No sources', subtitle: `Nothing is looked up for ${section.lower}. Add one above.`});
         const refresh = () => syncers.forEach(sync => sync());
-        settings.connect(`changed::${key}`, rebuild);
-        // Refreshed, not rebuilt, so an entry being typed into keeps its cursor.
         settings.connect('changed::credentials', refresh);
-        for (const other of SECTIONS) {
-            if (other.key !== section.key)
-                settings.connect(`changed::${other.prefix}-sources`, refresh);
-        }
-        rebuild();
+        SECTIONS.filter(other => other.key !== section.key)
+            .forEach(other => settings.connect(`changed::${other.prefix}-sources`, refresh));
         return group;
     }
 
     _sourceRow(state, section, entry, index, list) {
-        const {settings} = state;
-        const id = sourceId(entry);
-        const spec = SOURCES[id];
+        const {settings, window} = state;
+        const spec = SOURCES[sourceId(entry)];
         const slot = entry.includes('@') ? entry : null;
         const fields = spec?.fields ?? [];
+        const source = new Adw.ExpanderRow({title: spec?.title ?? entry, tooltip_text: spec?.blurb ?? ''});
 
-        const row = new Adw.ExpanderRow({
-            title: spec?.title ?? id,
-            tooltip_text: spec?.blurb ?? '',
-        });
-
-        const sync = () => {
+        const subtitle = () => {
             if (!spec)
-                row.set_subtitle('Unknown source — remove it or fix the setting');
-            else if (!slot || !fields.length)
-                row.set_subtitle('No key needed');
-            else {
-                const shared = this._sharedWith(settings, section, entry);
-                const which = `Key ${entry.split('@')[1]}`;
-                const where = shared.length ? ` · shared with ${shared.join(' and ')}` : '';
-                row.set_subtitle(this._credentialReady(settings, slot, fields.length)
-                    ? `${which} is set${where}`
-                    : `${which} is not set — skipped${where}`);
-            }
+                return 'Unknown source — remove it or fix the setting';
+            if (!slot || !fields.length)
+                return 'No key needed';
+            const shared = SECTIONS.filter(other => other.key !== section.key &&
+                settings.get_strv(`${other.prefix}-sources`).includes(entry)).map(other => other.title);
+            const where = shared.length ? ` · shared with ${shared.join(' and ')}` : '';
+            const set = this._fields(settings, slot, fields.length).every(value => value.trim() !== '');
+            return `Key ${entry.split('@')[1]} ${set ? 'is set' : 'is not set — skipped'}${where}`;
         };
-        sync();
+        source.subtitle = subtitle();
 
-        const move = (to) => {
+        const move = to => {
             const next = [...list];
             next.splice(to, 0, ...next.splice(index, 1));
             settings.set_strv(`${section.prefix}-sources`, next);
         };
-        const remove = new Gtk.Button({
-            icon_name: 'list-remove-symbolic', valign: Gtk.Align.CENTER,
-            tooltip_text: 'Remove this source', css_classes: ['flat'],
-        });
+        const remove = iconButton('list-remove-symbolic', 'Remove this source');
         remove.connect('clicked', () => {
             settings.set_strv(`${section.prefix}-sources`, list.filter((_, i) => i !== index));
             this._pruneCredentials(settings);
         });
-
-        const down = new Gtk.Button({
-            icon_name: 'go-down-symbolic', valign: Gtk.Align.CENTER,
-            tooltip_text: 'Try this one later', css_classes: ['flat'],
-            sensitive: index < list.length - 1,
-        });
+        const down = iconButton('go-down-symbolic', 'Try this one later');
+        down.sensitive = index < list.length - 1;
         down.connect('clicked', () => move(index + 1));
-
-        const up = new Gtk.Button({
-            icon_name: 'go-up-symbolic', valign: Gtk.Align.CENTER,
-            tooltip_text: 'Try this one sooner', css_classes: ['flat'],
-            sensitive: index > 0,
-        });
+        const up = iconButton('go-up-symbolic', 'Try this one sooner');
+        up.sensitive = index > 0;
         up.connect('clicked', () => move(index - 1));
-
-        let help = null;
-        if (spec?.help) {
-            help = new Gtk.Button({
-                icon_name: 'help-about-symbolic',
-                valign: Gtk.Align.CENTER,
-                tooltip_text: fields.length
-                    ? `Get a ${spec.title} key — ${spec.helpHint}`
-                    : `About ${spec.title} — ${spec.helpHint}`,
-                css_classes: ['flat'],
-            });
-            help.connect('clicked', () => Gtk.show_uri(state.window, spec.help, Gdk.CURRENT_TIME));
-        }
-
         // An expander row packs each suffix ahead of the last: added back to front.
-        for (const button of [remove, down, up, help]) {
-            if (button)
-                row.add_suffix(button);
+        for (const button of [remove, down, up])
+            source.add_suffix(button);
+        if (spec?.help) {
+            const help = iconButton('help-about-symbolic', fields.length
+                ? `Get a ${spec.title} key — ${spec.helpHint}`
+                : `About ${spec.title} — ${spec.helpHint}`);
+            help.connect('clicked', () => Gtk.show_uri(window, spec.help, Gdk.CURRENT_TIME));
+            source.add_suffix(help);
         }
 
         if (!fields.length) {
-            row.add_row(new Adw.PasswordEntryRow({
-                title: spec ? `${spec.title} needs no key` : 'No key',
-                sensitive: false,
-            }));
-            return {row, sync};
+            source.add_row(new Adw.PasswordEntryRow({title: spec ? `${spec.title} needs no key` : 'No key', sensitive: false}));
+            return {row: source, sync: () => (source.subtitle = subtitle())};
         }
 
         const values = fields.map((field, i) => {
@@ -1008,34 +762,28 @@ export default class LibraryPreferences extends ExtensionPreferences {
                 text: this._fields(settings, slot, fields.length)[i],
                 show_apply_button: true,
             });
-            value.connect('apply', () => {
-                this._setField(settings, slot, i, value.get_text().trim(), fields.length);
-                sync();
-            });
-            const dropFile = this._keyDropFile(spec.service, field.file);
-            if (dropFile) {
-                const importBtn = new Gtk.Button({
+            value.connect('apply', () => this._setField(settings, slot, i, value.get_text().trim(), fields.length));
+            const drop = this._keyDropFile(spec.service, field.file);
+            if (drop) {
+                const importButton = new Gtk.Button({
                     label: 'Import',
                     valign: Gtk.Align.CENTER,
-                    tooltip_text: `Read it from ${dropFile}`,
+                    tooltip_text: `Read it from ${drop}`,
                     css_classes: ['flat'],
                 });
-                importBtn.connect('clicked', () => {
-                    const imported = this._readKeyDrop(dropFile);
-                    if (!imported)
-                        return;
-                    value.set_text(imported);
-                    this._setField(settings, slot, i, imported, fields.length);
-                    sync();
+                importButton.connect('clicked', () => {
+                    const imported = this._readKeyDrop(drop);
+                    if (imported)
+                        this._setField(settings, slot, i, imported, fields.length);
                 });
-                value.add_suffix(importBtn);
+                value.add_suffix(importButton);
             }
-            row.add_row(value);
+            source.add_row(value);
             return value;
         });
 
         return {
-            row,
+            row: source,
             sync: () => {
                 const current = this._fields(settings, slot, fields.length);
                 values.forEach((value, i) => {
@@ -1044,25 +792,24 @@ export default class LibraryPreferences extends ExtensionPreferences {
                     if (!typing && value.get_text() !== current[i])
                         value.set_text(current[i]);
                 });
-                sync();
+                source.subtitle = subtitle();
             },
         };
     }
 
+    // A keyed source takes the lowest free slot; a keyless one is listed once.
     _addSource(state, section, id) {
         const {settings} = state;
         const key = `${section.prefix}-sources`;
         const list = settings.get_strv(key);
-        const spec = SOURCES[id];
-
         let entry = id;
-        if (spec?.fields?.length) {
+        if (SOURCES[id].fields) {
             let n = 1;
             while (list.includes(`${id}@${n}`))
                 n++;
             entry = `${id}@${n}`;
         } else if (list.includes(id)) {
-            return;   // a keyless source twice would only ask the same server twice
+            return;
         }
         settings.set_strv(key, [...list, entry]);
     }
@@ -1070,8 +817,7 @@ export default class LibraryPreferences extends ExtensionPreferences {
     // The value in the key drop, or '' if it cannot be read. Never logged.
     _readKeyDrop(path) {
         try {
-            const [ok, bytes] = GLib.file_get_contents(path);
-            return ok ? new TextDecoder().decode(bytes).trim() : '';
+            return new TextDecoder().decode(GLib.file_get_contents(path)[1]).trim();
         } catch (e) {
             console.warn(`[Library] Could not read ${path}: ${e.message}`);
             return '';
@@ -1079,121 +825,69 @@ export default class LibraryPreferences extends ExtensionPreferences {
     }
 
     _keyDropFile(service, field) {
-        if (!service || !field)
-            return null;
         const docs = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_DOCUMENTS) ?? GLib.get_home_dir();
         const path = GLib.build_filenamev([docs, 'keys', service, field]);
         return GLib.file_test(path, GLib.FileTest.IS_REGULAR) ? path : null;
     }
 
     // One folder that overrides auto-detection; empty is auto-detected.
-    _pathRow(state, section, spec) {
-        const {settings} = state;
-        const row = new Adw.ActionRow({title: spec.title, activatable: true});
-        const reset = new Gtk.Button({
-            icon_name: 'edit-clear-symbolic',
-            valign: Gtk.Align.CENTER,
-            tooltip_text: 'Back to auto-detection',
-            css_classes: ['flat'],
-        });
-        const pick = new Gtk.Button({
-            icon_name: 'folder-open-symbolic',
-            valign: Gtk.Align.CENTER,
-            tooltip_text: 'Choose folder',
-            css_classes: ['flat'],
-        });
-        row.add_suffix(reset);
-        row.add_suffix(pick);
-        const sync = () => {
-            const path = settings.get_string(spec.key);
-            row.set_subtitle(path || spec.hint);
-            reset.visible = path !== '';
-            if (path)
-                this._checkFolder(row, path, () => settings.get_string(spec.key) === path);
-        };
-        const choose = () => this._pickFolder(state.window, `Choose the ${spec.title.toLowerCase()}`,
-            settings.get_string(spec.key) || null, path => settings.set_string(spec.key, path));
+    _pathRow(state, spec) {
+        const {settings, window} = state;
+        const reset = iconButton('edit-clear-symbolic', 'Back to auto-detection');
+        const pick = iconButton('folder-open-symbolic', 'Choose folder');
+        const path = row(spec.title, null, reset, pick);
+        path.activatable = true;
+        const choose = () => this._pickFolder(window, `Choose the ${spec.title.toLowerCase()}`,
+            settings.get_string(spec.key) || null, chosen => settings.set_string(spec.key, chosen));
         pick.connect('clicked', choose);
-        row.connect('activated', choose);
+        path.connect('activated', choose);
         reset.connect('clicked', () => settings.set_string(spec.key, ''));
+        const sync = () => {
+            const value = settings.get_string(spec.key);
+            path.subtitle = value || spec.hint;
+            reset.visible = value !== '';
+            if (value)
+                this._checkFolder(path, value, () => settings.get_string(spec.key) === value);
+        };
         settings.connect(`changed::${spec.key}`, sync);
         sync();
-        return row;
+        return path;
     }
 
     _foldersGroup(state, section, group) {
-        const {settings} = state;
+        const {settings, window} = state;
         const key = `${section.prefix}-folders`;
-
-        const add = new Gtk.Button({
-            icon_name: 'list-add-symbolic',
-            valign: Gtk.Align.CENTER,
-            tooltip_text: 'Add a folder',
-            css_classes: ['flat'],
-        });
+        const add = iconButton('list-add-symbolic', 'Add a folder');
         add.connect('clicked', () => {
             const current = settings.get_strv(key);
-            this._pickFolder(state.window, `Add a ${section.title} folder`, current.at(-1) ?? null, path => {
+            this._pickFolder(window, `Add a ${section.title} folder`, current.at(-1) ?? null, path => {
                 if (!current.includes(path))
                     settings.set_strv(key, [...current, path]);
             });
         });
         group.set_header_suffix(add);
-
-        const rows = [];
-        const rebuild = () => {
-            for (const row of rows.splice(0))
-                group.remove(row);
-            const list = settings.get_strv(key);
-            if (!list.length) {
-                const row = new Adw.ActionRow({
-                    title: 'No folder',
-                    subtitle: 'Nothing is scanned. Add a folder above.',
-                    sensitive: false,
+        listRows(group, settings, key, (path, index, list) => {
+            const remove = iconButton('list-remove-symbolic', 'Remove this folder');
+            remove.connect('clicked', () => settings.set_strv(key, settings.get_strv(key).filter((_, i) => i !== index)));
+            const folder = row(list.length > 1 ? `Folder ${index + 1}` : 'Folder', path, remove);
+            folder.activatable = true;
+            this._checkFolder(folder, path, () => settings.get_strv(key)[index] === path);
+            folder.connect('activated', () => {
+                this._pickFolder(window, `Choose ${section.title} folder`, path, chosen => {
+                    const next = settings.get_strv(key);
+                    next[index] = chosen;
+                    settings.set_strv(key, [...new Set(next)]);
                 });
-                group.add(row);
-                rows.push(row);
-                return;
-            }
-            list.forEach((path, index) => {
-                const row = new Adw.ActionRow({
-                    title: list.length > 1 ? `Folder ${index + 1}` : 'Folder',
-                    subtitle: path,
-                    activatable: true,
-                });
-                this._checkFolder(row, path, () => settings.get_strv(key)[index] === path);
-                const remove = new Gtk.Button({
-                    icon_name: 'list-remove-symbolic',
-                    valign: Gtk.Align.CENTER,
-                    tooltip_text: 'Remove this folder',
-                    css_classes: ['flat'],
-                });
-                remove.connect('clicked', () => {
-                    settings.set_strv(key, settings.get_strv(key).filter((_, i) => i !== index));
-                });
-                row.add_suffix(remove);
-                row.connect('activated', () => {
-                    this._pickFolder(state.window, `Choose ${section.title} folder`, path, chosen => {
-                        const next = settings.get_strv(key);
-                        next[index] = chosen;
-                        settings.set_strv(key, [...new Set(next)]);
-                    });
-                });
-                group.add(row);
-                rows.push(row);
             });
-        };
-        settings.connect(`changed::${key}`, rebuild);
-        rebuild();
+            return folder;
+        }, {title: 'No folder', subtitle: 'Nothing is scanned. Add a folder above.'});
     }
 
-    // <prefix>-path held a section's one folder before <prefix>-folders.
     // Asynchronous: a share that has idled out takes seconds to stat.
-    _checkFolder(row, path, stillCurrent) {
-        const text = row.get_subtitle();
-        Gio.File.new_for_path(path).query_info_async(
-            'standard::type', Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT, null,
-            (file, result) => {
+    _checkFolder(folderRow, path, stillCurrent) {
+        const text = folderRow.get_subtitle();
+        Gio.File.new_for_path(path).query_info_async('standard::type', Gio.FileQueryInfoFlags.NONE,
+            GLib.PRIORITY_DEFAULT, null, (file, result) => {
                 let found = false;
                 try {
                     found = file.query_info_finish(result).get_file_type() === Gio.FileType.DIRECTORY;
@@ -1201,7 +895,7 @@ export default class LibraryPreferences extends ExtensionPreferences {
                     // Missing or unreachable: the row says the same either way.
                 }
                 if (!found && stillCurrent())
-                    row.set_subtitle(`${text}  — not found`);
+                    folderRow.set_subtitle(`${text}  — not found`);
             });
     }
 
@@ -1210,14 +904,11 @@ export default class LibraryPreferences extends ExtensionPreferences {
             title,
             modal: true,
             initial_folder: Gio.File.new_for_path(
-                initial ??
-                GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_VIDEOS) ?? GLib.get_home_dir()),
+                initial ?? GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_VIDEOS) ?? GLib.get_home_dir()),
         });
         dialog.select_folder(window, null, (source, result) => {
             try {
-                const file = source.select_folder_finish(result);
-                if (file)
-                    onChosen(file.get_path());
+                onChosen(source.select_folder_finish(result).get_path());
             } catch {
                 // Cancelled.
             }
@@ -1234,74 +925,64 @@ export default class LibraryPreferences extends ExtensionPreferences {
 
     _countText(counts, section) {
         const n = counts[section.key];
-        if (n === null || n === undefined)
-            return 'Not scanned yet';
-        return `${n} ${section.noun}`;
+        return n === null || n === undefined ? 'Not scanned yet' : `${n} ${section.noun}`;
     }
 
     _lastScanText() {
-        const counts = this._readCounts();
-        if (!counts.generated)
+        const {generated} = this._readCounts();
+        if (!generated)
             return 'The library has not been scanned yet';
-        const when = GLib.DateTime.new_from_unix_local(Math.floor(counts.generated));
-        return `Last scanned ${when.format('%-d %b %H:%M')}`;
+        return `Last scanned ${GLib.DateTime.new_from_unix_local(Math.floor(generated)).format('%-d %b %H:%M')}`;
     }
 
     // The scanner reads its settings itself; `--only` narrows it to `sections`.
     _scanButton(state, sections) {
         const content = new Adw.ButtonContent({label: 'Rescan', icon_name: 'view-refresh-symbolic'});
         const button = new Gtk.Button({child: content, valign: Gtk.Align.CENTER, css_classes: ['flat']});
-
+        const done = failed => {
+            button.sensitive = true;
+            content.icon_name = failed ? 'dialog-warning-symbolic' : 'view-refresh-symbolic';
+            content.label = failed ? 'Failed — see logs' : 'Rescan';
+            state.counts = this._readCounts();
+            state.refreshCounts.forEach(refresh => refresh());
+        };
         button.connect('clicked', () => {
             const enabled = sections.filter(s => state.settings.get_boolean(`${s.prefix}-enabled`));
             if (!enabled.length) {
-                content.set_label('Nothing enabled');
+                content.label = 'Nothing enabled';
                 return;
             }
             // One with no folder still runs if it has items left to clear.
             const ready = enabled.filter(s => s.launchers ||
                 state.settings.get_strv(`${s.prefix}-folders`).length || state.counts[s.key]);
             if (!ready.length) {
-                content.set_label('No folder set');
+                content.label = 'No folder set';
                 return;
             }
-            const argv = [
-                gjsPath(), '-m',
-                GLib.build_filenamev([this.path, 'backend', 'scanLibrary.js']),
-            ];
-            for (const s of ready)
-                argv.push('--only', s.key);
-
-            button.set_sensitive(false);
-            content.set_label('Scanning…');
-            content.set_icon_name('content-loading-symbolic');
+            const argv = [gjsPath(), '-m', GLib.build_filenamev([this.path, 'backend', 'scanLibrary.js']),
+                ...ready.flatMap(s => ['--only', s.key])];
+            button.sensitive = false;
+            content.label = 'Scanning…';
+            content.icon_name = 'content-loading-symbolic';
+            let proc;
             try {
-                const proc = Gio.Subprocess.new(
-                    argv, Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_PIPE);
-                proc.communicate_utf8_async(null, null, (p, result) => {
-                    let failed = false;
-                    try {
-                        const [, , stderr] = p.communicate_utf8_finish(result);
-                        failed = !p.get_successful();
-                        if (failed)
-                            console.error(`[Library] Scan failed: ${stderr}`);
-                    } catch (e) {
-                        failed = true;
-                        console.error(`[Library] Scan failed: ${e.message}`);
-                    }
-                    button.set_sensitive(true);
-                    content.set_icon_name(failed ? 'dialog-warning-symbolic' : 'view-refresh-symbolic');
-                    content.set_label(failed ? 'Failed — see logs' : 'Rescan');
-                    state.counts = this._readCounts();
-                    for (const refresh of state.refreshCounts)
-                        refresh();
-                });
+                proc = Gio.Subprocess.new(argv, Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_PIPE);
             } catch (e) {
                 console.error(`[Library] Could not launch scanner: ${e.message}`);
-                button.set_sensitive(true);
-                content.set_icon_name('dialog-warning-symbolic');
-                content.set_label('Failed');
+                done(true);
+                return;
             }
+            proc.communicate_utf8_async(null, null, (p, result) => {
+                try {
+                    const [, , stderr] = p.communicate_utf8_finish(result);
+                    if (!p.get_successful())
+                        console.error(`[Library] Scan failed: ${stderr}`);
+                    done(!p.get_successful());
+                } catch (e) {
+                    console.error(`[Library] Scan failed: ${e.message}`);
+                    done(true);
+                }
+            });
         });
         return button;
     }
@@ -1332,9 +1013,7 @@ function shortcutClash(settings, accel, ownKey) {
         const system = new Gio.Settings({settings_schema: schema});
         for (const name of schema.list_keys()) {
             const key = schema.get_key(name);
-            if (key.get_value_type().dup_string() !== 'as')
-                continue;
-            if (system.get_strv(name).some(a => normal(a) === wanted))
+            if (key.get_value_type().dup_string() === 'as' && system.get_strv(name).some(a => normal(a) === wanted))
                 return key.get_summary() || name;
         }
     }
@@ -1370,6 +1049,25 @@ let manette = null;
 function loadManette() {
     manette ??= import('gi://Manette').then(module => module.default, () => null);
     return manette;
+}
+
+// Every controller now and to come, each handed to `watch` with a `listen` that
+// records its handler in `handlers`. The count of those already connected, or
+// null without libmanette.
+async function watchDevices(handlers, watch) {
+    const Manette = await loadManette();
+    if (!Manette)
+        return null;
+    const monitor = new Manette.Monitor();
+    const listen = (object, signal, handler) => handlers.push([object, object.connect(signal, handler)]);
+    listen(monitor, 'device-connected', (_m, device) => watch(device, listen));
+    const devices = monitor.iterate();
+    let device, count = 0;
+    while (([, device] = devices.next()) && device) {
+        watch(device, listen);
+        count++;
+    }
+    return count;
 }
 
 // "tmdb@2" is the second TMDB key's slot; "wikipedia" takes none.
