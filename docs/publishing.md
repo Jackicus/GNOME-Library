@@ -121,12 +121,11 @@ Checked against both pages as read on 2026-10-02, before the 1.0 release.
 - **A linter**: `make lint`, gjs.guide's ESLint rules, run by `make check` and
   CI.
 
-## Open before uploading
+## Decided and open before uploading
 
-1. **Per-item attribution.** TVmaze's and Wikipedia's text is CC BY-SA. The
-   README credits both; the description names them; `lib/detailView.js` shows
-   a synopsis with no note of its source. Decide whether the pane says
-   "Synopsis: Wikipedia" (and the like) beside it.
+1. **Per-item attribution: not shown, by decision.** TVmaze's and Wikipedia's text
+   is CC BY-SA; the README and the description credit both, and the pane shows a
+   synopsis without a source line, to keep it simple for now.
 2. **GNOME 48 and 49** are unclaimed until booted ([compatibility.md](compatibility.md)).
 
 ## Uploading
