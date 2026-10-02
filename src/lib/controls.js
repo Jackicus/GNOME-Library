@@ -1,22 +1,4 @@
-// Remotes, game controllers and keys of your own choosing, turned into what
-// the keyboard already does in a library.
-//
-// Everything in a library is St's focus handling underneath — the arrows walk
-// it, Enter opens, Escape backs out — so an action that stands for one of
-// those keys (actions.js `stands`) is simply that key, replayed through a
-// virtual keyboard of our own: it lands wherever the keyboard would, in the
-// wallpaper's pages, the overview's grid, a pop-up panel, and does exactly
-// what the key does there. Paging, Home and marking watched have no key, and
-// are done here.
-//
-// Two ways in. A key bound to an action is handed over by the view it reached
-// (`handleBoundKey`, from each view's own key handler), so a binding only
-// ever means something while a library holds the keyboard — a remote's Back
-// is still the browser's Back everywhere else. A controller is read here,
-// through libmanette, GNOME's gamepad library, and acted on only while a
-// library is up; with one exception, Home, which opens the library when
-// nothing else has the keyboard. The shell itself has no gamepad support at
-// all, so without this a controller does nothing on the desktop.
+// How actions reach a library: .claude/rules/keyboard.md.
 
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
@@ -24,31 +6,25 @@ import GLib from 'gi://GLib';
 import {ACTIONS} from './actions.js';
 import {note} from './log.js';
 
-// What counts as "start moving around" when nothing is focused yet.
 export const NAVIGATION_KEYS = [
     Clutter.KEY_Tab, Clutter.KEY_ISO_Left_Tab,
     Clutter.KEY_Up, Clutter.KEY_Down, Clutter.KEY_Left, Clutter.KEY_Right,
 ];
 
-// A controller held in a direction repeats, as a held arrow key does.
 const REPEAT_DELAY = 400;
 const REPEAT_INTERVAL = 110;
-// A stick counts as pushed past this, and as let go under the second, so it
-// does not chatter at the edge.
+// Two thresholds, so a stick at the edge does not chatter.
 const AXIS_ON = 0.6;
 const AXIS_OFF = 0.35;
 
 const DIRECTIONS = new Set(['up', 'down', 'left', 'right']);
 
-// The modifiers a binding can carry, in the values GTK stores them as — which
-// for Shift, Control, Alt and Super are Clutter's too.
+// GTK stores these with the same values as Clutter.
 const SHIFT = Clutter.ModifierType.SHIFT_MASK;
 const CONTROL = Clutter.ModifierType.CONTROL_MASK;
 const ALT = Clutter.ModifierType.MOD1_MASK;
 const SUPER = Clutter.ModifierType.SUPER_MASK;
 
-// A key and its modifiers as one comparable value; letters lowered, as the
-// preferences store them.
 function keyId(keyval, state) {
     let mods = state & (SHIFT | CONTROL | ALT);
     if (state & (SUPER | Clutter.ModifierType.MOD4_MASK))
@@ -58,20 +34,14 @@ function keyId(keyval, state) {
     return `${keyval}:${mods}`;
 }
 
-// The live instance, for the views' key handlers to hand keys to.
+// The enabled instance, for the views' key handlers.
 let current = null;
 
-// A key a view had no use for. If a binding names it, it is that action and
-// the view is told to stop there.
 export function handleBoundKey(event) {
     return current?._onKey(event) ?? false;
 }
 
 export class Controls {
-    // `isActive` is whether a library is what has the keyboard; `onHome` is
-    // Home inside one, `onOpen` Home from a controller with nothing up;
-    // `currentView` is the grid a page turn is for when the keyboard is not
-    // on one of its tiles.
     constructor(settings, {isActive, onHome, onOpen, currentView}) {
         this._settings = settings;
         this._isActive = isActive;
@@ -83,8 +53,6 @@ export class Controls {
         this._device = null;
         this._monitor = null;
         this._pads = new Set();
-        // What each pad's inputs are held at: axis states, and the actions
-        // being held, with their repeat timers.
         this._axes = new Map();
         this._held = new Map();
         this._starting = null;
@@ -112,13 +80,7 @@ export class Controls {
         this._device = null;
     }
 
-    // ------------------------------------------------------------------
-    // Bindings
-    // ------------------------------------------------------------------
-    // A binding is the setting's, which the preferences refuse the keys an
-    // action is replayed as (actions.js NATIVE_KEYS) — but a setting written
-    // by hand is not, and an unmodified Escape bound to Back would replay
-    // itself back here without end. So the replayed keys are never bindings.
+    // A replayed key bound by hand (Escape to Back) would replay itself forever.
     _readKeys() {
         this._keys.clear();
         const replayed = new Set(ACTIONS.filter(a => a.stands).map(a => Clutter[`KEY_${a.stands}`]));
@@ -148,9 +110,6 @@ export class Controls {
         return true;
     }
 
-    // ------------------------------------------------------------------
-    // Actions
-    // ------------------------------------------------------------------
     _do(action) {
         if (action.stands) {
             this._press(Clutter[`KEY_${action.stands}`]);
@@ -172,16 +131,12 @@ export class Controls {
         }
     }
 
-    // The key itself, as though it had been pressed: it arrives wherever
-    // the keyboard is, after this event, and is handled as the real one is.
     _press(keyval) {
         const time = GLib.get_monotonic_time();
         this._device?.notify_keyval(time, keyval, Clutter.KeyState.PRESSED);
         this._device?.notify_keyval(time, keyval, Clutter.KeyState.RELEASED);
     }
 
-    // The grid around the keyboard, or the one on show when the keyboard has
-    // not gone into it yet.
     _turnPage(delta) {
         let view = global.stage.get_key_focus();
         while (view && !view.pageBy)
@@ -189,9 +144,6 @@ export class Controls {
         (view ?? this._currentView())?.pageBy(delta);
     }
 
-    // ------------------------------------------------------------------
-    // Controllers
-    // ------------------------------------------------------------------
     _syncPads() {
         if (this._settings.get_boolean('gamepad-enabled'))
             this._startPads();
@@ -199,9 +151,7 @@ export class Controls {
             this._stopPads();
     }
 
-    // libmanette is loaded when first wanted, and its absence is not an
-    // error: it comes with WebKitGTK on most desktops but nothing guarantees
-    // it, and the extension works without it.
+    // libmanette is optional: the extension works without it.
     async _startPads() {
         if (this._monitor || this._starting)
             return;
@@ -216,7 +166,6 @@ export class Controls {
             if (this._starting === starting)
                 this._starting = null;
         }
-        // Stopped, or disabled, while it loaded.
         if (current !== this || !this._settings.get_boolean('gamepad-enabled') || this._monitor)
             return;
         this._monitor = new Manette.Monitor();
@@ -268,9 +217,7 @@ export class Controls {
             this);
     }
 
-    // A pad libmanette has a mapping for reports the standard code for each
-    // button; one it has none for, its own — which is what the preferences
-    // recorded when it was bound, either way.
+    // An unmapped pad reports its own codes, as the preferences recorded them.
     _onButton(device, event, pressed) {
         const [ok, button] = event.get_button();
         const input = `button:${ok ? button : event.get_hardware_code()}`;
@@ -280,7 +227,6 @@ export class Controls {
             this._release(`${device.get_guid()}/${input}`);
     }
 
-    // A stick or a D-pad as two inputs per axis, one each way.
     _onAxis(device, axis, value) {
         const id = `${device.get_guid()}/${axis}`;
         const was = this._axes.get(id) ?? 0;

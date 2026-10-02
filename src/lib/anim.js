@@ -1,15 +1,4 @@
-// Motion vocabulary derived from GNOME Shell's own.
-//
-// The shell animates almost everything with ease-out-quad over 250ms (overview,
-// workspace switch, app grid pages) and pops windows in with ease-out-expo over
-// 150ms from 94% scale. The durations below (120/200/260) are the extension's
-// own steps, not shell constants -- they are tuned to feel of a piece with the
-// shell's 250ms/150ms rather than copied from them, so the same handful of
-// curves and durations is what makes the extension feel native rather than
-// "animated".
-//
-// actor.ease() is the shell's own helper: it honours the "enable animations"
-// setting and the slow-down factor, so nothing here needs to check them.
+// The extension's durations sit beside the shell's 250 ms (CLAUDE.md, Motion).
 
 import Clutter from 'gi://Clutter';
 
@@ -28,16 +17,11 @@ export const Ease = {
     IN: Clutter.AnimationMode.EASE_IN_QUAD,
 };
 
-// The scale the shell shrinks a window to while it fades in or out; the grid
-// recedes to it behind the detail pane.
+// The scale the shell pops a window from; the grid recedes to it behind the pane.
 export const POP_SCALE = 0.94;
 
-// Ease plain numeric GObject properties on something that is not an actor —
-// a Clutter effect's, which `actor.ease()` cannot reach, since a transition
-// needs a ClutterAnimatable to live on. The one thing `ease()` would have
-// given us for free is the animations toggle and the slow-down factor, so
-// those are taken from the same place it takes them. Returns the timeline, to
-// stop if whatever is being eased goes first.
+// For an effect's properties, which actor.ease() cannot reach. Returns the
+// timeline, to stop if the object goes first.
 export function easeProps(object, targets, {duration = Duration.NORMAL, mode = Ease.OUT, onComplete} = {}) {
     const time = adjustAnimationTime(duration);
     const entries = Object.entries(targets).map(([key, to]) => [key, object[key], to]);
@@ -46,8 +30,6 @@ export function easeProps(object, targets, {duration = Duration.NORMAL, mode = E
             object[key] = to;
         onComplete?.();
     };
-    // Animations off, or as good as: land on the spot rather than run a
-    // timeline nobody would see.
     if (time < 1) {
         land();
         return null;
@@ -71,9 +53,6 @@ export function easeProps(object, targets, {duration = Duration.NORMAL, mode = E
     return timeline;
 }
 
-// Reveal a list of actors one after another, the way the app grid settles.
-// The stagger is capped so a long list never feels slow; later items simply
-// arrive together.
 export function staggerIn(actors, {step = 12, cap = 150, fromY = 10, duration = Duration.NORMAL} = {}) {
     actors.forEach((actor, i) => {
         actor.remove_all_transitions();
@@ -89,11 +68,8 @@ export function staggerIn(actors, {step = 12, cap = 150, fromY = 10, duration = 
     });
 }
 
-// Slide one actor out and another in along x, like switching app grid pages.
-// direction is +1 (moving right) or -1 (moving left). `onComplete` runs when
-// the incoming actor's slide ends — cut short by the next swap as much as
-// landed — since what it does is let go of the outgoing one, and a swap
-// interrupted by another would otherwise keep that forever.
+// onComplete runs however the slide ends, interrupted too, so the outgoing
+// actor is always let go.
 export function slideSwap(outgoing, incoming, direction, {distance = 32, onComplete} = {}) {
     if (outgoing) {
         outgoing.remove_all_transitions();
@@ -137,21 +113,8 @@ export function fadeTo(actor, opacity, {duration = Duration.NORMAL} = {}) {
     });
 }
 
-// Grow a visual copy of `source` from `from` to `to` (rects relative to
-// `layer`), then destroy it. The clone paints the source regardless of the
-// source's own opacity or transform, so the real actors can be hidden while
-// the copy is in flight. Resolves when the flight lands.
-//
-// It takes the starting rectangle as its size and flies by transform alone:
-// easing width and height would re-request and re-allocate it every frame of
-// the flight for the same picture. A clone already paints its source scaled
-// into its own box, so scale looks identical, corner radius stretched and all,
-// and both interpolate linearly so the frames between match too. The pivot
-// stays at the top-left, the corner the rectangles are anchored by.
-//
-// It settles when the clone goes, however it goes: landed, or destroyed
-// under it by whoever empties the layer. A flight that never settled would
-// leave its caller waiting forever, with the real artwork still hidden.
+// Flies by transform alone, so nothing is re-allocated per frame. Resolves when
+// the clone goes, landed or destroyed with its layer, so no caller waits forever.
 export function flyClone(layer, source, from, to, {duration = Duration.SLOW} = {}) {
     return new Promise(resolve => {
         const clone = new Clutter.Clone({
@@ -176,25 +139,16 @@ export function flyClone(layer, source, from, to, {duration = Duration.SLOW} = {
     });
 }
 
-// Resolve the styles of `actor` and everything under it, now.
-//
-// The companion to allocateNow, for measuring rather than for placing. St
-// computes a theme node lazily, but the numbers a widget takes *out* of its
-// node — an St.BoxLayout's `spacing`, a margin — are only picked up when
-// `style-changed` is emitted on that widget, which is `ensure_style`'s job and
-// which otherwise happens no earlier than its first map. And `ensure_style` on
-// a parent only marks its children dirty, so the whole subtree has to be
-// walked. Asked for its preferred height without this, a freshly built column
-// answers as if it had no spacing and no margins at all.
+// ensure_style() covers only the widget it is called on, and a fresh column
+// measures without its spacing and margins until each child has had it.
 export function ensureStyleDeep(actor) {
     actor.ensure_style?.();
     for (const child of actor.get_children())
         ensureStyleDeep(child);
 }
 
-// Lay `actor` out into its parent's allocation right now. A freshly shown
-// actor has no allocation until the next frame, so measuring it (to aim a
-// clone at it) would yield NaN. Its parent must already be allocated.
+// A freshly shown actor has no allocation until the next frame and measures
+// NaN. Its parent must already be allocated.
 export function allocateNow(actor) {
     const parent = actor.get_parent();
     if (!parent)
@@ -203,7 +157,6 @@ export function allocateNow(actor) {
     actor.allocate(new Clutter.ActorBox({x1: 0, y1: 0, x2: box.x2 - box.x1, y2: box.y2 - box.y1}));
 }
 
-// The rectangle an actor paints into, relative to `ancestor`.
 export function rectIn(actor, ancestor) {
     const [ax, ay] = ancestor.get_transformed_position();
     const [x, y] = actor.get_transformed_position();
