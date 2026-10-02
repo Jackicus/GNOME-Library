@@ -1,12 +1,4 @@
-// Reads ~/.cache/video-library/library.json (written by backend/scanLibrary.js)
-// and normalises TV shows and films into one shape the views can render:
-//
-//   item = {
-//     id, kind, title, year, rating, tags, summary, tagline, art, backdrop, folder,
-//     countLabel,               // "141 episodes", "112 min"
-//     playPath, playLabel,      // what the primary button opens
-//     groups: [{name, entries: [{title, subtitle, path, badges}]}],
-//   }
+// Reads the scanner's library.json into the items the views draw.
 
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -32,11 +24,7 @@ export const SECTIONS = [
     },
 ];
 
-// The library as a whole: what its one button beside Show Apps is called and
-// shows. The sections are its tabs. The icon is a file of the extension's own,
-// in `icons/` — a television, the same one the TV Shows group has in Slider
-// Overlay — and is `-symbolic`, so St recolours it to the theme's foreground
-// as it does the shell's own.
+// The button's title and icon; -symbolic, so St recolours it.
 export const LIBRARY = {
     title: 'Videos',
     icon: 'icons/library-symbolic.svg',
@@ -46,21 +34,17 @@ export function sectionByKey(key) {
     return SECTIONS.find(s => s.key === key) ?? SECTIONS[0];
 }
 
-// The setting that names what a section's files open with.
 export function openCommandKey(section) {
     return `${section.prefix}-open-command`;
 }
 
-// `player-command` is superseded by the per-section open commands. Whichever
-// of the extension and the preferences runs first moves it into the TV shows
-// and films commands once, here, and nothing reads the old key after that.
+// player-command is superseded by the per-section open commands.
 export function migrateOpenCommand(settings) {
     const legacy = settings.get_string('player-command');
     if (!legacy)
         return;
-    // Not set by the user, rather than empty: the video commands have a
-    // default of their own, and an empty one is a choice.
     for (const key of ['tv-shows-open-command', 'films-open-command']) {
+        // Unset, not empty: an empty command is a choice.
         if (settings.get_user_value(key) === null)
             settings.set_string(key, legacy);
     }
@@ -75,7 +59,6 @@ export function libraryPath() {
     return GLib.build_filenamev([cacheDir(), 'library.json']);
 }
 
-// The file as the scanner wrote it: the raw per-section arrays and when it ran.
 export function readSections() {
     const nothing = {sections: {}, generated: null};
     const path = libraryPath();
@@ -93,8 +76,6 @@ export function readSections() {
     }
 }
 
-// Returns {tv: [...], films: [...]} of normalised items. Missing or unreadable
-// files yield empty sections, never fake data.
 export function loadLibrary() {
     const empty = Object.fromEntries(SECTIONS.map(s => [s.key, []]));
     const {sections} = readSections();
@@ -108,22 +89,8 @@ export function loadLibrary() {
     return out;
 }
 
-// ---------------------------------------------------------------------------
-// Is the artwork still there?
-//
-// A path in library.json can outlive the file it names — a cleared cache — and
-// St paints a missing background image as nothing at all, so the drawn
-// placeholder would never get its turn. Checking costs a blocking stat per
-// item, though, and this runs on the compositor's main loop for every item in
-// every section, twice.
-//
-// Every one of those paths is the scanner's own, in two cache folders: it
-// copies a cover.jpg it finds beside the media in with the rest, scaled to
-// what the desktop draws. So the folders are listed once and the check is a
-// lookup. A path from anywhere else counts as missing rather than earning a
-// stat of its own — the media can be on a share that has gone to sleep, and
-// one stat of that is the desktop standing still until it wakes.
-// ---------------------------------------------------------------------------
+// Every artwork path is the scanner's, in the cache: its two folders are listed
+// once rather than stat a poster each, and a path elsewhere counts as missing.
 const ART_DIRS = ['posters', 'backdrops'];
 
 function listNames(path) {
@@ -186,10 +153,6 @@ function normalize(item, sectionKey, art) {
     }
 }
 
-// ---------------------------------------------------------------------------
-// TV
-// ---------------------------------------------------------------------------
-
 // "Season 3" -> 3, null for named groups such as "Extras" or "OVA".
 function seasonNumberOf(name) {
     const m = String(name).match(/(\d+)/);
@@ -198,8 +161,7 @@ function seasonNumberOf(name) {
 
 const EPISODE_TAG = /S(\d+)\s*E(\d+)/i;
 
-// "Harbour Lights - S01E01 - The Pilot" -> "The Pilot". Falls back to the
-// input when nothing readable is left.
+// "Harbour Lights - S01E01 - The Pilot" -> "The Pilot", or the input if nothing is left.
 function episodeTitle(raw) {
     const stripped = raw
         .replace(/^\[[^\]]*\]\s*/, '')
@@ -208,9 +170,7 @@ function episodeTitle(raw) {
     return stripped || raw;
 }
 
-// The group an episode is listed under: the subfolder it is in — a "Season
-// N" folder by its number, any other (Extras, OVA) by its name — or, for one
-// beside the season folders, the season its filename's SxxEyy names.
+// The subfolder, or for an episode beside the season folders, its SxxEyy's season.
 function groupOf(ep) {
     const group = ep.group;
     if (typeof group === 'string' && group) {
@@ -220,8 +180,7 @@ function groupOf(ep) {
         if (n !== null)
             return `Season ${n}`;
     } else if (group === undefined) {
-        // An older library.json can have episodes with no `group` field,
-        // which named a subfolder in the title instead: "[Extras] OP01".
+        // An older library.json named the subfolder in the title: "[Extras] OP01".
         const title = ep.title || '';
         if (title.startsWith('[') && title.includes(']'))
             return title.slice(1, title.indexOf(']')).trim();
@@ -241,7 +200,7 @@ function normalizeShow(show, base) {
         bySeason.get(season).push(ep);
     }
 
-    // Numeric seasons in order, then named groups (Extras, OVA) alphabetically.
+    // Numbered seasons in order, then named groups alphabetically.
     const names = [...bySeason.keys()].sort((a, b) => {
         const na = seasonNumberOf(a), nb = seasonNumberOf(b);
         if (na !== null && nb !== null) return na - nb;
@@ -252,16 +211,13 @@ function normalizeShow(show, base) {
 
     const groups = names.map(name => ({
         name,
-        // A numbered season is part of the run the Continue button walks;
-        // Extras and the like are not.
+        // Numbered seasons are the run Continue walks; Extras are not.
         season: seasonNumberOf(name) !== null,
         entries: bySeason.get(name).map((ep, i) => {
             const tag = (ep.filename || '').match(EPISODE_TAG);
             return {
                 index: tag ? parseInt(tag[2], 10) : i + 1,
                 title: episodeTitle(ep.title || ep.filename || ''),
-                // The row says which episode with its number, under the
-                // season's tab; the code is for the Play button alone.
                 subtitle: null,
                 code: tag ? `S${tag[1].padStart(2, '0')}E${tag[2].padStart(2, '0')}` : null,
                 path: ep.path,
@@ -271,8 +227,6 @@ function normalizeShow(show, base) {
         }),
     }));
 
-    // Start from the first numbered season, not whatever sorts first on disk
-    // (an "Extras" folder would otherwise win).
     const first = groups[0]?.entries[0] ?? null;
     return {
         ...base,
@@ -284,9 +238,6 @@ function normalizeShow(show, base) {
     };
 }
 
-// ---------------------------------------------------------------------------
-// Films
-// ---------------------------------------------------------------------------
 function normalizeFilm(film, base) {
     const files = Array.isArray(film.files) ? film.files : [];
     const entries = files.map((f, i) => ({

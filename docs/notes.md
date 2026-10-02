@@ -36,3 +36,14 @@ Design reasoning that the code keeps to one line or none.
 - The section tabs take the shape of the shell's screenshot/screencast switch
   (`.screenshot-ui-shot-cast-container`), and the primary action is the theme's
   `button.default`, so hover, focus and pressed states are the theme's.
+
+## The surface, the button and the previews
+
+- The surface takes the clicks the wallpaper would have had, its menu included. The
+  shell's `addBackgroundMenu` (`backgroundMenu.js`) was tried and dropped: its
+  long-press gesture wins over a tile's click, so holding a poster opened the
+  wallpaper menu rather than the item.
+- The previews are attached on the overview's `showing`, not `shown`: the shell
+  builds them before it animates in, so the clones are there from the first frame.
+- `icons/library-symbolic.svg` is the television the TV Shows group has in Slider
+  Overlay. Its `-symbolic` name makes St recolour it to the theme's foreground.
