@@ -155,7 +155,7 @@ controllers are the keyboard too: `.claude/rules/keyboard.md`.
 `glib-compile-schemas --strict --dry-run`, then `scanner` (`EXT_CHECKS`): the
 scanner's imports (`gjs -m src/backend/scanLibrary.js --help`, in a scratch home) and
 a byte-compile of `scripts/*.py`. The scanner needs Soup 3, which `.github/ci-packages`
-adds to CI.
+adds to CI. It ends with `size` against `EXT_BUDGET_LINES` (10400: today's size, provisional).
 
 Seeing a change is the nested shell: the `gnome-ext:nested-shell` skill, then this
 repository's `drive-extension` skill (where things are, the `--stand-in` library the

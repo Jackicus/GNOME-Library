@@ -20,7 +20,11 @@
 #                               writing nothing
 #   ./scripts/dev.sh check      everything that needs no shell besides ESLint: the schema,
 #                               then this extension's own checks (EXT_CHECKS); what
-#                               'make check' runs after 'make lint', and what CI runs
+#                               'make check' runs after 'make lint', and what CI runs;
+#                               ends with 'size'
+#   ./scripts/dev.sh size       lines of JavaScript under src/, the share that is
+#                               comments and the try count, against EXT_BUDGET_LINES
+#                               (.claude/rules/simplicity.md in the kit); warns, never fails
 #   ./scripts/dev.sh status     what is installed, and its state in the running shell
 #   ./scripts/dev.sh uninstall  remove the extension
 #   ./scripts/dev.sh clean      remove dist/, and the compiled schema unless a link
@@ -76,6 +80,44 @@ cmd_check() {
         declare -F "cmd_${check//-/_}" >/dev/null || die "EXT_CHECKS names '$check', which no scripts/dev.d file defines."
         "cmd_${check//-/_}"
     done
+    cmd_size
+}
+
+# Counts every line of every .js file under src/ (blank ones too, as wc does), the
+# lines that are only comment, and the try blocks. A warning, never a failure.
+cmd_size() {
+    local lines comments tries
+    read -r lines comments tries < <(python3 - "$SRC_DIR" <<'PY'
+import pathlib, re, sys
+lines = comments = tries = 0
+for path in sorted(pathlib.Path(sys.argv[1]).rglob('*.js')):
+    in_block = False
+    for line in path.read_text(encoding='utf-8').splitlines():
+        lines += 1
+        text = line.strip()
+        if in_block:
+            comments += 1
+            in_block = '*/' not in text
+            continue
+        if text.startswith('//'):
+            comments += 1
+        elif text.startswith('/*'):
+            comments += 1
+            in_block = '*/' not in text[2:]
+        tries += len(re.findall(r'\btry\s*\{', line))
+print(lines, comments, tries)
+PY
+)
+    local share=$(( lines ? 100 * comments / lines : 0 ))
+    local summary="src/ JavaScript: $lines lines, $share% comment lines, $tries try blocks"
+    if [[ -z "${EXT_BUDGET_LINES:-}" ]]; then
+        warn "$summary; no EXT_BUDGET_LINES in scripts/ext.conf."
+    elif (( lines > EXT_BUDGET_LINES )); then
+        warn "$summary: over the budget of $EXT_BUDGET_LINES by $(( lines - EXT_BUDGET_LINES ))."
+    else
+        ok "$summary (budget $EXT_BUDGET_LINES)."
+    fi
+    (( share < 10 )) || warn "Comment lines are $share% of src/: the kit's simplicity rule keeps them well under 10%."
 }
 
 # What dev-extension.js builds, and the prefix it logs with.
