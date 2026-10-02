@@ -24,7 +24,7 @@ the same idea for games and runs alongside this one: see the last section.
   section's whole identity, its key, `<prefix>-` settings, title and icon. Nothing
   restates it: `prefs.js` imports it and adds only its pages, and the scanner takes
   its folders from the settings. A third section is an entry there plus its schema
-  keys. `LIBRARY` is the button's own title ("Videos") and icon, read only by
+  keys. `LIBRARY` is the button's own title ("Library") and icon, read only by
   `libraryButton.js`.
 - `src/backend/`: the scanner (below, and `src/backend/CLAUDE.md`).
 - `docs/`: `private-api.md` (every reach into shell internals, with what breaks),
