@@ -128,25 +128,14 @@ export const MediaPanel = GObject.registerClass({
     }
 
     _addClickAway() {
-        if (Clutter.ClickGesture) {
-            const clickGesture = new Clutter.ClickGesture();
-            clickGesture.connect('may-recognize', () => {
-                const coords = clickGesture.get_coords_abs();
-                const [, x, y] = this.child.transform_stage_point(coords.x, coords.y);
-                return !this._panel.allocation.contains(x, y);
-            });
-            clickGesture.connect('recognize', () => this.popdown());
-            this.add_action(clickGesture);
-            return;
-        }
-
-        const clickAction = new Clutter.ClickAction();
-        clickAction.connect('clicked', () => {
-            const [x, y] = clickAction.get_coords();
-            if (global.stage.get_actor_at_pos(Clutter.PickMode.ALL, x, y) === this)
-                this.popdown();
+        const clickGesture = new Clutter.ClickGesture();
+        clickGesture.connect('may-recognize', () => {
+            const coords = clickGesture.get_coords_abs();
+            const [, x, y] = this.child.transform_stage_point(coords.x, coords.y);
+            return !this._panel.allocation.contains(x, y);
         });
-        this.add_action(clickAction);
+        clickGesture.connect('recognize', () => this.popdown());
+        this.add_action(clickGesture);
     }
 
     get isOpen() {

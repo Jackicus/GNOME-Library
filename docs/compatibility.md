@@ -1,9 +1,10 @@
 # Compatibility
 
 `metadata.json` claims GNOME Shell 50 only: the one version the extension has
-been run on. The code is written for 48 to 50, and 48 and 49 have been read
-against the shell's sources but never booted, so they are not claimed. GNOME 51
-breaks it ([below](#gnome-51)). This page lists what was run where, every code
+been run on, and the only one the code is written for, with no fallback for an
+older shell (`ClickGesture`, the exported `WINDOW_ANIMATION_TIME`,
+`Adw.ShortcutLabel`, the stage context's backend). GNOME 51 breaks it
+([below](#gnome-51)). This page lists what was run where, every code
 path that depends on the version, and what claiming a version takes.
 
 ## What has been run, and where
@@ -40,8 +41,7 @@ the same shape at all four, except as noted below. Two shapes differ by
 version, and the code handles both:
 
 - **`AppFolderDialog`'s click-away** is a `Clutter.ClickAction` at `48.0` and a
-  `Clutter.ClickGesture` from `49.0`. `panel.js` `_addClickAway()` takes
-  `ClickGesture` when it exists, so it follows the shell on each.
+  `Clutter.ClickGesture` from `49.0`; `panel.js` `_addClickAway()` uses the gesture.
 - **`group._background`** in `workspaceAnimation.js` is a plain
   `Meta.BackgroundGroup` at `48.0` and `49.0`, and a `WorkspaceBackground`
   holding one from `50.0`. `overviewPreview.js` inserts its clone above
@@ -49,23 +49,17 @@ version, and the code handles both:
   either way.
 
 Also read, and the same at all four tags: `WINDOW_ANIMATION_TIME` is 250
-(module-private at 48 and 49, exported from 50, hence `app.js`'s restated
-`WORKSPACE_SLIDE_TIME`); `_getAppDisplayBoxForState` takes six arguments;
+(module-private at 48 and 49, exported from 50, where `app.js` imports it);
+`_getAppDisplayBoxForState` takes six arguments;
 `Main.wm.keepWorkspaceAlive` exists; `DIALOG_SHADE_NORMAL`,
 `PAGE_PREVIEW_RATIO`, `DASH_MAX_HEIGHT_RATIO` and `VERTICAL_SPACING_RATIO` are
 module-private with the values restated.
 
 ## Version-sensitive code
 
-- **`Adw.ShortcutLabel ?? Gtk.ShortcutLabel`** (`prefs.js`): libadwaita's is
-  1.8 (GNOME 49); 48 (libadwaita 1.7) takes GTK's, used the same way.
-  *Check first on 48:* a Controls key row's captured shortcut shows as a chip.
-- **`Adw.ToggleGroup`** (`prefs.js`, the "opens in", grid-align and "Keep marks
-  in" rows) is libadwaita 1.7, exactly GNOME 48's. It sets the preferences'
-  floor; every other widget used needs less. *Check first on 48:* those rows
-  are segmented controls.
-- **`St.BoxLayout({orientation})`** (48+) and **`-st-accent-color`** (47+) have
-  no fallback; they are why the floor is 48.
+- **`Adw.ShortcutLabel`** (`prefs.js`) is libadwaita 1.8 (GNOME 49) and
+  **`Adw.ToggleGroup`** 1.7; **`St.BoxLayout({orientation})`** is 48+ and
+  **`-st-accent-color`** 47+. None has a fallback.
 - **libmanette** is optional on every version: `controls.js` and `prefs.js`
   `loadManette()` import `gi://Manette` dynamically and go on without it.
 - **`enable()`/`disable()`**: the shipped entry point's are synchronous;
@@ -76,14 +70,13 @@ module-private with the values restated.
 
 Not claimed, and as written it fails to enable:
 
-1. `Clutter.get_default_backend()` is gone (gjs.guide, "Port Extensions to
-   GNOME Shell 51"; absent from mutter's `clutter-backend.h` at `51.0`).
-   `controls.js` `Controls.enable()` calls it, so `LibraryApp.enable()`
-   throws. The replacement, `global.stage.context.get_backend()`, works on 48
-   to 50.
-2. `st_focus_manager_navigate_from_event()` is gone (`st-focus-manager.h` at
+1. `st_focus_manager_navigate_from_event()` is gone (`st-focus-manager.h` at
    `51.0`). `panel.js` `vfunc_key_press_event()` calls it, so a key in either
    pop-up panel throws.
+
+`Clutter.get_default_backend()`, gone at `51.0` too, is no longer used:
+`controls.js` asks the stage's context for the backend, as the shell itself does
+at `50.0` and `51.0`.
 
 Everything else in [private-api.md](private-api.md) is there at `51.0`
 (`AppDisplay` is now exported and still extends the unexported `BaseAppView`).

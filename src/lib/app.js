@@ -4,6 +4,7 @@
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Util from 'resource:///org/gnome/shell/misc/util.js';
 import {adjustAnimationTime} from 'resource:///org/gnome/shell/misc/animationUtils.js';
+import {WINDOW_ANIMATION_TIME} from 'resource:///org/gnome/shell/ui/workspaceAnimation.js';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
@@ -30,8 +31,6 @@ import {note} from './log.js';
 
 // Gap between the surface and the work-area edges, in logical px.
 const OUTER_MARGIN = 28;
-// workspaceAnimation.js WINDOW_ANIMATION_TIME, restated.
-const WORKSPACE_SLIDE_TIME = 250;
 const LIBRARY = 'library';
 const DETAIL = 'detail';
 
@@ -438,7 +437,7 @@ export class LibraryApp {
         if (this._closeTimer)
             GLib.source_remove(this._closeTimer);
         this._closeTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT,
-            adjustAnimationTime(WORKSPACE_SLIDE_TIME) + 50, () => {
+            adjustAnimationTime(WINDOW_ANIMATION_TIME) + 50, () => {
                 this._closeTimer = 0;
                 this._leaving.clear();
                 this._holdWorkspaces();
@@ -812,11 +811,7 @@ export class LibraryApp {
         this._overlay = new Clutter.Actor({x_expand: true, y_expand: true});
         this._container.add_child(this._overlay);
 
-        const group = Main.layoutManager._backgroundGroup;
-        if (group)
-            group.add_child(this._container);
-        else
-            global.window_group.insert_child_at_index(this._container, 0);
+        Main.layoutManager._backgroundGroup.add_child(this._container);
 
         const place = this._placeForWorkspace(global.workspace_manager.get_active_workspace());
         if (place === DETAIL || (!place && !onSurface && this._picked))

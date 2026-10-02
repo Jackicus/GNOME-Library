@@ -60,7 +60,7 @@ export class Controls {
 
     enable() {
         current = this;
-        this._device = Clutter.get_default_backend().get_default_seat()
+        this._device = global.stage.context.get_backend().get_default_seat()
             .create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
         for (const action of ACTIONS) {
             this._settings.connectObject(`changed::keys-${action.key}`, () => this._readKeys(), this);
