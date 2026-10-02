@@ -75,7 +75,6 @@ export function createArtwork({path, title, icon, width, height, styleClass = 'm
 export function createIconButton(iconName, {styleClass = 'icon-button', accessibleName} = {}) {
     return new St.Button({
         style_class: styleClass,
-        reactive: true,
         can_focus: true,
         track_hover: true,
         accessible_name: accessibleName,
@@ -91,7 +90,6 @@ export function createActionButton({label, icon, styleClass = 'button default ml
     content.add_child(text);
     const button = new St.Button({
         style_class: styleClass,
-        reactive: true,
         can_focus: true,
         track_hover: true,
         child: content,
@@ -148,7 +146,7 @@ function createTabs(sections, active, onSwitch) {
             if (tab.checked)
                 return;
             setActive(section.key);
-            onSwitch?.(section.key);
+            onSwitch(section.key);
         };
         tab.connect('clicked', choose);
         tab.connect('key-focus-in', choose);
@@ -266,7 +264,6 @@ export function createPill(text, styleClass, style = null) {
 export function createRow({index, title, subtitle, badges = [], size, onActivate, watched = null, onWatched}) {
     const row = new St.Button({
         style_class: 'button flat ml-row',
-        reactive: true,
         can_focus: true,
         track_hover: true,
         x_expand: true,
@@ -297,7 +294,6 @@ export function createRow({index, title, subtitle, badges = [], size, onActivate
             y_align: Clutter.ActorAlign.CENTER,
             toggle_mode: true,
             checked: watched,
-            reactive: true,
             track_hover: true,
             accessible_name: 'Watched',
             child: face,
@@ -309,7 +305,7 @@ export function createRow({index, title, subtitle, badges = [], size, onActivate
         sync();
         disc.connect('clicked', () => {
             sync();
-            onWatched?.(disc.checked);
+            onWatched(disc.checked);
         });
         row.setWatched = value => {
             disc.checked = value;
@@ -319,7 +315,7 @@ export function createRow({index, title, subtitle, badges = [], size, onActivate
         row.toggleWatched = () => {
             disc.checked = !disc.checked;
             sync();
-            onWatched?.(disc.checked);
+            onWatched(disc.checked);
         };
         content.add_child(disc);
     }
@@ -348,7 +344,7 @@ export function createRow({index, title, subtitle, badges = [], size, onActivate
     }));
 
     row.set_child(content);
-    row.connect('clicked', () => onActivate?.());
+    row.connect('clicked', () => onActivate());
     return row;
 }
 
@@ -367,7 +363,7 @@ export function createEmptyState({icon, title, hint, actionLabel, onAction}) {
     if (actionLabel) {
         const button = createActionButton({label: actionLabel, icon: 'preferences-system-symbolic', styleClass: 'button ml-action-secondary'});
         button.x_align = Clutter.ActorAlign.CENTER;
-        button.connect('clicked', () => onAction?.());
+        button.connect('clicked', () => onAction());
         box.add_child(button);
     }
     return box;

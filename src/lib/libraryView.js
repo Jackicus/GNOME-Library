@@ -36,7 +36,7 @@ export class LibraryView {
             active: this._key,
             onSwitch: key => {
                 this.show(key);
-                this._onSwitch?.(key);
+                this._onSwitch(key);
             },
             onBack,
             end,
@@ -135,7 +135,7 @@ export class LibraryView {
                 icon: section.icon,
                 title: `No ${section.title.toLowerCase()} yet`,
                 hint: section.emptyHint,
-                actionLabel: this._onOpenSettings ? 'Open Settings' : null,
+                actionLabel: 'Open Settings',
                 onAction: this._onOpenSettings,
             });
         }

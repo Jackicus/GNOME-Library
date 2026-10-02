@@ -124,7 +124,7 @@ export class LibraryWindow {
                 onActivate: this._onActivate,
                 onSwitch: tab => {
                     this._key = tab;
-                    this._onSwitch?.(tab);
+                    this._onSwitch(tab);
                 },
                 onOpenSettings: this._onOpenSettings,
             });

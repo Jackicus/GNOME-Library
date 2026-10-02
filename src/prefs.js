@@ -497,8 +497,8 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
 
         // As GNOME Settings does: a key the system has taken reaches the dialog.
         const surface = window.get_surface();
-        surface?.inhibit_system_shortcuts?.(null);
-        dialog.connect('closed', () => surface?.restore_system_shortcuts?.());
+        surface.inhibit_system_shortcuts(null);
+        dialog.connect('closed', () => surface.restore_system_shortcuts());
         dialog.present(window);
         return dialog;
     }
@@ -803,7 +803,7 @@ export default class VideoLibraryPreferences extends ExtensionPreferences {
     _sourcesGroup(state, section) {
         const {settings} = state;
         const key = `${section.prefix}-sources`;
-        const offered = section.sources ?? [];
+        const offered = section.sources;
 
         const group = new Adw.PreferencesGroup({
             title: 'Information sources',
